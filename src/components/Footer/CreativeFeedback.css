@@ -1,0 +1,114 @@
+.feedback-wrapper {
+    padding: 20px;
+    background: linear-gradient(135deg, #ffffff, #f9fcff);
+    border-radius: 12px;
+    font-family: 'Segoe UI', sans-serif;
+    color: #333;
+    font-size: 14px;
+  }
+  
+  .feedback-wrapper h2 {
+    text-align: center;
+    margin-bottom: 15px;
+    font-size: 18px;
+    color: #444;
+  }
+  
+  .question-block {
+    margin-bottom: 15px;
+  }
+  
+  .question-block p {
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  
+  .radio-group,
+  .rating-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .radio-group label,
+  .rating-bar label {
+    background-color: #f0f0f0;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 1px solid #ddd;
+    font-size: 13px;
+  }
+  
+  .colorful label {
+    background-color: #ffe5ec;
+    border: 1px solid #ffb3c6;
+  }
+  
+  textarea {
+    width: 100%;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 13px;
+  }
+  
+  .feedback-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+  }
+  
+  .btn-submit,
+  .btn-back {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  
+  .btn-submit {
+    background-color: #28a745;
+    color: white;
+  }
+  
+  .btn-back {
+    background-color: #ddd;
+    color: #333;
+  }
+  
+  /* Modal Styling */
+  .feedback-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+  }
+  
+  .feedback-modal {
+    background: #fff;
+    padding: 1.5rem;
+    border-radius: 10px;
+    max-width: 500px;
+    width: 90%;
+    position: relative;
+  }
+  
+  .feedback-close {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    background: transparent;
+    border: none;
+    font-size: 1.3rem;
+    cursor: pointer;
+  }
+  

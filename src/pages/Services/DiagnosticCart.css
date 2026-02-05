@@ -1,0 +1,241 @@
+.diagnostic-cart-page {
+  padding: 20px 0;
+}
+
+.diagnostic-cart-header {
+  text-align: center;
+  margin-bottom: 30px;
+  position: relative;
+      margin-top: 20px;
+}
+
+.cart-header h1 {
+  color: #2c3e50;
+  margin-bottom: 10px;
+}
+
+.cart-subtitle {
+  color: #7f8c8d;
+  font-size: 1.1rem;
+}
+
+/* .back-btn-cart{
+  position: absolute;
+  left: -103px;
+  top: 0;
+  background: none;
+  border: none;
+  color: #3498db;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 10px;
+  transition: color 0.3s;
+}
+
+.back-btn.back-btn-cart {
+  color: #2980b9;
+  text-decoration: underline;
+} */
+
+.cart-table {
+  margin-bottom: 0;
+}
+
+.cart-table th {
+  background-color: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+  font-weight: 600;
+}
+
+.cart-table td {
+  vertical-align: middle;
+}
+
+.quantity-selector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quantity-selector .btn {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quantity-display {
+  min-width: 40px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.for-whom-selector {
+  min-width: 150px;
+}
+
+.notes-section {
+  background-color: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  border-left: 4px solid #3498db;
+}
+
+.price-breakdown .price-row,
+.price-breakdown .total-row {
+  padding: 5px 0;
+}
+
+.total-row h4, .total-row h5 {
+  margin: 0;
+}
+
+.additional-info {
+  border-top: 1px solid #eee;
+  padding-top: 15px;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.info-item:last-child {
+  margin-bottom: 0;
+}
+
+.dc-info {
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border-left: 4px solid #2ecc71;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .cart-header .back-btn {
+    position: relative;
+    margin-bottom: 15px;
+  }
+  
+  .quantity-selector {
+    flex-direction: column;
+  }
+  
+  .quantity-selector .btn {
+    margin: 2px 0;
+  }
+  
+  .cart-table {
+    font-size: 0.9rem;
+  }
+}
+
+
+/* Main Layout */
+.DiagnosticCart-layout {
+  display: flex;
+  gap: 24px;
+}
+
+/* LEFT – Calendar */
+.DiagnosticCart-calendar {
+  width: 40%;
+  padding-right: 20px;
+  border-right: 1px solid #ddd;
+}
+
+.DiagnosticCart-title {
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+/* RIGHT – Slots */
+.DiagnosticCart-slots {
+  width: 60%;
+}
+
+/* Time Period Buttons – ONE ROW */
+.DiagnosticCart-period-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.DiagnosticCart-period-btn {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ccc;
+  background: #f8f9fa;
+  border-radius: 6px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.DiagnosticCart-period-btn.active {
+  background: #667eea;
+  color: #fff;
+  border-color: #667eea;
+}
+
+/* Slots Grid – NO SCROLL */
+.DiagnosticCart-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.DiagnosticCart-slot-btn {
+  padding: 12px;
+  border: 1px solid #ccc;
+  background: #fff;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.DiagnosticCart-slot-btn.active {
+  background: #667eea;
+  color: #fff;
+  border-color: #667eea;
+}
+
+.DiagnosticCart-no-slots {
+  color: #999;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .DiagnosticCart-layout {
+    flex-direction: column;
+  }
+
+  .DiagnosticCart-calendar,
+  .DiagnosticCart-slots {
+    width: 100%;
+    border: none;
+    padding-right: 0;
+  }
+
+  .DiagnosticCart-slots-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+
+.close-consultation-btn {
+  background: #ff6b6b;
+  color: white;
+  border: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+}

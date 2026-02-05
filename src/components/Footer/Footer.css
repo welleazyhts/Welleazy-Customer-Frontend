@@ -1,0 +1,260 @@
+/* Newsletter Floating Card */
+.newsletter-floating-card {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: 0;
+  margin-bottom: -90px;
+  z-index: 10;
+  pointer-events: auto;
+}
+.newsletter-content {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 24px rgba(91,134,229,0.10);
+  padding: 36px 48px 24px 48px;
+  max-width: 900px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.newsletter-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.newsletter-bold {
+  font-size: 2.6rem;
+  font-weight: 800;
+  color: #222;
+  letter-spacing: 1px;
+}
+.newsletter-light {
+  font-size: 2.6rem;
+  font-weight: 300;
+  color: #444;
+  letter-spacing: 1px;
+}
+.newsletter-form-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 10px;
+  width: 100%;
+}
+.newsletter-input {
+  flex: 1;
+  border: none;
+  border-bottom: 2px solid #1976d2;
+  font-size: 1.1rem;
+  padding: 8px 12px;
+  outline: none;
+  background: transparent;
+}
+.newsletter-arrow {
+  background: none;
+  border: none;
+  color: #1976d2;
+  font-size: 1.5rem;
+  margin-left: 8px;
+  cursor: pointer;
+}
+.newsletter-desc {
+  color: #666;
+  font-size: 1rem;
+  margin-top: 8px;
+}
+
+/* Footer Styles */
+.welleazy-footer {
+  background: #05406a;
+  color: #fff;
+  padding: 120px 0 0 0;
+  position: relative;
+  font-size: 1rem;
+}
+.footer-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 40px;
+  padding: 40px 0 0 0;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.footer-col {
+  flex: 1;
+  color: #fff;
+  font-size: 1rem;
+}
+.footer-col-title {
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin-bottom: 10px;
+}
+.logo-col {
+  flex: 1.2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-left: -24px;
+}
+.footer-logo {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 10px;
+  width: 160px;
+  height: auto;
+}
+.footer-desc {
+  color: #cce3f7;
+  font-size: 1rem;
+  margin-bottom: 10px;
+}
+.footer-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 0 10px 0;
+  border-top: 1px solid #195a8a;
+  margin-top: 30px;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.footer-bottom-left {
+  color: #cce3f7;
+  text-align: left;
+  font-size: 0.95rem;
+}
+.footer-bottom-right a {
+  color: #fff;
+  margin-left: 18px;
+  font-size: 1.3rem;
+  transition: color 0.2s;
+}
+.footer-bottom-right a:hover {
+  color: #36b6e5;
+}
+
+/* Feedback Button */
+.feedback-btn {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  background: linear-gradient(90deg, #ff9800 0%, #ffb347 100%);
+  color: #fff;
+  padding: 12px 28px;
+  border-radius: 30px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(255,152,0,0.10);
+  cursor: pointer;
+  z-index: 100;
+  transition: background 0.2s, color 0.2s;
+}
+.feedback-btn:hover {
+  background: linear-gradient(90deg, #ffb347 0%, #ff9800 100%);
+}
+
+@media (max-width: 900px) {
+  .footer-main {
+    flex-direction: column;
+    gap: 24px;
+    padding: 32px 0 0 0;
+  }
+  .footer-bottom {
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px 0 10px 0;
+  }
+  .newsletter-content {
+    padding: 24px 12px 18px 12px;
+  }
+  .newsletter-floating-card {
+    margin-bottom: -40px;
+  }
+  .our-location-section {
+    margin-bottom: 40px;
+  }
+  .logo-col {
+    align-items: flex-start;
+    margin-left: -8px;
+  }
+}
+
+.our-location-section {
+  margin-bottom: 90px;
+}
+
+.footer-quicklinks-columns {
+  display: flex;
+  gap: 32px;
+}
+.footer-quicklinks-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.footer-quicklinks-col a {
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .footer-quicklinks-columns {
+    flex-direction: column;
+    gap: 12px;
+  }
+} 
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.feedback-modal-overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
+  z-index: 9999;
+}
+
+.feedback-modal {
+  background: #fff;
+  width: 100px;
+  height: 70vh; /* Full vertical height */
+  padding: 2rem;
+  position: fixed;
+  top: 0;
+  left: 0;
+  animation: slideInLeft 0.4s ease forwards;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.2);
+  overflow-y: auto;
+  border-top-right-radius: 16px;
+  border-bottom-right-radius: 16px;
+}
+
+.feedback-close {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+}

@@ -1,0 +1,130 @@
+.service-card {
+  height: 100%;
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+  transition: all 0.4s ease;
+  border: none;
+  position: relative;
+  z-index: 1;
+}
+
+.service-card:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 15px 30px rgba(91, 134, 229, 0.15);
+}
+
+.service-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(to right, #5b86e5, #36d1dc);
+  z-index: 2;
+}
+
+.service-card .card-body {
+  padding: 2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.card-icon-wrapper {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  background: linear-gradient(135deg, rgba(91, 134, 229, 0.1), rgba(54, 209, 220, 0.1));
+  color: #5b86e5;
+}
+
+.service-icon {
+  font-size: 1.5rem;
+  transition: transform 0.3s ease;
+}
+
+.service-card:hover .service-icon {
+  transform: scale(1.2);
+}
+
+.service-card .card-title {
+  color: #2d3748;
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+  font-weight: 700;
+}
+
+.service-card .card-text {
+  color: #718096;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+  flex-grow: 1;
+}
+
+.service-card .card-action {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.action-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 30px;
+  padding: 8px 20px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  background: linear-gradient(135deg, #5b86e5, #36d1dc);
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.action-button:hover {
+  background: linear-gradient(135deg, #4a75d4, #25c0cb);
+  transform: translateX(5px);
+}
+
+.arrow-icon {
+  transition: transform 0.3s ease;
+}
+
+.action-button:hover .arrow-icon {
+  transform: translateX(3px);
+}
+
+.service-card.sponsored {
+  box-shadow: 0 10px 25px rgba(91, 134, 229, 0.2);
+}
+
+.service-card.sponsored::before {
+  height: 6px;
+}
+
+.sponsored-label {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: linear-gradient(135deg, #5b86e5, #36d1dc);
+  color: white;
+  padding: 4px 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border-radius: 20px;
+  z-index: 10;
+}
+
+.coming-soon {
+  color: #e53e3e;
+  font-style: italic;
+  font-weight: 500;
+  display: inline-block;
+  padding: 8px 0;
+} 

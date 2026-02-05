@@ -1,0 +1,184 @@
+/* Reset and layout */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #fff;
+  }
+  
+  /* Container */
+  .appointment-container {
+    width: 100%;
+    max-width: 1100px;
+    margin: 30px auto;
+    padding: 20px 40px;
+    display: flex;
+    flex-direction: column;
+    /* align-items: center; */
+  }
+  
+  /* Header */
+  .appointment-header h1 {
+    color: #007bff;
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 30px;
+   
+  }
+  
+  
+  /* Card */
+  .appointment-card {
+    width: 100%;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #fff;
+    padding: 20px 30px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  }
+  
+  .appointment-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  
+  .appointment-name {
+    font-size: 18px;
+    color: #007bff;
+    font-weight: 500;
+    margin-right: auto;
+  }
+  
+  /* Date Picker and Add Button */
+  .date-picker-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .modern-datepicker-input {
+    padding: 10px 15px;
+    font-size: 14px;
+    border: none;
+    border-radius: 6px;
+    background-color: #007bff;
+    color: white;
+    cursor: pointer;
+  }
+  
+  .modern-datepicker-input::placeholder {
+    color: white;
+  }
+  
+  .react-datepicker-wrapper {
+    width: auto;
+  }
+  
+  .react-datepicker__input-container input {
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 15px;
+    font-size: 14px;
+  }
+  
+  .react-datepicker__input-container input:focus {
+    outline: none;
+  }
+  
+  .add-button {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #007bff;
+    cursor: pointer;
+    padding: 0 8px;
+    font-weight: bold;
+    transform: translateY(-1px);
+  }
+  
+  /* Action Buttons */
+  .appointment-actions {
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+    margin-top: 40px;
+    gap: 15px;
+  }
+  
+  .btn {
+    padding: 10px 25px;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    transition: transform 0.1s ease-in-out;
+  }
+  
+  .back-btn {
+    background: linear-gradient(to right, #d35400, #f39c12);
+  }
+  
+  .confirm-btn {
+    background: linear-gradient(to right, #f39c12, #e67e22);
+  }
+  
+  .btn:hover {
+    transform: translateY(-1px);
+  }
+  
+  /* Footer */
+  .appointment-footer {
+    margin-top: 60px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .our-location-section {
+    margin: 48px 0 0 0;
+    padding: 32px 0;
+  }
+  .location-card,
+  .large-location-card {
+    min-width: 120px;
+    max-width: 140px;
+    height: 90px;
+    border-radius: 16px;
+    padding: 12px 6px 6px 6px;
+  }
+  .location-img,
+  .large-location-img {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 6px;
+  }
+  .location-name,
+  .large-location-name {
+    font-size: 0.95rem;
+    margin-top: 2px;
+  }
+  
+  /* Override carousel arrows in Our Locations section */
+  .our-location-section .carousel-arrow,
+  .our-location-section .carousel-arrow-left,
+  .our-location-section .carousel-arrow-right {
+    color: #555 !important; /* Neutral gray */
+    background: transparent !important;
+    transition: none !important; /* Disable animation */
+    transform: none !important;  /* Remove hover lift */
+  }
+  
+  /* Optional: On hover, keep the arrow static */
+  .our-location-section .carousel-arrow:hover,
+  .our-location-section .carousel-arrow-left:hover,
+  .our-location-section .carousel-arrow-right:hover {
+    background: transparent !important;
+    color: #000 !important;
+    transform: none !important;
+  }
+  

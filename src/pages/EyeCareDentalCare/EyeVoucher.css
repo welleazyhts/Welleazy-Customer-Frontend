@@ -1,0 +1,828 @@
+.voucher-container {
+  padding: 15px 0;
+  
+  min-height: 100vh;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Premium Card Design - Reduced Size */
+.premium-card {
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  background: white;
+  margin: 0 auto;
+  margin-top: 10px;
+}
+
+/* Gradient Header - Reduced Padding */
+.voucher-header-gradient {
+  padding: 20px;
+  color: white;
+}
+
+.voucher-header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-icon {
+  font-size: 2rem;
+  opacity: 0.9;
+  min-width: 40px;
+}
+
+.header-text {
+  flex: 1;
+  margin-left: 15px;
+}
+
+.voucher-main-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.voucher-subtitle {
+  font-size: 0.9rem;
+  opacity: 0.9;
+  margin: 3px 0 0 0;
+}
+
+/* Success Section - Reduced Padding */
+.success-section {
+  background: linear-gradient(135deg, #f8f9ff 0%, #e3f2fd 100%);
+  border-bottom: 1px solid #e3f2fd;
+  padding: 15px !important;
+}
+
+.success-icon {
+  font-size: 2.5rem;
+  animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+  40% {transform: translateY(-5px);}
+  60% {transform: translateY(-3px);}
+}
+
+.success-title {
+  color: #2c3e50;
+  font-weight: 700;
+  margin-bottom: 5px;
+  font-size: 1.3rem;
+}
+
+.success-message {
+  color: #6c757d;
+  font-size: 0.9rem;
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+.appointment-date {
+  color: #495057;
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+
+/* Detail Cards - Compact Design */
+.voucher-details-grid {
+  padding: 20px;
+}
+
+.detail-card {
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 10px;
+  padding: 15px;
+  height: 100%;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.04);
+  margin-bottom: 10px;
+}
+
+.detail-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+}
+
+.detail-card-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f8f9fa;
+}
+
+.detail-card-header h5 {
+  margin: 0;
+  color: #2c3e50;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.detail-card-body {
+  padding: 0;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f8f9fa;
+  min-height: 36px;
+}
+
+.detail-item:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: #495057;
+  font-size: 0.85rem;
+  min-width: 100px;
+  text-align: left;
+}
+
+.detail-value {
+  color: #2c3e50;
+  font-weight: 500;
+  font-size: 0.9rem;
+  text-align: right;
+  word-break: break-word;
+  flex: 1;
+}
+
+.detail-value.highlight {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.treatment-name {
+  font-weight: 600;
+}
+
+.vendor-name {
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.address-text {
+  color: #6c757d;
+  font-size: 0.85rem;
+  line-height: 1.3;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+/* Status Badge */
+.status-badge-small {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Instructions Section - Compact */
+.instructions-section {
+  background: #f8f9fa;
+  padding: 15px;
+  border-top: 1px solid #e9ecef;
+}
+
+.instructions-title {
+  color: #2c3e50;
+  font-weight: 600;
+  margin-bottom: 15px;
+  text-align: center;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.instruction-item {
+  text-align: center;
+  padding: 10px 5px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease;
+  height: 100%;
+}
+
+.instruction-item:hover {
+  transform: translateY(-1px);
+}
+
+.instruction-icon {
+  font-size: 1.5rem;
+  margin-bottom: 5px;
+}
+
+.instruction-text {
+  font-size: 0.8rem;
+  color: #495057;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+/* Footer - Compact */
+.voucher-footer {
+  color: white;
+  padding: 15px;
+}
+
+.footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+
+.footer-text {
+  flex: 1;
+}
+
+.footer-text p {
+  margin: 0;
+  opacity: 0.9;
+  font-size: 0.85rem;
+  line-height: 1.3;
+}
+
+.footer-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo-circle {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+}
+
+.logo-text {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/* Buttons - Print Left, Download Right */
+.back-btn {
+  border-radius: 18px;
+  padding: 6px 15px;
+  font-weight: 500;
+  border: 1px solid #dee2e6;
+  font-size: 0.85rem;
+}
+
+.print-btn {
+  border-radius: 18px;
+  padding: 6px 15px;
+  font-weight: 500;
+  font-size: 0.85rem;
+  min-width: 90px;
+  background-color: white;
+  color: #0d6efd;
+  border: 1px solid #0d6efd;
+}
+
+.print-btn:hover {
+  background-color: #0d6efd;
+  color: white;
+}
+
+.download-btn {
+  border-radius: 18px;
+  padding: 6px 15px;
+  font-weight: 500;
+  font-size: 0.85rem;
+  min-width: 90px;
+  background: #0d6efd;
+  border: none;
+}
+
+.download-btn:hover {
+  background: #0b5ed7;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.quick-actions {
+  margin-top: 10px;
+}
+
+.quick-actions .btn {
+  border-radius: 18px;
+  padding: 6px 15px;
+  font-weight: 500;
+  font-size: 0.85rem;
+  margin: 3px;
+}
+
+/* Print Styles */
+@media print {
+  .voucher-container {
+    background: white !important;
+    padding: 0;
+  }
+  
+  .back-btn,
+  .action-buttons,
+  .quick-actions {
+    display: none !important;
+  }
+  
+  .premium-card {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+    margin: 0;
+    max-width: 100%;
+  }
+  
+  .voucher-header-gradient {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  .detail-card {
+    box-shadow: none !important;
+    border: 1px solid #eee !important;
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .voucher-container {
+    padding: 10px;
+  }
+  
+  .voucher-header-content {
+    flex-direction: column;
+    text-align: center;
+    gap: 10px;
+  }
+  
+  .header-text {
+    margin-left: 0;
+  }
+  
+  .voucher-main-title {
+    font-size: 1.3rem;
+  }
+  
+  .voucher-subtitle {
+    font-size: 0.8rem;
+  }
+  
+  .voucher-details-grid {
+    padding: 15px;
+  }
+  
+  .detail-card {
+    padding: 12px;
+  }
+  
+  .detail-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    padding: 6px 0;
+  }
+  
+  .detail-label {
+    min-width: auto;
+    font-size: 0.8rem;
+  }
+  
+  .detail-value {
+    text-align: left;
+    width: 100%;
+    font-size: 0.85rem;
+  }
+  
+  .address-text {
+    justify-content: flex-start;
+  }
+  
+  .footer-content {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+  
+  .footer-text p {
+    font-size: 0.8rem;
+  }
+  
+  .action-buttons {
+    margin-top: 10px;
+    width: 100%;
+    justify-content: flex-end;
+  }
+  
+  .header-actions {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    margin-top: 10px;
+  }
+}
+
+@media (max-width: 576px) {
+  .premium-card {
+    border-radius: 8px;
+  }
+  
+  .voucher-header-gradient {
+    padding: 15px;
+  }
+  
+  .voucher-main-title {
+    font-size: 1.2rem;
+  }
+  
+  .success-title {
+    font-size: 1.1rem;
+  }
+  
+  .success-icon {
+    font-size: 2rem;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+    width: auto;
+  }
+  
+  .print-btn,
+  .download-btn {
+    min-width: 80px;
+    padding: 5px 12px;
+  }
+  
+  .instructions-section .row {
+    margin: 0 -3px;
+  }
+  
+  .instructions-section .col-sm-6 {
+    padding: 0 3px;
+  }
+  
+  .instruction-item {
+    padding: 8px 3px;
+  }
+  
+  .instruction-icon {
+    font-size: 1.2rem;
+  }
+  
+  .instruction-text {
+    font-size: 0.75rem;
+  }
+}
+
+
+.vendor-info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vendor-info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+}
+
+.info-label {
+  font-weight: 600;
+  color: #495057;
+  font-size: 0.85rem;
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.info-value {
+  color: #2c3e50;
+  font-weight: 500;
+  font-size: 0.9rem;
+  flex: 1;
+  line-height: 1.4;
+}
+
+@media (max-width: 768px) {
+  .vendor-info-item {
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .info-label {
+    min-width: auto;
+    width: 100%;
+  }
+}
+
+/* Voucher Header - Updated */
+.voucher-header-gradient {
+  padding: 20px;
+  color: white;
+  position: relative;
+}
+
+.voucher-header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 15px;
+}
+
+.header-icon {
+  font-size: 2rem;
+  opacity: 0.9;
+  min-width: 40px;
+}
+
+.header-text {
+  flex: 1;
+}
+
+.voucher-main-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.voucher-subtitle {
+  font-size: 0.9rem;
+  opacity: 0.9;
+  margin: 3px 0 0 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+.header-download-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  padding: 6px 15px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: white;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.header-download-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.header-download-btn:active {
+  transform: translateY(0);
+}
+
+/* Icon Only Button for Mobile */
+.header-download-icon {
+  display: none;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  transition: all 0.3s ease;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .voucher-header-content {
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+  
+  .header-left {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+  
+  .header-right {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+  }
+  
+  .header-download-btn {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+  }
+  
+  .header-text {
+    text-align: center;
+  }
+  
+  .header-icon {
+    display: none; /* Hide icon on mobile for more space */
+  }
+}
+
+@media (max-width: 576px) {
+  .voucher-header-gradient {
+    padding: 15px;
+  }
+  
+  .header-download-btn {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+  }
+  
+  .header-download-btn .me-2 {
+    margin-right: 3px;
+  }
+}
+
+/* Add to existing CSS */
+
+/* PDF download button in header */
+.header-download-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  padding: 6px 15px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: white;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.header-download-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Ensure good print/PDF quality */
+@media print {
+  .voucher-container {
+    background: white !important;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .premium-card {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+    margin: 0 auto;
+    max-width: 100%;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  
+  .voucher-header-gradient {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    
+  }
+  
+  .detail-card {
+    box-shadow: none !important;
+    border: 1px solid #eee !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+  
+  .quick-actions {
+    display: none !important;
+  }
+  
+  /* Ensure PDF has proper colors */
+  .success-icon {
+    color: #28a745 !important;
+  }
+  
+  .status-badge-small {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  /* Force background colors for gradients in print */
+  .voucher-header-gradient {
+    background: #0d6efd !important; /* Fallback for print */
+  }
+  
+  .is-dental .voucher-header-gradient {
+    background: #dc3545 !important;
+  }
+}
+
+/* For PDF generation */
+.voucher-card {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* Fix for emoji icons in PDF */
+.instruction-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+/* Ensure proper spacing for PDF */
+.voucher-details-grid {
+  page-break-inside: avoid;
+}
+
+.detail-card {
+  page-break-inside: avoid;
+}
+
+/* Hide download button in PDF / print */
+@media print {
+  .header-download-btn,
+  .back-btn,
+  .quick-actions {
+    display: none !important;
+  }
+}
+
+
+/* Hide in PDF & Print */
+.hide-in-pdf {
+  display: inline-block;
+}
+
+@media print {
+  .hide-in-pdf {
+    display: none !important;
+  }
+}
+
+#voucher-content {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.voucher-card,
+.detail-card,
+.instructions-section {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+#voucher-content {
+  max-height: 1120px;
+  overflow: hidden;
+}
+
+/* Hide only while PDF is being generated */
+.pdf-mode .hide-in-pdf {
+  display: none !important;
+}
+
+/* Optional: also hide during browser print */
+@media print {
+  .hide-in-pdf {
+    display: none !important;
+  }
+}

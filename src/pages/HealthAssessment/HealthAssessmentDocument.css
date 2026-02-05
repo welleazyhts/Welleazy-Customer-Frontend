@@ -1,0 +1,873 @@
+/* Health Assessment Document - All classes prefixed */
+.health-assessment-document {
+  max-width: 1200px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+}
+
+/* Header Styles */
+.health-assessment-document-header {
+  position: relative;
+  overflow: hidden;
+}
+
+.health-assessment-document-header-gradient {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 40px 50px;
+  position: relative;
+}
+
+.health-assessment-document-header-gradient::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 100" preserveAspectRatio="none"><path d="M0,50 C250,100 750,0 1000,50 L1000,100 L0,100 Z" fill="rgba(255,255,255,0.1)"/></svg>');
+  background-size: cover;
+}
+
+.health-assessment-document-header-content {
+  position: relative;
+  z-index: 2;
+}
+
+.health-assessment-document-title {
+  color: white;
+  font-size: 36px;
+  font-weight: 800;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  letter-spacing: -0.5px;
+}
+
+.health-assessment-document-icon {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 12px;
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  font-size: 28px;
+}
+
+.health-assessment-document-subtitle {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 16px;
+  margin-bottom: 40px;
+  font-weight: 500;
+}
+
+.health-assessment-document-header-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.health-assessment-document-meta-card {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: transform 0.3s ease;
+}
+
+.health-assessment-document-meta-card:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.health-assessment-document-meta-icon {
+  font-size: 24px;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 12px;
+  border-radius: 10px;
+}
+
+.health-assessment-document-meta-content {
+  flex: 1;
+}
+
+.health-assessment-document-meta-label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 5px;
+}
+
+.health-assessment-document-meta-value {
+  color: white;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* 3 SMALL BUTTONS IN SINGLE ROW */
+.health-assessment-document-control-panel {
+  background: #f8fafc;
+  padding: 15px 50px;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.health-assessment-document-control-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+/* Button Styles */
+.health-assessment-document-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  min-width: 110px;
+  height: 36px;
+}
+
+.health-assessment-document-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.health-assessment-document-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.health-assessment-document-btn-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.health-assessment-document-primary-btn {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.health-assessment-document-secondary-btn {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+}
+
+.health-assessment-document-accent-btn {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+}
+
+.health-assessment-document-outline-btn {
+  background: white;
+  color: #475569;
+  border: 2px solid #e2e8f0;
+}
+
+.health-assessment-document-back-btn {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+/* Main Content */
+.health-assessment-document-main-content {
+  padding: 40px 50px;
+}
+
+.health-assessment-document-two-column-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  margin-bottom: 50px;
+}
+
+.health-assessment-document-column {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+
+/* Info Card Styles */
+.health-assessment-document-info-card {
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  border: 1px solid #f1f5f9;
+  transition: all 0.3s ease;
+  position: relative;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+}
+
+.health-assessment-document-info-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+  border-color: #e2e8f0;
+}
+
+.health-assessment-document-card-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 25px 30px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+.health-assessment-document-section-number {
+  font-size: 28px;
+  font-weight: 800;
+  color: #cbd5e1;
+  line-height: 1;
+}
+
+.health-assessment-document-section-title {
+  flex: 1;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.health-assessment-document-card-icon {
+  font-size: 24px;
+  background: white;
+  padding: 12px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.health-assessment-document-card-content {
+  padding: 30px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  max-height: 220px;
+}
+
+/* Data Item Styles */
+.health-assessment-document-data-item {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 15px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #f1f5f9;
+  min-height: 40px;
+}
+
+.health-assessment-document-data-item:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.health-assessment-document-data-label {
+  flex: 0 0 180px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-right: 20px;
+  align-self: center;
+}
+
+.health-assessment-document-data-value {
+  flex: 1;
+  font-size: 16px;
+  color: #1e293b;
+  font-weight: 500;
+  line-height: 1.5;
+  word-break: break-word;
+  align-self: center;
+}
+
+/* Special Card Variations */
+.health-assessment-document-medical {
+  min-height: 320px;
+}
+
+.health-assessment-document-medical .health-assessment-document-card-header {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+}
+
+.health-assessment-document-medical .health-assessment-document-card-icon {
+  background: #fbbf24;
+  color: white;
+}
+
+.health-assessment-document-diet {
+  min-height: 360px;
+}
+
+.health-assessment-document-diet .health-assessment-document-card-header {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+}
+
+.health-assessment-document-diet .health-assessment-document-card-icon {
+  background: #10b981;
+  color: white;
+}
+
+.health-assessment-document-hereditary {
+  min-height: 360px;
+}
+
+.health-assessment-document-hereditary .health-assessment-document-card-header {
+  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+}
+
+.health-assessment-document-hereditary .health-assessment-document-card-icon {
+  background: #8b5cf6;
+  color: white;
+}
+
+.health-assessment-document-fitness {
+  min-height: 340px;
+}
+
+.health-assessment-document-fitness .health-assessment-document-card-header {
+  background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+}
+
+.health-assessment-document-fitness .health-assessment-document-card-icon {
+  background: #ec4899;
+  color: white;
+}
+
+.health-assessment-document-employee {
+  min-height: 280px;
+}
+
+.health-assessment-document-employee .health-assessment-document-card-header {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+}
+
+.health-assessment-document-employee .health-assessment-document-card-icon {
+  background: #f59e0b;
+  color: white;
+}
+
+.health-assessment-document-health {
+  min-height: 340px;
+}
+
+.health-assessment-document-health .health-assessment-document-card-header {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+}
+
+.health-assessment-document-health .health-assessment-document-card-icon {
+  background: #ef4444;
+  color: white;
+}
+
+.health-assessment-document-sleep {
+  min-height: 320px;
+}
+
+.health-assessment-document-sleep .health-assessment-document-card-header {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+}
+
+.health-assessment-document-sleep .health-assessment-document-card-icon {
+  background: #3b82f6;
+  color: white;
+}
+
+.health-assessment-document-lifestyle {
+  min-height: 320px;
+}
+
+.health-assessment-document-lifestyle .health-assessment-document-card-header {
+  background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
+}
+
+.health-assessment-document-lifestyle .health-assessment-document-card-icon {
+  background: #8b5cf6;
+  color: white;
+}
+
+.health-assessment-document-bowel {
+  min-height: 280px;
+}
+
+.health-assessment-document-bowel .health-assessment-document-card-header {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+}
+
+.health-assessment-document-bowel .health-assessment-document-card-icon {
+  background: #0ea5e9;
+  color: white;
+}
+
+.health-assessment-document-mental {
+  min-height: 360px;
+}
+
+.health-assessment-document-mental .health-assessment-document-card-header {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+}
+
+.health-assessment-document-mental .health-assessment-document-card-icon {
+  background: #0ea5e9;
+  color: white;
+}
+
+/* Tag and Status Styles */
+.health-assessment-document-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 5px;
+}
+
+.health-assessment-document-tag {
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid #bae6fd;
+}
+
+.health-assessment-document-stress-tag {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fde68a;
+}
+
+.health-assessment-document-status-badge {
+  background: #10b981;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.health-assessment-document-empty-state {
+  color: #94a3b8;
+  font-style: italic;
+  font-size: 14px;
+}
+
+/* Mood Indicator */
+.health-assessment-document-mood-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.health-assessment-document-mood-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.health-assessment-document-mood-0 { background: #ef4444; }
+.health-assessment-document-mood-1 { background: #f97316; }
+.health-assessment-document-mood-2 { background: #eab308; }
+.health-assessment-document-mood-3 { background: #84cc16; }
+.health-assessment-document-mood-4 { background: #10b981; }
+
+/* Feeling Indicator */
+.health-assessment-document-feeling-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.health-assessment-document-feeling {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.health-assessment-document-restless {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.health-assessment-document-refreshed {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+/* Bottom Actions */
+.health-assessment-document-bottom-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 40px;
+  padding-top: 40px;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* Footer */
+.health-assessment-document-footer {
+  background: #f8fafc;
+  padding: 40px 50px;
+  border-top: 1px solid #e8e8e8;
+}
+
+.health-assessment-document-footer-content {
+  max-width: 100%;
+}
+
+.health-assessment-document-disclaimer-card {
+  background: white;
+  border-radius: 16px;
+  padding: 25px;
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  margin-bottom: 30px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+}
+
+.health-assessment-document-disclaimer-icon {
+  font-size: 24px;
+  background: #fef3c7;
+  color: #92400e;
+  padding: 12px;
+  border-radius: 12px;
+}
+
+.health-assessment-document-disclaimer-content {
+  flex: 1;
+}
+
+.health-assessment-document-disclaimer-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 10px;
+}
+
+.health-assessment-document-disclaimer-text {
+  font-size: 14px;
+  color: #64748b;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.health-assessment-document-footer-meta {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  flex-wrap: wrap;
+}
+
+.health-assessment-document-footer-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.health-assessment-document-status-complete {
+  color: #10b981;
+  font-weight: 700;
+}
+
+/* Loading State */
+.health-assessment-document-loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  gap: 20px;
+  padding: 50px;
+}
+
+.health-assessment-document-loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: health-assessment-document-spin 1s linear infinite;
+}
+
+@keyframes health-assessment-document-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.health-assessment-document-loading-text {
+  color: #64748b;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .health-assessment-document {
+    margin: 20px;
+    border-radius: 16px;
+  }
+  
+  .health-assessment-document-two-column-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .health-assessment-document-header,
+  .health-assessment-document-control-panel,
+  .health-assessment-document-main-content,
+  .health-assessment-document-footer {
+    padding: 30px;
+  }
+  
+  .health-assessment-document-info-card {
+    min-height: 280px;
+  }
+}
+
+@media (max-width: 768px) {
+  .health-assessment-document {
+    margin: 10px;
+    border-radius: 12px;
+  }
+  
+  .health-assessment-document-title {
+    font-size: 28px;
+    flex-direction: column;
+    text-align: center;
+    gap: 10px;
+  }
+  
+  .health-assessment-document-header-meta {
+    grid-template-columns: 1fr;
+  }
+  
+  .health-assessment-document-control-buttons {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .health-assessment-document-btn {
+    width: 100%;
+    max-width: 200px;
+    margin: 0 auto;
+  }
+  
+  .health-assessment-document-data-item {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  
+  .health-assessment-document-data-label {
+    flex: none;
+    width: 100%;
+    padding-right: 0;
+    text-align: left;
+  }
+  
+  .health-assessment-document-footer-meta {
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+  }
+  
+  .health-assessment-document-info-card {
+    min-height: auto;
+    height: auto;
+  }
+  
+  .health-assessment-document-card-content {
+    max-height: none;
+    overflow-y: visible;
+  }
+}
+
+@media (max-width: 480px) {
+  .health-assessment-document-header,
+  .health-assessment-document-control-panel,
+  .health-assessment-document-main-content,
+  .health-assessment-document-footer {
+    padding: 20px;
+  }
+  
+  .health-assessment-document-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .health-assessment-document-section-title {
+    font-size: 18px;
+  }
+  
+  .health-assessment-document-card-content {
+    padding: 20px;
+  }
+  
+  .health-assessment-document-data-label {
+    font-size: 12px;
+  }
+  
+  .health-assessment-document-data-value {
+    font-size: 14px;
+  }
+  
+  .health-assessment-document-btn {
+    min-width: 100px;
+    font-size: 11px;
+    padding: 6px 12px;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .health-assessment-document {
+    margin: 0;
+    box-shadow: none;
+    border-radius: 0;
+    max-width: 100%;
+  }
+  
+  .health-assessment-document-control-panel,
+  .health-assessment-document-bottom-actions,
+  .health-assessment-document-btn {
+    display: none !important;
+  }
+  
+  .health-assessment-document-header {
+    background: white !important;
+    color: black !important;
+  }
+  
+  .health-assessment-document-title {
+    color: black !important;
+  }
+  
+  .health-assessment-document-meta-card {
+    background: #f8f9fa !important;
+    border: 1px solid #ddd !important;
+  }
+  
+  .health-assessment-document-info-card {
+    break-inside: avoid;
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+    min-height: auto !important;
+    height: auto !important;
+  }
+  
+  .health-assessment-document-card-header {
+    background: #f8f9fa !important;
+    border-bottom: 1px solid #ddd !important;
+  }
+  
+  .health-assessment-document-card-content {
+    max-height: none !important;
+    overflow-y: visible !important;
+  }
+  
+  .health-assessment-document-footer {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    background: white !important;
+    border-top: 1px solid #ddd !important;
+  }
+}
+
+/* Page setup for printing */
+@page {
+  size: A4;
+  margin: 20mm;
+}
+
+/* Additional print optimizations */
+@media print {
+  body {
+    background: white !important;
+  }
+  
+  .health-assessment-document {
+    break-inside: avoid;
+  }
+  
+  .health-assessment-document-data-label {
+    color: #333 !important;
+  }
+  
+  .health-assessment-document-data-value {
+    color: #000 !important;
+  }
+  
+  .health-assessment-document-info-card {
+    background: none !important;
+  }
+}
+
+/* Custom scrollbar for card content */
+.health-assessment-document-card-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.health-assessment-document-card-content::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.health-assessment-document-card-content::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.health-assessment-document-card-content::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+
+/* Prevent cards from breaking across PDF pages */
+.health-assessment-document-info-card {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+  -webkit-column-break-inside: avoid !important;
+}
+
+/* Prevent column breaking issues */
+.health-assessment-document-column {
+  page-break-inside: avoid;
+}
+
+/* Add spacing so new page starts clean */
+.health-assessment-document-info-card {
+  margin-bottom: 16px;
+}

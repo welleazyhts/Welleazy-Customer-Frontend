@@ -1,0 +1,22 @@
+.tele-appointment-section {
+    padding: 10px 0;
+  }
+  
+  .tele-appointment-section .btn-sm {
+    min-width: 80px;
+  }
+  .tele-appointment-section .form-label {
+    margin-top: 12px;
+    font-weight: 600;
+  }
+  /* Smooth expand animation */
+.appointment-body {
+    max-height: 600px;
+    overflow: hidden;
+    transition: max-height 0.4s ease;
+  }
+  
+  .appointment-body.expanded {
+    max-height: 1200px; /* this value should be high enough to show full calendar and slots */
+  }
+  

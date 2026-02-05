@@ -1,0 +1,595 @@
+/* Manage Profile Page */
+.manage-profile-container {
+  padding: 20px;
+  background: #f5f7fa;
+  min-height: 100vh;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Header Section */
+.manage-profile-header {
+ 
+  margin: 0 auto 20px auto;
+}
+
+.manage-profile-header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: white;
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+  margin-top: 20px;
+}
+
+.profile-header-title h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.profile-header-icon {
+  font-size: 22px;
+  
+}
+
+.profile-subtitle {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* Action Buttons in Header */
+.profile-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.profile-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #f56f2c 0%, #ff8a50 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.profile-edit-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(245, 111, 44, 0.2);
+}
+
+.edit-mode-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.profile-save-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #f56f2c 0%, #ff8a50 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.profile-save-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(245, 111, 44, 0.2);
+}
+
+.profile-cancel-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #dc2626;
+  color: white;
+  border: 1px solid #dc2626;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.profile-cancel-btn:hover {
+  background: #b91c1c;
+  border-color: #991b1b;
+  transform: translateY(-1px);
+}
+
+/* Main Form Container */
+.manage-profile-form-container {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+
+  margin: 0 auto;
+}
+
+/* Section Titles */
+.profile-section {
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.profile-section:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.profile-section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 20px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-icon {
+ 
+  font-size: 16px;
+}
+
+/* Form Grid - 3 Fields per Row */
+.profile-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+/* Form Groups */
+.profile-form-group {
+  margin-bottom: 4px;
+}
+
+.profile-form-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #4b5563;
+  margin-bottom: 8px;
+}
+
+.input-icon {
+  
+  font-size: 13px;
+  min-width: 14px;
+}
+
+.required {
+  color: #ef4444;
+}
+
+/* Form Inputs */
+.profile-form-input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #374151;
+  transition: all 0.2s ease;
+}
+
+.profile-form-input:focus {
+  outline: none;
+
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.profile-form-input:disabled {
+  background: #f9fafb;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+.profile-form-input::placeholder {
+  color: #9ca3af;
+}
+
+/* Custom Select */
+.custom-select {
+  position: relative;
+}
+
+.profile-form-select {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #374151;
+  cursor: pointer;
+  appearance: none;
+  transition: all 0.2s ease;
+}
+
+.profile-form-select:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.profile-form-select:disabled {
+  background: #f9fafb;
+  cursor: not-allowed;
+  color: #6b7280;
+}
+
+.select-arrow {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6b7280;
+  pointer-events: none;
+  font-size: 11px;
+}
+
+/* Bottom Action Buttons */
+.profile-action-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  padding-top: 24px;
+
+  margin-top: 20px;
+}
+
+.profile-save-btn.large {
+  padding: 12px 32px;
+  font-size: 15px;
+}
+
+.profile-cancel-btn.large {
+  padding: 12px 32px;
+  font-size: 15px;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .manage-profile-header,
+  .manage-profile-form-container {
+    max-width: 1000px;
+  }
+}
+
+@media (max-width: 992px) {
+  .manage-profile-header,
+  .manage-profile-form-container {
+    max-width: 800px;
+  }
+  
+  .profile-form-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .manage-profile-container {
+    padding: 12px;
+  }
+  
+  .manage-profile-header-content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 15px;
+    padding: 16px;
+  }
+  
+  .manage-profile-form-container {
+    padding: 16px;
+  }
+  
+  .profile-form-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .profile-header-title h1 {
+    font-size: 20px;
+    justify-content: center;
+    text-align: center;
+  }
+  
+  .profile-subtitle {
+    text-align: center;
+  }
+  
+  .profile-actions {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .edit-mode-actions {
+    width: 100%;
+  }
+  
+  .profile-save-btn,
+  .profile-cancel-btn {
+    flex: 1;
+    justify-content: center;
+  }
+  
+  .profile-action-buttons {
+    flex-direction: column;
+  }
+  
+  .profile-save-btn.large,
+  .profile-cancel-btn.large {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-header-title h1 {
+    font-size: 18px;
+  }
+  
+  .profile-section-title {
+    font-size: 16px;
+  }
+}
+
+/* Tab Navigation */
+.profile-tabs {
+ 
+  margin: 0 auto 20px auto;
+}
+
+.mange-tabs-container {
+  display: flex;
+  background: white;
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+  gap: 4px;
+}
+
+.mange-tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6b7280;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mange-tab-btn:hover {
+  background: #f9fafb;
+  color: #374151;
+}
+
+.mange-tab-btn.active {
+  background: linear-gradient(135deg, #f56f2c 0%, #ff8a50 100%);
+  color: white;
+  box-shadow: 0 2px 4px rgba(245, 111, 44, 0.2);
+}
+
+/* Address Section */
+.address-type-section {
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.address-type-cards {
+  display: flex;
+  gap: 16px;
+  width: 500px;
+}
+
+.address-type-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #f9fafb;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 100px;
+}
+
+.address-type-card:hover {
+  border-color: #f56f2c;
+  background: #fff7f0;
+}
+
+.address-type-card.active {
+  background: linear-gradient(135deg, #f56f2c 0%, #ff8a50 100%);
+  border-color: #f56f2c;
+  color: white;
+}
+
+.address-type-card.active .address-type-icon {
+  color: white;
+}
+
+.address-type-icon {
+  font-size: 24px;
+  color: #f56f2c;
+  margin-bottom: 10px;
+  transition: color 0.2s ease;
+}
+
+.address-type-label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.address-form-section {
+  margin-top: 24px;
+}
+
+/* Full width form groups for address fields */
+.profile-form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+/* Responsive Design for Tabs */
+@media (max-width: 768px) {
+  .tabs-container {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .address-type-cards {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 480px) {
+  .tab-btn {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  
+  .address-type-card {
+    padding: 16px;
+    min-height: 80px;
+  }
+  
+  .address-type-icon {
+    font-size: 20px;
+    margin-bottom: 8px;
+  }
+  
+  .address-type-label {
+    font-size: 13px;
+  }
+}
+
+
+
+/* Profile Image Container - Make it square for profile picture */
+.profile-image-container {
+  position: relative;
+  width: 120px;  /* Square dimensions */
+  height: 120px;
+  margin-right: 20px;
+}
+
+/* Profile Image Preview */
+.profile-image-preview {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;  /* Makes it circular */
+  object-fit: cover;   /* Ensures image fills the circle without distortion */
+  border: 4px solid #f0f0f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background-color: #f5f5f5;
+}
+
+/* Profile Image Placeholder */
+.profile-image-placeholder {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f56f2c 0%, #ff8a50 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 4px solid #f0f0f0;
+}
+
+.placeholder-icon {
+  font-size: 48px;
+  color: white;
+}
+
+/* Profile Image Actions */
+.profile-image-actions {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 8px;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+}
+
+/* For responsive layout in header */
+.profile-header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+/* If you want to keep the original dimensions but show circular image */
+.profile-image-container.fixed-shape {
+  position: relative;
+  width: 293px;
+  height: 123px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.profile-image-container.fixed-shape .profile-image-preview,
+.profile-image-container.fixed-shape .profile-image-placeholder {
+  width: 120px;  /* Fixed circular size */
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* Alternative: If you want to show the full rectangular image */
+.profile-image-container.rectangular .profile-image-preview {
+  width: 100%;
+  height: 100%;
+  border-radius: 12px; /* Slightly rounded corners instead of circular */
+  object-fit: cover;
+}
+
+.profile-image-container.rectangular .profile-image-placeholder {
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+}

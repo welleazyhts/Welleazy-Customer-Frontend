@@ -1,0 +1,202 @@
+/* Appointment Voucher Page */
+.appointment-voucher-page {
+  padding: 20px 0;
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+.appointment-voucher-header {
+  margin-bottom: 30px;
+  text-align: center;
+  position: relative;
+}
+
+.appointment-voucher-back-btn {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #0d6efd;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.appointment-voucher-back-btn:hover {
+  color: #0a58ca;
+}
+
+.appointment-voucher-header h1 {
+  color: #2c3e50;
+  font-weight: bold;
+}
+
+/* Voucher Card */
+.appointment-voucher-card {
+  border: 2px solid #3498db;
+  border-radius: 15px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  margin-bottom: 30px;
+}
+
+.appointment-voucher-header-card {
+  background: linear-gradient(135deg, #3498db, #2980b9);
+  color: white;
+  border-radius: 13px 13px 0 0 !important;
+  padding: 20px;
+  text-align: center;
+}
+
+/* Voucher Details */
+.appointment-voucher-details {
+  padding: 20px;
+}
+
+.appointment-voucher-detail-row {
+  display: flex;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.appointment-voucher-detail-label {
+  font-weight: bold;
+  color: #2c3e50;
+  min-width: 200px;
+  font-size: 16px;
+}
+
+.appointment-voucher-detail-value {
+  color: #34495e;
+  font-size: 16px;
+  flex: 1;
+}
+
+.appointment-voucher-amount {
+  font-weight: bold;
+}
+
+.appointment-voucher-payment-status-paid {
+  color: #27ae60;
+  font-weight: bold;
+}
+
+.appointment-voucher-payment-status-free {
+  color: #f39c12;
+  font-weight: bold;
+}
+
+/* Button Section */
+.appointment-voucher-button-section {
+  background: #f8f9fa;
+  padding: 25px;
+  border-radius: 10px;
+  border: 2px dashed #3498db;
+  margin: 20px 0;
+}
+
+.appointment-voucher-my-appointment-btn {
+  transition: all 0.3s ease;
+}
+
+.appointment-voucher-my-appointment-btn:hover {
+  background-color: #2980b9 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(52, 152, 219, 0.4) !important;
+}
+
+.appointment-voucher-disclaimer-text {
+  color: #e74c3c;
+  font-style: italic;
+  font-size: 14px;
+  margin-top: 10px;
+  margin-bottom: 0;
+}
+
+/* Terms Section */
+.appointment-voucher-terms-section {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  margin-top: 20px;
+}
+
+.appointment-voucher-section-title {
+  color: #2c3e50;
+  font-weight: bold;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #3498db;
+}
+
+.appointment-voucher-terms-content {
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+.appointment-voucher-term-item {
+  margin-bottom: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #555;
+}
+
+/* Actions */
+.appointment-voucher-actions {
+  text-align: center;
+  padding: 20px;
+  border-top: 1px solid #eee;
+  margin-top: 20px;
+}
+
+/* Print Styles */
+@media print {
+  .appointment-voucher-back-btn,
+  .appointment-voucher-actions,
+  .appointment-voucher-my-appointment-btn {
+    display: none !important;
+  }
+  
+  .appointment-voucher-card {
+    border: 2px solid #000;
+    box-shadow: none;
+  }
+  
+  .appointment-voucher-button-section {
+    border: none;
+  }
+  
+  body {
+    background: white !important;
+  }
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .appointment-voucher-detail-row {
+    flex-direction: column;
+  }
+  
+  .appointment-voucher-detail-label {
+    min-width: auto;
+    margin-bottom: 5px;
+  }
+  
+  .appointment-voucher-back-btn {
+    position: relative;
+    margin-bottom: 15px;
+    top: 0;
+    transform: none;
+  }
+  
+  .appointment-voucher-header {
+    text-align: center;
+  }
+  
+  .appointment-voucher-header h1 {
+    margin-top: 10px;
+  }
+}
