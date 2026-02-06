@@ -24,27 +24,28 @@ export interface CustomerAppointmentRequest {
 
 
 export interface PharmacyOrder {
-  PharmacyOrderDetailsId: number;
-  EmployeeName: string;
-  OrderId: string;
-  OneMGOrderId: string;
-  PharmacyDescription: string; // In Progress, Delivered, Cancelled
-  TypeOfService: string;
-  Address: string;
-  OrderedDate: string;   // DD/MM/YYYY
-  DeliveryDate: string;  // DD/MM/YYYY
-  Items: string;
-  MobileNo: string;
-  ShippingAddress: string;
-  DeliveredPersonName: string;
-  DeliveredPersonMobileNo: string;
-  PharmacyCartUniqueId: number;
-  CouponId: number | null;
-  CouponName: string | null;
-  DiscountPercent: number | null;
-  GrandTotal: number;
-  OrderType: string;
+  type: string;
+  order_id: string;
+  status: string;
+  patient_name: string;
+  type_of_service: string;
+  order_type: string;
+  ordered_date: string;
+  expected_delivery: string;
+  order_amount: number;
+  address: {
+    id: number;
+    address: string;
+    city: string;
+    state: string;
+    pincode: string;
+  };
+  actions: {
+    view_medicine_details_url: string;
+    view_voucher_url: string;
+  };
 }
+
 export interface PharmacyCouponAddress {
   ApolloId: number;
   ApolloSKU: string;

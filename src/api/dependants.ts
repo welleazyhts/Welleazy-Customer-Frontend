@@ -11,19 +11,8 @@ export const DependantsAPI = {
 
   CRMGenerateDependentMemberId: async (): Promise<CRMGenerateDependentMemberIdResponse> => {
     try {
-      const response = await fetch(`${API_URL}/CRMGenerateDependentMemberId`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data: CRMGenerateDependentMemberIdResponse = await response.json();
-      return data;
+      const response = await api.get('/CRMGenerateDependentMemberId');
+      return response.data as CRMGenerateDependentMemberIdResponse;
 
     } catch (error) {
       console.error('Error generating dependent member id:', error);
@@ -88,20 +77,8 @@ export const DependantsAPI = {
 
   CRMFetchDependentDetailsForEmployee: async (requestData: CRMFetchDependentDetailsForEmployeeRequest): Promise<CRMFetchDependentDetailsForEmployeeResponse[]> => {
     try {
-      const response = await fetch(`${API_URL}/CRMFetchDependentDetailsForEmployee`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestData),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data: CRMFetchDependentDetailsForEmployeeResponse[] = await response.json();
-      return data;
+      const response = await api.post('/CRMFetchDependentDetailsForEmployee', requestData);
+      return response.data as CRMFetchDependentDetailsForEmployeeResponse[];
     } catch (error) {
       console.error('Error fetching dependent details for employee:', error);
       throw error;
@@ -110,20 +87,8 @@ export const DependantsAPI = {
 
   DeactivateEmployeeDependent: async (employeeDependentDetailsId: number): Promise<any> => {
     try {
-      const response = await fetch(`${API_URL}/DeactivateEmployeeDependent`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ employeeDependentDetailsId }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data;
+      const response = await api.post('/DeactivateEmployeeDependent', { employeeDependentDetailsId });
+      return response.data;
 
     } catch (error) {
       console.error('Error deactivating employee dependent:', error);
@@ -133,21 +98,10 @@ export const DependantsAPI = {
 
   CRMLoadCitys: async (): Promise<District[]> => {
     try {
-      // Updated to use the new cities endpoint
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/api/location/cities/`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        }
-      });
+      // Updated to use the axios api instance which handles token refresh
+      const response = await api.get('/api/location/cities/');
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = response.data;
 
       // Map response to District interface
       // If the data is just a list of strings, we map it:

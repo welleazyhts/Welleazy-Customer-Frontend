@@ -29,62 +29,62 @@ const PharmacyCouponSuccess: React.FC = () => {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
 
-const generatePDF = async () => {
-  const page = document.querySelector('.pharmacy-coupon-success') as HTMLElement;
-  const actionButtons = document.querySelector('.action-buttons') as HTMLElement;
+  const generatePDF = async () => {
+    const page = document.querySelector('.pharmacy-coupon-success') as HTMLElement;
+    const actionButtons = document.querySelector('.action-buttons') as HTMLElement;
 
-  if (!page) return;
+    if (!page) return;
 
-  const originalActionButtonsDisplay = actionButtons?.style.display;
+    const originalActionButtonsDisplay = actionButtons?.style.display;
 
-  // 🔴 Enable PDF mode → ALL FAQ OPEN
-  setIsGeneratingPDF(true);
+    // 🔴 Enable PDF mode → ALL FAQ OPEN
+    setIsGeneratingPDF(true);
 
-  // 🔴 Hide buttons
-  if (actionButtons) actionButtons.style.display = 'none';
+    // 🔴 Hide buttons
+    if (actionButtons) actionButtons.style.display = 'none';
 
-  // Wait for React to re-render FAQ
-  await new Promise((resolve) => setTimeout(resolve, 300));
+    // Wait for React to re-render FAQ
+    await new Promise((resolve) => setTimeout(resolve, 300));
 
-  try {
-    const canvas = await html2canvas(page, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: '#ffffff',
-      scrollY: -window.scrollY,
-    });
+    try {
+      const canvas = await html2canvas(page, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        scrollY: -window.scrollY,
+      });
 
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
 
-    const pdfWidth = 210;
-    const pdfHeight = 297;
-    const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+      const pdfWidth = 210;
+      const pdfHeight = 297;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
 
-    let heightLeft = imgHeight;
-    let position = 0;
+      let heightLeft = imgHeight;
+      let position = 0;
 
-    pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
-    heightLeft -= pdfHeight;
-
-    while (heightLeft > 0) {
-      position = heightLeft - imgHeight;
-      pdf.addPage();
       pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
       heightLeft -= pdfHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+        heightLeft -= pdfHeight;
+      }
+
+      pdf.save(`Pharmacy_Coupon_${couponData?.couponCode || 'Coupon'}.pdf`);
+    } catch (error) {
+      console.error('PDF generation failed', error);
+    } finally {
+      // 🟢 Restore UI
+      if (actionButtons)
+        actionButtons.style.display = originalActionButtonsDisplay || '';
+
+      setIsGeneratingPDF(false);
     }
-
-    pdf.save(`Pharmacy_Coupon_${couponData?.couponCode || 'Coupon'}.pdf`);
-  } catch (error) {
-    console.error('PDF generation failed', error);
-  } finally {
-    // 🟢 Restore UI
-    if (actionButtons)
-      actionButtons.style.display = originalActionButtonsDisplay || '';
-
-    setIsGeneratingPDF(false);
-  }
-};
+  };
 
 
 
@@ -229,171 +229,130 @@ This feature is ideal for regular prescriptions or monthly refill needs.`
 
   return (
     <div className="pharmacy-coupon-success">
-      {/* Header */}
-      <div className="coupon-header">
-        <button 
-          className="back-button"
-          onClick={handleBackToPharmacy}
-        >
-          ← Back to Pharmacy
-        </button>
-        <h1>Pharmacy Coupon Details</h1>
-       
+      {/* Close Button */}
+      <div className="modal-close-button" onClick={handleBackToPharmacy}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
       </div>
 
-      <div className="coupon-container">
-        {/* Success Message */}
-        {/* <div className="success-message">
-          <div className="success-icon">✅</div>
-          <h2>Coupon Generated Successfully!</h2>
-          <p>Your medicine coupon has been generated and is ready for use at Apollo Pharmacy</p>
-        </div> */}
-
-      
-     {/* Coupon Details Card */}
-       <div className="action-buttons">
-          <button  className="print-action-button download-button"  onClick={generatePDF}>
-  <span className="icon">⬇️</span> Download
-</button>
-          <button onClick={handleNewCoupon} className="new-coupon-button">
-            ✨ Generate New Coupon
-          </button>
-          <button onClick={handleBackToPharmacy} className="back-to-pharmacy-button">
-            🏥 Back to Pharmacy
-          </button>
+      <div className="coupon-modal-container">
+        {/* Header */}
+        <div className="modal-header">
+          <h1>Pharmacy Coupon Details</h1>
         </div>
-<div className="coupon-details-card">
-  <div className="coupon-header-section">
-    <h3>Coupon Information</h3>
-    <div className="coupon-badge">Active</div>
-  </div>
 
-  <div className="coupon-details-grid">
-    {/* Left Column */}
-    <div className="details-left-column">
-      <div className="detail-row">
-        <span className="detail-label">Order ID:</span>
-        <span className="detail-value">#{couponData.skuCode || 'PA67'}</span>
-      </div>
+        {/* Main Content */}
+        <div className="modal-content">
+          {/* Calendar Icon Section */}
+          <div className="calendar-icon-section">
+            <svg className="calendar-icon" width="200" height="200" viewBox="0 0 200 200" fill="none">
+              {/* Calendar Top Rings */}
+              <rect x="40" y="30" width="30" height="20" rx="10" fill="#4A5568" />
+              <rect x="130" y="30" width="30" height="20" rx="10" fill="#4A5568" />
 
-      <div className="detail-row">
-        <span className="detail-label">Name:</span>
-        <span className="detail-value">{couponData.beneficiaryName || 'Kiran Kumar S'}</span>
-      </div>
+              {/* Calendar Body */}
+              <rect x="30" y="50" width="140" height="130" rx="10" fill="#F59E0B" stroke="#D97706" strokeWidth="2" />
 
-      <div className="detail-row">
-        <span className="detail-label">City:</span>
-        <span className="detail-value">{couponData.city || 'Bangalore'}</span>
-      </div>
+              {/* Calendar Header Strip */}
+              <rect x="30" y="50" width="140" height="30" rx="10" fill="#F59E0B" />
+              <rect x="30" y="65" width="140" height="15" fill="#FCD34D" />
 
-      <div className="detail-row">
-        <span className="detail-label">Beneficiary Type:</span>
-        <span className="detail-value">
-          {couponData.beneficiaryType === 'self' ? 'Self' : 'Dependant'}
-        </span>
-      </div>
-    </div>
+              {/* Calendar Grid */}
+              <g fill="#FFF">
+                <rect x="45" y="95" width="20" height="15" rx="3" />
+                <rect x="75" y="95" width="20" height="15" rx="3" />
+                <rect x="105" y="95" width="20" height="15" rx="3" />
+                <rect x="135" y="95" width="20" height="15" rx="3" />
 
-    {/* Right Column */}
-    <div className="details-right-column">
-      <div className="detail-row">
-        <span className="detail-label">Coupon Code:</span>
-        <span className="detail-value coupon-code">{couponData.couponCode || 'Ki700376'}</span>
-      </div>
+                <rect x="45" y="120" width="20" height="15" rx="3" />
+                <rect x="75" y="120" width="20" height="15" rx="3" />
+                <rect x="105" y="120" width="20" height="15" rx="3" />
+                <rect x="135" y="120" width="20" height="15" rx="3" />
 
-      <div className="detail-row">
-        <span className="detail-label">Vendor:</span>
-        <span className="detail-value vendor">Apollo Pharmacy</span>
-      </div>
+                <rect x="45" y="145" width="20" height="15" rx="3" />
+                <rect x="75" y="145" width="20" height="15" rx="3" />
+                <rect x="105" y="145" width="20" height="15" rx="3" />
 
-      <div className="detail-row">
-        <span className="detail-label">Generated On:</span>
-        <span className="detail-value">
-          {new Date(couponData.generatedAt).toLocaleDateString('en-IN', {
-            day: '2-digit',
-            month: 'long',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-          })}
-        </span>
-      </div>
+                {/* Highlighted Date */}
+                <rect x="135" y="145" width="20" height="15" rx="3" fill="#E5E7EB" />
+              </g>
 
-      <div className="detail-row">
-        <span className="detail-label">Status:</span>
-        <span className="">Active</span>
-      </div>
-    </div>
-  </div>
+              {/* Page Curl */}
+              <path d="M 155 165 L 170 165 L 170 180 Z" fill="#CBD5E0" />
+            </svg>
+          </div>
 
-  {/* Medicine Names - Full width row */}
-  <div className="medicine-row">
-    <span className="detail-label">Medicine Names:</span>
-    <span className="detail-value medicine-names">
-      {(() => {
-        if (!couponData.medicineNames || couponData.medicineNames.length === 0) {
-          return 'No medicines specified';
-        }
-        
-        const medicineNames = couponData.medicineNames.map(medicine => {
-          if (typeof medicine === 'string') {
-            return medicine;
-          } else if (medicine && typeof medicine === 'object') {
-            // return medicine.name || 'Unknown Medicine';
-          }
-          return 'Unknown Medicine';
-        });
-        
-        return medicineNames.join(', ');
-      })()}
-    </span>
-  </div>
-
-  {/* Prescription Status - Full width row */}
-  {/* {couponData.hasPrescription && (
-    <div className="prescription-row">
-      <span className="detail-label">Prescription:</span>
-      <span className="detail-value prescription-status">Uploaded ✅</span>
-    </div>
-  )} */}
-</div>
-
-        {/* Instructions Card */}
-        <div className="instructions-card">
-          <h3>How to Use This Coupon</h3>
-          <div className="instructions-list">
-            <div className="instruction-step">
-              <div className="step-number">1</div>
-              <div className="step-content">
-                <h4>Visit Apollo Pharmacy</h4>
-                <p>Take this coupon to your nearest Apollo Pharmacy store</p>
-              </div>
+          {/* Coupon Details Section */}
+          <div className="coupon-info-section">
+            <div className="coupon-detail-item">
+              <span className="detail-label-modal">Order ID :</span>
+              <span className="detail-value-modal">#{couponData.skuCode || 'PA64'}</span>
             </div>
-            <div className="instruction-step">
-              <div className="step-number">2</div>
-              <div className="step-content">
-                <h4>Show the Coupon</h4>
-                <p>Show this coupon code to the pharmacy staff: <strong>{couponData.couponCode}</strong></p>
-              </div>
+
+            <div className="coupon-detail-item">
+              <span className="detail-label-modal">Coupon Name:</span>
+              <span className="detail-value-modal">{couponData.couponCode || 'Fi58058'}</span>
             </div>
-            <div className="instruction-step">
-              <div className="step-number">3</div>
-              <div className="step-content">
-                <h4>Get Your Medicines</h4>
-                <p>Collect your prescribed medicines with the discount applied</p>
-              </div>
+
+            <div className="coupon-detail-item">
+              <span className="detail-label-modal">Name:</span>
+              <span className="detail-value-modal">{couponData.beneficiaryName || 'Firoz Khan Ummer'}</span>
             </div>
+
+            <div className="coupon-detail-item">
+              <span className="detail-label-modal">City:</span>
+              <span className="detail-value-modal">{couponData.city || 'Bangalore'}</span>
+            </div>
+
+            <div className="coupon-detail-item">
+              <span className="detail-label-modal">Medicine Name:</span>
+              <span className="detail-value-modal">
+                {(() => {
+                  if (!couponData.medicineNames || couponData.medicineNames.length === 0) {
+                    return '';
+                  }
+
+                  const medicineNames = couponData.medicineNames.map(medicine => {
+                    if (typeof medicine === 'string') {
+                      return medicine;
+                    } else if (medicine && typeof medicine === 'object') {
+                      return '';
+                    }
+                    return '';
+                  });
+
+                  return medicineNames.join(', ');
+                })()}
+              </span>
+            </div>
+
+            <div className="coupon-detail-item">
+              <span className="detail-label-modal">Vendor:</span>
+              <span className="detail-value-modal">Apollo</span>
+            </div>
+
+            {/* My Appointment Button */}
+            <button className="my-appointment-button">
+              MY APPOINTMENT
+            </button>
+
+            {/* Disclaimer */}
+            <p className="modal-disclaimer">
+              *Disclaimer : That confirmation will be shared in sometime
+            </p>
           </div>
         </div>
 
         {/* FAQ Section */}
-        <div className="faq-section">
-          <h3>💊 Welleazy – Online Medicine Order FAQ</h3>
+        <div className="faq-section-modal">
+          <h3>📌 Welleazy – Online Medicine Order FAQ</h3>
           <div className="faq-list">
             {faqItems.map((faq, index) => (
               <div key={index} className="faq-item">
-                <div 
-                  className="faq-question" 
+                <div
+                  className="faq-question"
                   onClick={() => toggleFaq(index)}
                 >
                   <span>{faq.question}</span>
@@ -419,9 +378,6 @@ This feature is ideal for regular prescriptions or monthly refill needs.`
             ))}
           </div>
         </div>
-
-        {/* Action Buttons */}
-      
       </div>
     </div>
   );

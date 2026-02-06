@@ -137,8 +137,7 @@ const HealthRecords: React.FC = () => {
 
   // State for filters
   const [filters, setFilters] = useState({
-    fromDate: '',
-    toDate: '',
+    date: '',
     caseForOption: '',
     doctorName: ''
   });
@@ -220,33 +219,16 @@ const HealthRecords: React.FC = () => {
     { value: "Medical Report", label: "Medical Report" },
     { value: "Other", label: "Other" },
   ];
-  const [vaccinationNameOptions, setVaccinationNameOptions] = useState<
-    { value: number; label: string }[]
-  >([]);
-
-
-  useEffect(() => {
-    const loadVaccinationDropdown = async () => {
-      try {
-        const data = await HealthRecordsAPI.GetVaccinationDetailsdropdown();
-
-        console.log("Vaccination Dropdown Data:", data);
-
-        if (Array.isArray(data) && data.length > 0) {
-          const options = data.map((item: any) => ({
-            value: item.VaccinationTypeId,   // ✅ ID
-            label: item.VaccinationType,     // ✅ Name
-          }));
-
-          setVaccinationNameOptions(options);
-        }
-      } catch (error) {
-        console.error("Failed to load vaccination dropdown:", error);
-      }
-    };
-
-    loadVaccinationDropdown();
-  }, []);
+  // Hardcoded options for Vaccination Name as requested
+  const vaccinationNameOptions = [
+    { value: "COVID-19 Vaccine", label: "COVID-19 Vaccine" },
+    { value: "Hepatitis B", label: "Hepatitis B" },
+    { value: "MMR - Measles, Mumps, Rubella", label: "MMR - Measles, Mumps, Rubella" },
+    { value: "Tetanus (TT/DT)", label: "Tetanus (TT/DT)" },
+    { value: "Typhoid Vaccine", label: "Typhoid Vaccine" },
+    { value: "Influenza Vaccine", label: "Influenza Vaccine" },
+    { value: "Other", label: "Other" }
+  ];
   useEffect(() => {
     const fetchHealthChoices = async () => {
       try {
@@ -439,9 +421,9 @@ const HealthRecords: React.FC = () => {
       }));
     }
   };
-  // Get display name from localStorage or user context
+  // Get display name from user context
   const getDisplayName = () => {
-    return localStorage.getItem("DisplayName") || user?.name || "Self";
+    return user?.name || "Self";
   };
 
   // Get current date in DD-MM-YYYY format
@@ -511,6 +493,12 @@ const HealthRecords: React.FC = () => {
   const formatFilePath = (filePath: string) => {
     if (!filePath) return '';
 
+    // If it's already a full URL (http/https), return as is
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      return filePath;
+    }
+
+    // Handle local paths
     if (filePath.startsWith('C:\\')) {
       const fileName = filePath.split('\\').pop();
       return `https://live.welleazy.com/HealthRecords/${fileName}`;
@@ -529,8 +517,58 @@ const HealthRecords: React.FC = () => {
       return { id: Number(doc.MB_DocumentId), type: 'MEDICAL_BILL' };
     } else if (doc.V_DocumentId) {
       return { id: Number(doc.V_DocumentId), type: 'VACCINATION' };
+    } else if (doc.id) {
+      // Fallback for new API structure where id is direct
+      return { id: Number(doc.id), type: 'DOCUMENT' };
     }
     return { id: 0, type: '' };
+  };
+
+  // Open document in new tab
+  const handleViewDocument = (doc: any) => {
+    // New API uses 'file', Legacy uses 'UplordDocPath' or 'DocumentPath'
+    const rawPath = doc.file || doc.UplordDocPath || doc.DocumentPath;
+    const filePath = formatFilePath(rawPath);
+
+    if (filePath) {
+      window.open(filePath, '_blank', 'noopener,noreferrer');
+    } else {
+      toast.error("Document path not found");
+    }
+  };
+
+  // Download document with Blob logic to force download
+  const handleDownloadDocument = async (doc: any) => {
+    const rawPath = doc.file || doc.UplordDocPath || doc.DocumentPath;
+    const filePath = formatFilePath(rawPath);
+
+    if (!filePath) {
+      toast.error("Document path not found for download");
+      return;
+    }
+
+    try {
+      const response = await fetch(filePath);
+      if (!response.ok) throw new Error("Failed to fetch file");
+
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      const fileName = doc.UplordDocName || doc.DocumentName || (rawPath ? rawPath.split('/').pop() : 'document.pdf');
+      link.download = fileName;
+
+      document.body.appendChild(link);
+      link.click();
+
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error("Download failed, opening in new tab:", error);
+      // Fallback: simpler window.open if fetch/blob fails (e.g. CORS issues)
+      window.open(filePath, '_blank');
+    }
   };
 
   // Get relationship options for dropdown
@@ -610,13 +648,13 @@ const HealthRecords: React.FC = () => {
       if (formData.person === "dependant" && formData.relationshipId) {
         setLoadingRelationshipPersons(true);
         try {
-          const employeeRefId = localStorage.getItem("EmployeeRefId") || user?.id?.toString();
+          const employeeRefId = user?.employeeRefId || user?.id?.toString();
           if (!employeeRefId) {
             toast.error("Please log in to select dependents.");
             return;
           }
           const personsData = await gymServiceAPI.CRMRelationShipPersonNames(
-            parseInt(employeeRefId),
+            typeof employeeRefId === 'string' ? parseInt(employeeRefId) : employeeRefId,
             parseInt(formData.relationshipId)
           );
           setRelationshipPersons(personsData);
@@ -636,12 +674,24 @@ const HealthRecords: React.FC = () => {
   }, [formData.person, formData.relationshipId, user]);
 
   // Load doctor specializations on component mount
+  // Load doctor specializations on component mount
   useEffect(() => {
     const loadSpecializations = async () => {
       try {
-        const data = await HealthRecordsAPI.CRMFetchDoctorSpecializationDetails();
-        const sorted = data.sort((a, b) =>
-          a.Specializations.localeCompare(b.Specializations)
+        const data = await HealthRecordsAPI.getPrescriptionDoctorSpecializations();
+
+        // Map response to internal format
+        const mappedData = data.map((item: any) => ({
+          DoctorSpecializationsId: item.id || item.DoctorSpecializationsId,
+          Specializations: item.name || item.Specializations,
+          ImageName: item.image || item.ImageName,
+          Imagepath: item.image_path || item.Imagepath,
+          Description: item.description || item.Description,
+          IsActive: item.is_active || item.IsActive || 1
+        }));
+
+        const sorted = mappedData.sort((a, b) =>
+          (a.Specializations || '').localeCompare(b.Specializations || '')
         );
         setSpecializations(sorted);
 
@@ -810,50 +860,65 @@ const HealthRecords: React.FC = () => {
   };
 
   // Fetch health records
+  // Fetch health records
   const fetchHealthRecords = async () => {
     try {
       if (!isAuthenticated || !user) return;
 
       setLoading(true);
-      const employeeRefId = user.employeeRefId || user.id;
-      const response = await HealthRecordsAPI.GetHealthRecords(employeeRefId);
-      const rawData = Array.isArray(response) ? response : response.records || [];
 
-      const parameters = await HealthRecordsAPI.CRMGetCustomerTestReportParameterDetails(employeeRefId);
+      const rawData = await HealthRecordsAPI.listPrescriptions();
+
+      const allDocs: any[] = [];
 
       const mappedRecords: HealthRecord[] = rawData.map((item: any) => {
-        const recordParameters = parameters.filter(param => param.TR_id === item.TR_id);
-
-        const labParameters: LabParameter[] = recordParameters.map((param: any) => ({
-          parameterName: param.ParameterName || '',
-          result: param.Result || '',
-          unit: param.ResultType || param.StartRangeType || '',
-          startRange: param.StartRange || '',
-          endRange: param.EndRange || ''
+        // Handle parameters
+        const labParameters: LabParameter[] = (item.parameters || []).map((param: any) => ({
+          parameterName: param.parameter_name,
+          result: param.result,
+          unit: param.unit,
+          startRange: '',
+          endRange: ''
         }));
 
+        // Handle documents
+        if (item.documents && Array.isArray(item.documents)) {
+          item.documents.forEach((doc: any) => {
+            allDocs.push({
+              TR_DocumentId: doc.id,
+              TR_id: item.id,
+              UplordDocName: doc.file.split('/').pop(),
+              UplordDocPath: doc.file
+            });
+          });
+        }
+
+        const docName = item.documents?.[0]?.file.split('/').pop();
+        const docPath = item.documents?.[0]?.file;
+
         return {
-          id: item.TR_id,
-          name: item.Record_for,
-          relation: item.Relation,
-          type: item.Type_of_Record,
-          recordName: item.RecordName,
-          doctor: item.Record_Doctor_Name,
-          recordDate: item.Record_date,
-          notes: item.Additional_Notes,
-          employeeRefId: item.EmployeeRefId,
-          specialization: item.OtherRecordName || undefined,
-          uploadedDocName: item.UplordDocName,
-          uploadedDocPath: item.UplordDocPath,
-          createdOn: item.CreatedOn,
-          updatedOn: item.UpdatedOn,
-          typeOfRecord: item.Type_of_Record,
+          id: item.id,
+          name: item.for_whom === 'self' ? 'Self' : (item.dependant_name || 'Dependent'),
+          relation: item.for_whom === 'self' ? "Self" : "Dependent",
+          type: item.record_type,
+          recordName: item.record_name,
+          doctor: item.doctor_name,
+          recordDate: item.record_date,
+          notes: item.reason,
+          employeeRefId: 0,
+          specialization: item.doctor_specialization?.toString(),
+          uploadedDocName: docName,
+          uploadedDocPath: docPath,
+          createdOn: item.created_at,
+          updatedOn: item.updated_at,
+          typeOfRecord: item.record_type === 'lab_test' ? 'Medical Report' : 'Doctor Prescription',
           labParameters: labParameters,
         };
       });
 
       setRecords(mappedRecords);
       setAllRecords(mappedRecords);
+      setTestReportDocuments(allDocs);
     } catch (error) {
       console.error("Error in fetchHealthRecords:", error);
     } finally {
@@ -892,6 +957,7 @@ const HealthRecords: React.FC = () => {
         relation: item.Relation,
         createdOn: item.CreatedOn,
         updatedOn: item.UpdatedOn,
+        documents: item.documents || []
       }));
 
       setHospitalizationRecords(mapped);
@@ -933,6 +999,7 @@ const HealthRecords: React.FC = () => {
         relation: item.Relation,
         createdOn: item.CreatedOn,
         updatedOn: item.UpdatedOn,
+        documents: item.documents || []
       }));
 
       setMedicalBillRecords(mapped);
@@ -973,6 +1040,7 @@ const HealthRecords: React.FC = () => {
         relation: item.Relation,
         createdOn: item.CreatedOn,
         updatedOn: item.UpdatedOn,
+        documents: item.documents || []
       }));
 
       setVaccinationRecords(mapped);
@@ -984,16 +1052,9 @@ const HealthRecords: React.FC = () => {
     }
   };
 
-  // Fetch test report documents
+  // Fetch test report documents - Handled in fetchHealthRecords now, keeping empty for compatibility
   const fetchTestReportDocuments = async () => {
-    try {
-      if (!isAuthenticated || !user) return;
-      const employeeRefId = user.employeeRefId || user.id;
-      const documents = await HealthRecordsAPI.CRMGetCustomerTestReportDocumentDetails(employeeRefId);
-      setTestReportDocuments(documents);
-    } catch (error) {
-      console.error("Error in fetchTestReportDocuments:", error);
-    }
+    // Already fetched in fetchHealthRecords
   };
 
   // Fetch medical bill documents
@@ -1115,12 +1176,333 @@ const HealthRecords: React.FC = () => {
     }
   };
 
-  // Handle filter changes
+  // Handle filter changes - automatically apply filters
   const handleFilterChange = (name: string, value: string) => {
-    setFilters(prev => ({
-      ...prev,
+    const newFilters = {
+      ...filters,
       [name]: value
-    }));
+    };
+    setFilters(newFilters);
+
+    // Automatically apply filters after a short delay to allow for typing
+    setTimeout(() => {
+      applyFiltersWithValues(newFilters);
+    }, 300);
+  };
+
+  // Apply filters with specific filter values
+  const applyFiltersWithValues = async (filterValues: typeof filters) => {
+    try {
+      setFilterLoading(true);
+
+      const employeeRefId = user?.employeeRefId || user?.id?.toString() || "0";
+
+      const filterData = {
+        FromDate: filterValues.date,
+        ToDate: filterValues.date,
+        CaseForOption: filterValues.caseForOption,
+        SearchKeyword: filterValues.doctorName,
+        EmployeeRefid: employeeRefId
+      };
+
+      // If all filters are empty, just reset to show all records
+      if (!filterValues.date && !filterValues.caseForOption && !filterValues.doctorName) {
+        switch (activeTab) {
+          case "Prescription & Lab Tests":
+            setRecords(allRecords);
+            break;
+          case "Hospitalizations":
+            setHospitalizationRecords(allHospitalizationRecords);
+            break;
+          case "Medical Bills":
+            setMedicalBillRecords(allMedicalBillRecords);
+            break;
+          case "Vaccinations Certificates":
+            setVaccinationRecords(allVaccinationRecords);
+            break;
+        }
+        setFilterLoading(false);
+        return;
+      }
+
+      let response: any;
+
+      switch (activeTab) {
+        case "Prescription & Lab Tests":
+          response = await HealthRecordsAPI.GetFilteredTestReports(filterData);
+
+          let filteredData: any[] = [];
+
+          if (Array.isArray(response)) {
+            filteredData = response;
+          } else if (response && response.data && Array.isArray(response.data)) {
+            filteredData = response.data;
+          } else if (response && response.records && Array.isArray(response.records)) {
+            filteredData = response.records;
+          } else if (response && typeof response === 'object') {
+            const arrayKeys = Object.keys(response).filter(key => Array.isArray(response[key]));
+            if (arrayKeys.length > 0) {
+              filteredData = response[arrayKeys[0]];
+            } else {
+              filteredData = [];
+            }
+          } else {
+            filteredData = [];
+          }
+
+          if (filteredData.length > 0) {
+            const parameters = await HealthRecordsAPI.CRMGetCustomerTestReportParameterDetails(employeeRefId);
+
+            const mappedRecords: HealthRecord[] = filteredData.map((item: any) => {
+              const recordParameters = parameters.filter(param => param.TR_id === item.TR_id);
+
+              const labParameters: LabParameter[] = recordParameters.map((param: any) => ({
+                parameterName: param.ParameterName || '',
+                result: param.Result || '',
+                unit: param.ResultType || param.StartRangeType || '',
+                startRange: param.StartRange || '',
+                endRange: param.EndRange || ''
+              }));
+
+              const relation = item.RelationType === 1 ? "Self" :
+                item.RelationType === 2 ? "Dependent" :
+                  item.Relation || "Self";
+
+              return {
+                id: item.TR_id,
+                name: item.Record_for,
+                relation: relation,
+                type: item.Type_of_Record,
+                recordName: item.RecordName,
+                doctor: item.Record_Doctor_Name,
+                recordDate: item.Record_date,
+                notes: item.Additional_Notes,
+                employeeRefId: item.EmployeeRefId,
+                specialization: item.OtherRecordName || item.DoctorSpecialization || undefined,
+                uploadedDocName: item.UplordDocName,
+                uploadedDocPath: item.UplordDocPath,
+                createdOn: item.CreatedOn,
+                updatedOn: item.UpdatedOn,
+                typeOfRecord: item.Type_of_Record,
+                labParameters: labParameters,
+              };
+            });
+
+            setRecords(mappedRecords);
+          } else {
+            setRecords([]);
+          }
+          break;
+
+        case "Hospitalizations":
+          response = await HealthRecordsAPI.GetFilteredHospitalizations(filterData);
+
+          let hospitalizationData: any[] = [];
+
+          if (Array.isArray(response)) {
+            hospitalizationData = response;
+          } else if (response && response.data && Array.isArray(response.data)) {
+            hospitalizationData = response.data;
+          } else if (response && response.records && Array.isArray(response.records)) {
+            hospitalizationData = response.records;
+          } else if (response && typeof response === 'object') {
+            const arrayKeys = Object.keys(response).filter(key => Array.isArray(response[key]));
+            if (arrayKeys.length > 0) {
+              hospitalizationData = response[arrayKeys[0]];
+            } else {
+              hospitalizationData = [];
+            }
+          }
+
+          const mappedHospitalizations = hospitalizationData.map((item: any) => ({
+            id: item.H_id,
+            recordFor: item.Record_for,
+            recordDate: item.Record_date,
+            recordName: item.RecordName,
+            doctor: item.Record_Doctor_Name,
+            hospital: item.Record_Hospital_Name,
+            type: item.Type_of_Record,
+            notes: item.Additional_Notes,
+            docName: item.UplordDocName,
+            docPath: item.UplordDocPath,
+            employeeRefId: item.EmployeeRefId,
+            relation: item.RelationType === 1 ? "Self" :
+              item.RelationType === 2 ? "Dependant" :
+                item.Relation || "Self",
+            createdOn: item.CreatedOn,
+            updatedOn: item.UpdatedOn,
+          }));
+
+          setHospitalizationRecords(mappedHospitalizations);
+          break;
+
+        case "Medical Bills":
+          response = await HealthRecordsAPI.GetFilteredMedicalBills(filterData);
+
+          let medicalBillData: any[] = [];
+
+          if (Array.isArray(response)) {
+            medicalBillData = response;
+          } else if (response && response.data && Array.isArray(response.data)) {
+            medicalBillData = response.data;
+          } else if (response && response.records && Array.isArray(response.records)) {
+            medicalBillData = response.records;
+          } else if (response && typeof response === 'object') {
+            const arrayKeys = Object.keys(response).filter(key => Array.isArray(response[key]));
+            if (arrayKeys.length > 0) {
+              medicalBillData = response[arrayKeys[0]];
+            } else {
+              medicalBillData = [];
+            }
+          }
+
+          const mappedMedicalBills = medicalBillData.map((item: any) => ({
+            id: item.MB_id,
+            recordFor: item.Record_for,
+            recordDate: item.Record_date,
+            recordName: item.RecordName,
+            billNumber: item.Record_Bill_Number,
+            hospital: item.Record_Hospital_Name,
+            type: item.Type_of_Record,
+            docName: item.UplordDocName,
+            docPath: item.UplordDocPath,
+            employeeRefId: item.EmployeeRefId,
+            relation: item.RelationType === 1 ? "Self" :
+              item.RelationType === 2 ? "Dependant" :
+                item.Relation || "Self",
+            createdOn: item.CreatedOn,
+            updatedOn: item.UpdatedOn,
+          }));
+
+          setMedicalBillRecords(mappedMedicalBills);
+          break;
+
+        case "Vaccinations Certificates":
+          response = await HealthRecordsAPI.GetFilteredVaccinations(filterData);
+
+          let vaccinationData: any[] = [];
+
+          if (Array.isArray(response)) {
+            vaccinationData = response;
+          } else if (response && response.data && Array.isArray(response.data)) {
+            vaccinationData = response.data;
+          } else if (response && response.records && Array.isArray(response.records)) {
+            vaccinationData = response.records;
+          } else if (response && typeof response === 'object') {
+            const arrayKeys = Object.keys(response).filter(key => Array.isArray(response[key]));
+            if (arrayKeys.length > 0) {
+              vaccinationData = response[arrayKeys[0]];
+            } else {
+              vaccinationData = [];
+            }
+          }
+
+          const mappedVaccinations = vaccinationData.map((item: any) => ({
+            id: item.V_id,
+            recordFor: item.Record_for,
+            recordDate: item.Record_date,
+            recordName: item.RecordName,
+            vaccinationDose: item.Vaccination_dose,
+            vaccinationCenter: item.Vaccination_center,
+            registrationId: item.Registration_id,
+            docName: item.UplordDocName,
+            docPath: item.UplordDocPath,
+            employeeRefId: item.EmployeeRefId,
+            relation: item.RelationType === 1 ? "Self" :
+              item.RelationType === 2 ? "Dependant" :
+                item.Relation || "Self",
+            createdOn: item.CreatedOn,
+            updatedOn: item.UpdatedOn,
+          }));
+
+          setVaccinationRecords(mappedVaccinations);
+          break;
+
+        default:
+          return;
+      }
+
+    } catch (error: any) {
+      console.error("Error applying filters:", error);
+      // Fallback to client-side filtering
+      applyClientSideFiltersWithValues(filterValues);
+    } finally {
+      setFilterLoading(false);
+    }
+  };
+
+  // Client-side filtering with specific filter values
+  const applyClientSideFiltersWithValues = (filterValues: typeof filters) => {
+    const filterRecords = (records: any[]) => {
+      return records.filter(record => {
+        if (filterValues.doctorName) {
+          const searchTerm = filterValues.doctorName.toLowerCase();
+          const doctorName = (record.doctor || record.recordDoctorName || record.doctor_name || '').toString().toLowerCase();
+          const recordName = (record.recordName || record.RecordName || record.vaccinationName || '').toString().toLowerCase();
+          const hospitalName = (record.hospital || record.hospital_name || record.Record_Hospital_Name || record.vaccinationCenter || '').toString().toLowerCase();
+          const patientName = (record.name || record.recordFor || record.patient_name || '').toString().toLowerCase();
+
+          if (!doctorName.includes(searchTerm) &&
+            !recordName.includes(searchTerm) &&
+            !hospitalName.includes(searchTerm) &&
+            !patientName.includes(searchTerm)) {
+            return false;
+          }
+        }
+
+        if (filterValues.date) {
+          const rawDate = record.recordDate || record.vaccinationDate || record.admitted_date || '';
+          if (rawDate) {
+            let dateObjStr: string = '';
+            if (rawDate.includes('-')) {
+              const parts = rawDate.split('-');
+              if (parts[0].length === 4) {
+                dateObjStr = rawDate;
+              } else {
+                dateObjStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
+              }
+            }
+
+            if (dateObjStr && dateObjStr === filterValues.date) {
+              // Match found
+            } else if (dateObjStr) {
+              return false;
+            }
+          } else {
+            return false;
+          }
+        }
+
+        if (filterValues.caseForOption) {
+          const relation = (record.relation || "").toString().toLowerCase();
+          const isDependent = relation === "dependent" || relation === "dependant";
+
+          if (filterValues.caseForOption === "1" && relation !== "self") {
+            return false;
+          }
+          if (filterValues.caseForOption === "2" && !isDependent) {
+            return false;
+          }
+        }
+
+        return true;
+      });
+    };
+
+    switch (activeTab) {
+      case "Prescription & Lab Tests":
+        setRecords(filterRecords(allRecords));
+        break;
+      case "Hospitalizations":
+        setHospitalizationRecords(filterRecords(allHospitalizationRecords));
+        break;
+      case "Medical Bills":
+        setMedicalBillRecords(filterRecords(allMedicalBillRecords));
+        break;
+      case "Vaccinations Certificates":
+        setVaccinationRecords(filterRecords(allVaccinationRecords));
+        break;
+    }
   };
 
   // Handle lab parameter changes
@@ -1211,19 +1593,34 @@ const HealthRecords: React.FC = () => {
   };
 
   // Open document in new tab
+  // Open document in new tab (Legacy handler rename or remove if unused, keeping for safety)
   const handleOpenExistingDocument = (document: any) => {
-    const filePath = formatFilePath(document.UplordDocPath || document.DocumentPath);
-    if (filePath) {
-      window.open(filePath, '_blank', 'noopener,noreferrer');
-    } else {
-      toast.error("Document path not found");
-    }
+    handleViewDocument(document);
   };
 
   // Delete document from server
   const handleDeleteDocument = async (documentId: number, documentType: string) => {
     try {
       if (!window.confirm("Are you sure you want to delete this document?")) {
+        return;
+      }
+
+      // Check if we are deleting a prescription document
+      if (documentType === 'TEST_REPORT') {
+        // Since the new API doesn't have a specific delete-document endpoint and uses update with keep_documents,
+        // we might not be able to delete securely without the parent record ID.
+        // However, if we assume this is called from a context where we might know the record... 
+        // But we don't. 
+
+        // If this function is only called from the "View Documents" modal where we might have strict access...
+        // Let's look at where it is called.
+
+        // If we are strictly failing on 404, we should temporarily handle it gracefully or try the legacy path only for others.
+
+        // For now, let's catch the 404 and show a more helpful message or try to use the legacy endpoint only if not prescription.
+        // But "TEST_REPORT" maps to prescription documents in our new logic.
+
+        toast.error("Document deletion involves updating the record. Please Edit the record to remove documents.");
         return;
       }
 
@@ -1235,7 +1632,8 @@ const HealthRecords: React.FC = () => {
         // Refresh the appropriate documents based on type
         switch (documentType) {
           case "TEST_REPORT":
-            fetchTestReportDocuments();
+            // fetchTestReportDocuments(); // No longer needed as we rely on record details
+            fetchHealthRecords(); // Refresh main list to update document counts/links
             break;
           case "HOSPITALIZATION":
             fetchHospitalizationDocuments();
@@ -1245,24 +1643,6 @@ const HealthRecords: React.FC = () => {
             break;
           case "VACCINATION":
             fetchVaccinationDocuments();
-            break;
-          default:
-            break;
-        }
-
-        // Also refresh the main records if needed
-        switch (activeTab) {
-          case "Prescription & Lab Tests":
-            fetchHealthRecords();
-            break;
-          case "Hospitalizations":
-            fetchHospitalizationDetails();
-            break;
-          case "Medical Bills":
-            fetchMedicalBillDetails();
-            break;
-          case "Vaccinations Certificates":
-            fetchVaccinationDetails();
             break;
           default:
             break;
@@ -1277,6 +1657,7 @@ const HealthRecords: React.FC = () => {
   };
 
   // Save test details
+  // Save test details
   const handleSaveTestDetails = async () => {
     try {
       if (!validateForm()) {
@@ -1286,85 +1667,46 @@ const HealthRecords: React.FC = () => {
 
       setLoading(true);
 
-      const loginRefId = localStorage.getItem("LoginRefId") || "";
-      const employeeRefId = localStorage.getItem("EmployeeRefId") || user?.id?.toString() || "0";
+      const payload: any = {
+        record_date: getDateInputValue(formData.recordDate),
+        record_type: formData.typeOfRecord === 'Medical Report' ? 'lab_test' : 'prescription',
+        record_name: formData.recordName,
+        doctor_name: formData.recordDoctorName,
+        doctor_specialization: formData.doctorSpecialization ? parseInt(formData.doctorSpecialization) : null,
+        reason: formData.reasonForConsultation || formData.additionalNotes,
+        for_whom: formData.person,
+        dependant: formData.person === 'dependant' ? parseInt(formData.relationshipPersonId) : undefined,
+        parameters: labParameters
+          .filter(p => p.parameterName.trim())
+          .map(p => ({
+            parameter_name: p.parameterName,
+            result: p.result,
+            unit: p.unit
+          }))
+      };
 
-      const validLabParameters = labParameters
-        .filter((param) => param.parameterName.trim() !== "")
-        .map((param) => ({
-          ParameterName: param.parameterName,
-          Result: param.result,
-          ResultType: param.unit,
-          StartRange: param.startRange,
-          StartRangeType: param.unit,
-          EndRange: param.endRange,
-          EndRangeType: param.unit,
-        }));
+      // Handle documents to keep during update
+      if (isEditing && existingDocuments.length > 0) {
+        const documentsToKeep = existingDocuments
+          .filter(doc => {
+            const docName = doc.UplordDocName || doc.DocumentName || (doc.file ? doc.file.split('/').pop() : '');
+            return docName && !documentsToRemove.includes(docName);
+          })
+          .map(doc => doc.id || doc.TR_DocumentId); // Ensure we get the ID correctly
 
-      const existingDocDetails = existingDocuments
-        .filter((doc) => {
-          const docName = doc.UplordDocName || doc.DocumentName;
-          return !documentsToRemove.includes(docName);
-        })
-        .map((doc) => ({
-          DocumentName: doc.UplordDocName || doc.DocumentName,
-          DocumentPath: doc.UplordDocPath || doc.DocumentPath || "",
-        }));
-
-      const formDataToSend = new FormData();
-
-      formDataToSend.append("TR_id", isEditing && editingRecordId ? editingRecordId.toString() : "0");
-      formDataToSend.append("Record_for", formData.recordFor);
-      formDataToSend.append("Record_date", formData.recordDate);
-      formDataToSend.append("RecordName", formData.recordName);
-      formDataToSend.append("Type_of_Record", formData.typeOfRecord);
-      formDataToSend.append("Record_Doctor_Name", formData.recordDoctorName);
-      formDataToSend.append("Record_prescribed_by", formData.recordDoctorName);
-      formDataToSend.append("Additional_Notes", formData.reasonForConsultation || "");
-
-      if (formData.doctorSpecialization) {
-        // Append to DoctorSpecialization field (this should be the ID)
-        formDataToSend.append("DoctorSpecialization", formData.doctorSpecialization);
-
-        // If you still need to send OtherRecordName (for backward compatibility)
-        const selectedSpecialization = specializations.find(
-          spec => spec.DoctorSpecializationsId.toString() === formData.doctorSpecialization
-        );
-
-      } else {
-        formDataToSend.append("DoctorSpecialization", "");
-        formDataToSend.append("OtherRecordName", "");
+        if (documentsToKeep.length > 0) {
+          payload.keep_documents = documentsToKeep;
+        }
       }
 
-      formDataToSend.append("UploadDocName", "");
-      formDataToSend.append("UploadDocPath", "");
-      formDataToSend.append("EmployeeRefId", employeeRefId);
-      formDataToSend.append("RelationType", formData.person === "self" ? "1" : "2");
-
-      // Add relationship and dependent info if dependant
-      if (formData.person === "dependant") {
-        formDataToSend.append("RelationshipId", formData.relationshipId || "0");
-        formDataToSend.append("EmployeeDependentDetailsId", formData.relationshipPersonId || "0");
+      let response;
+      if (isEditing && editingRecordId) {
+        response = await HealthRecordsAPI.updatePrescription(editingRecordId, payload, uploadedFiles);
       } else {
-        formDataToSend.append("RelationshipId", "0");
-        formDataToSend.append("EmployeeDependentDetailsId", "0");
+        response = await HealthRecordsAPI.createPrescription(payload, uploadedFiles);
       }
 
-      formDataToSend.append("CreatedBy", loginRefId);
-
-      formDataToSend.append("RecordDetails", JSON.stringify(validLabParameters));
-
-      const testDocumentDetails = [...existingDocDetails];
-      formDataToSend.append("TestDocumentDetails", JSON.stringify(testDocumentDetails));
-      formDataToSend.append("DocumentsToRemove", JSON.stringify(isEditing ? documentsToRemove : []));
-
-      uploadedFiles.forEach((file) => {
-        formDataToSend.append("file", file);
-      });
-
-      const response = await HealthRecordsAPI.CRMSaveCustomerTestReportDetails(formDataToSend);
-
-      if (response && response.Message && response.Message.includes("Successfully")) {
+      if (response) {
         resetForm();
         resetValidation();
         resetDocumentStates();
@@ -1372,19 +1714,17 @@ const HealthRecords: React.FC = () => {
         setShowLabParameters(false);
         setIsEditing(false);
         setEditingRecordId(null);
-        fetchHealthRecords();
-        fetchTestReportDocuments();
+        fetchHealthRecords(); // This will also update documents
+
         toast.success(
           isEditing
             ? "Prescription & Lab Test updated successfully!"
             : "Prescription & Lab Test saved successfully!"
         );
-      } else {
-        throw new Error(response?.Message || "Failed to save health record");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving health record:", error);
-      toast.error("Error saving health record. Please try again.");
+      toast.error(`Error saving health record: ${error.message || "Please try again."}`);
     } finally {
       setLoading(false);
     }
@@ -1464,75 +1804,38 @@ const HealthRecords: React.FC = () => {
         return;
       }
 
-      setLoading(true);
+      const payload: any = {
+        for_whom: formData.person,
+        bill_type: formData.typeOfRecord,
+        record_name: formData.recordName,
+        record_date: getDateInputValue(formData.recordDate),
+        record_bill_number: formData.billNumber,
+        record_hospital_name: formData.hospitalName,
+        notes: formData.additionalNotes,
+        dependant: formData.person === 'dependant' ? parseInt(formData.relationshipPersonId) : undefined,
+      };
 
-      const formDataToSubmit = new FormData();
-      const loginRefId = localStorage.getItem("LoginRefId") || "";
-      const employeeRefId = localStorage.getItem("EmployeeRefId") || user?.id?.toString() || "0";
+      if (isEditing && existingDocuments.length > 0) {
+        const documentsToKeep = existingDocuments
+          .filter(doc => {
+            const docName = doc.UplordDocName || doc.DocumentName || (doc.file ? doc.file.split('/').pop() : '');
+            return docName && !documentsToRemove.includes(docName);
+          })
+          .map(doc => doc.id); // Ensure ID is used
 
+        if (documentsToKeep.length > 0) {
+          payload.keep_documents = documentsToKeep;
+        }
+      }
+
+      let response;
       if (isEditing && editingRecordId) {
-        formDataToSubmit.append("MB_id", editingRecordId.toString());
+        response = await HealthRecordsAPI.updateMedicalBill(editingRecordId, payload, uploadedFiles);
       } else {
-        formDataToSubmit.append("MB_id", "0");
+        response = await HealthRecordsAPI.createMedicalBill(payload, uploadedFiles);
       }
 
-      formDataToSubmit.append("Record_for", formData.recordFor);
-      formDataToSubmit.append("Record_date", formData.recordDate);
-      formDataToSubmit.append("RecordName", formData.recordName);
-      formDataToSubmit.append("Record_Bill_Number", formData.billNumber || "");
-      formDataToSubmit.append("Record_Hospital_Name", formData.hospitalName);
-      formDataToSubmit.append("Type_of_Record", formData.typeOfRecord || "");
-      formDataToSubmit.append("UploadDocName", "");
-      formDataToSubmit.append("UploadDocPath", "");
-      formDataToSubmit.append("EmployeeRefId", employeeRefId);
-      formDataToSubmit.append("RelationType", formData.person === "self" ? "1" : "2");
-
-      // Add relationship and dependent info if dependant
-      if (formData.person === "dependant") {
-        formDataToSubmit.append("RelationshipId", formData.relationshipId || "0");
-        formDataToSubmit.append("EmployeeDependentDetailsId", formData.relationshipPersonId || "0");
-      } else {
-        formDataToSubmit.append("RelationshipId", "0");
-        formDataToSubmit.append("EmployeeDependentDetailsId", "0");
-      }
-
-      formDataToSubmit.append("CreatedBy", loginRefId);
-      formDataToSubmit.append("LoginRefId", loginRefId);
-
-      const remainingDocs = existingDocuments
-        .filter((doc) => {
-          const docName = doc.UplordDocName || doc.DocumentName;
-          return !documentsToRemove.includes(docName);
-        })
-        .map((doc) => ({
-          DocumentName: doc.UplordDocName || doc.DocumentName,
-          DocumentPath: doc.UplordDocPath || doc.DocumentPath || "",
-        }));
-
-      const newDocDetails = uploadedFiles.map((file) => ({
-        DocumentName: file.name,
-        DocumentPath: `https://live.welleazy.com/HealthRecords/MedicalBill/${file.name}`,
-      }));
-
-      const allDocuments = [...remainingDocs, ...newDocDetails];
-
-      formDataToSubmit.append(
-        "MedicalBillDocumentDetails",
-        JSON.stringify(allDocuments)
-      );
-
-      formDataToSubmit.append(
-        "DocumentsToRemove",
-        JSON.stringify(isEditing ? documentsToRemove : [])
-      );
-
-      uploadedFiles.forEach((file) => {
-        formDataToSubmit.append("file", file);
-      });
-
-      const response = await HealthRecordsAPI.CRMSaveCustomerMedicalBillDetails(formDataToSubmit);
-
-      if (response && response.Message && response.Message.includes("Successfully")) {
+      if (response) {
         resetForm();
         resetValidation();
         resetDocumentStates();
@@ -1540,14 +1843,11 @@ const HealthRecords: React.FC = () => {
         setIsEditing(false);
         setEditingRecordId(null);
         fetchMedicalBillDetails();
-        fetchMedicalBillDocuments();
         toast.success(isEditing ? "Medical bill record updated successfully!" : "Medical bill record saved successfully!");
-      } else {
-        throw new Error(response?.Message || "Failed to save medical bill record");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving medical bill record:", error);
-      toast.error("Error saving medical bill record. Please try again.");
+      toast.error(`Error saving medical bill record: ${error.message || "Please try again."}`);
     } finally {
       setLoading(false);
     }
@@ -1564,8 +1864,8 @@ const HealthRecords: React.FC = () => {
       setLoading(true);
 
       const formDataToSubmit = new FormData();
-      const loginRefId = localStorage.getItem("LoginRefId") || "";
-      const employeeRefId = localStorage.getItem("EmployeeRefId") || user?.id?.toString() || "0";
+      const loginRefId = user?.id?.toString() || "0";
+      const employeeRefId = user?.employeeRefId || user?.id?.toString() || "0";
 
       if (isEditing && editingRecordId) {
         formDataToSubmit.append("V_id", editingRecordId.toString());
@@ -1597,43 +1897,38 @@ const HealthRecords: React.FC = () => {
         formDataToSubmit.append("EmployeeDependentDetailsId", "0");
       }
 
-      formDataToSubmit.append("CreatedBy", loginRefId);
-      formDataToSubmit.append("LoginRefId", loginRefId);
+      const payload: any = {
+        for_whom: formData.person,
+        vaccination_date: getDateInputValue(formData.recordDate),
+        vaccination_name: formData.recordName,
+        vaccination_dose: formData.vaccinationDose,
+        vaccination_center: formData.vaccinationCenter,
+        registration_id: formData.registrationId,
+        notes: formData.additionalNotes,
+        dependant: formData.person === 'dependant' ? parseInt(formData.relationshipPersonId) : undefined,
+      };
 
-      const remainingDocs = existingDocuments
-        .filter((doc) => {
-          const docName = doc.UplordDocName || doc.DocumentName;
-          return !documentsToRemove.includes(docName);
-        })
-        .map((doc) => ({
-          DocumentName: doc.UplordDocName || doc.DocumentName,
-          DocumentPath: doc.UplordDocPath || doc.DocumentPath || "",
-        }));
+      if (isEditing && existingDocuments.length > 0) {
+        const documentsToKeep = existingDocuments
+          .filter(doc => {
+            const docName = doc.UplordDocName || doc.DocumentName || (doc.file ? doc.file.split('/').pop() : '');
+            return docName && !documentsToRemove.includes(docName);
+          })
+          .map(doc => doc.id);
 
-      const newDocDetails = uploadedFiles.map((file) => ({
-        DocumentName: file.name,
-        DocumentPath: `https://live.welleazy.com/HealthRecords/Vaccination/${file.name}`,
-      }));
+        if (documentsToKeep.length > 0) {
+          payload.keep_documents = documentsToKeep;
+        }
+      }
 
-      const allDocuments = [...remainingDocs, ...newDocDetails];
+      let response;
+      if (isEditing && editingRecordId) {
+        response = await HealthRecordsAPI.updateVaccinationCertificate(editingRecordId, payload, uploadedFiles);
+      } else {
+        response = await HealthRecordsAPI.createVaccinationCertificate(payload, uploadedFiles);
+      }
 
-      formDataToSubmit.append(
-        "VaccinationDocumentDetails",
-        JSON.stringify(allDocuments)
-      );
-
-      formDataToSubmit.append(
-        "DocumentsToRemove",
-        JSON.stringify(isEditing ? documentsToRemove : [])
-      );
-
-      uploadedFiles.forEach((file) => {
-        formDataToSubmit.append("file", file);
-      });
-
-      const response = await HealthRecordsAPI.CRMSaveCustomerVaccinationDetails(formDataToSubmit);
-
-      if (response && response.Message && response.Message.includes("Successfully")) {
+      if (response) {
         resetForm();
         resetValidation();
         resetDocumentStates();
@@ -1641,14 +1936,11 @@ const HealthRecords: React.FC = () => {
         setIsEditing(false);
         setEditingRecordId(null);
         fetchVaccinationDetails();
-        fetchVaccinationDocuments();
         toast.success(isEditing ? "Vaccination record updated successfully!" : "Vaccination record saved successfully!");
-      } else {
-        throw new Error(response?.Message || "Failed to save vaccination record");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving vaccination record:", error);
-      toast.error("Error saving vaccination record. Please try again.");
+      toast.error(`Error saving vaccination record: ${error.message || "Please try again."}`);
     } finally {
       setLoading(false);
     }
@@ -1688,8 +1980,7 @@ const HealthRecords: React.FC = () => {
   // Reset filters
   const resetFilters = () => {
     setFilters({
-      fromDate: '',
-      toDate: '',
+      date: '',
       caseForOption: '',
       doctorName: ''
     });
@@ -1703,10 +1994,10 @@ const HealthRecords: React.FC = () => {
       const employeeRefId = user?.employeeRefId || user?.id?.toString() || "0";
 
       const filterData = {
-        FromDate: filters.fromDate,
-        ToDate: filters.toDate,
+        FromDate: filters.date,
+        ToDate: filters.date,
         CaseForOption: filters.caseForOption,
-        DoctorName: filters.doctorName,
+        SearchKeyword: filters.doctorName,
         EmployeeRefid: employeeRefId
       };
 
@@ -1750,7 +2041,7 @@ const HealthRecords: React.FC = () => {
               }));
 
               const relation = item.RelationType === 1 ? "Self" :
-                item.RelationType === 2 ? "Dependant" :
+                item.RelationType === 2 ? "Dependent" :
                   item.Relation || "Self";
 
               return {
@@ -1920,38 +2211,57 @@ const HealthRecords: React.FC = () => {
   // Client-side filtering fallback
   const filterRecordsClientSide = (records: any[]) => {
     return records.filter(record => {
+      // 1. Search Filter (checks multiple fields)
       if (filters.doctorName) {
-        const doctorName = record.doctor || record.recordDoctorName || '';
-        if (!doctorName.toLowerCase().includes(filters.doctorName.toLowerCase())) {
+        const searchTerm = filters.doctorName.toLowerCase();
+        const doctorName = (record.doctor || record.recordDoctorName || record.doctor_name || '').toString().toLowerCase();
+        const recordName = (record.recordName || record.RecordName || record.vaccinationName || '').toString().toLowerCase();
+        const hospitalName = (record.hospital || record.hospital_name || record.Record_Hospital_Name || record.vaccinationCenter || '').toString().toLowerCase();
+        const patientName = (record.name || record.recordFor || record.patient_name || '').toString().toLowerCase();
+
+        if (!doctorName.includes(searchTerm) &&
+          !recordName.includes(searchTerm) &&
+          !hospitalName.includes(searchTerm) &&
+          !patientName.includes(searchTerm)) {
           return false;
         }
       }
 
-      if (filters.fromDate || filters.toDate) {
-        const recordDate = record.recordDate || '';
-        const recordDateObj = new Date(recordDate.split('-').reverse().join('-'));
+      // 2. Date Filter (Exact match)
+      if (filters.date) {
+        const rawDate = record.recordDate || record.vaccinationDate || record.admitted_date || '';
+        if (rawDate) {
+          // Attempt to parse date consistently (expects YYYY-MM-DD or DD-MM-YYYY)
+          let dateObjStr: string = '';
+          if (rawDate.includes('-')) {
+            const parts = rawDate.split('-');
+            if (parts[0].length === 4) { // YYYY-MM-DD
+              dateObjStr = rawDate;
+            } else { // DD-MM-YYYY
+              dateObjStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+          }
 
-        if (filters.fromDate) {
-          const fromDateObj = new Date(filters.fromDate);
-          if (recordDateObj < fromDateObj) {
+          if (dateObjStr && dateObjStr === filters.date) {
+            // Match found
+          } else if (dateObjStr) {
             return false;
           }
-        }
-
-        if (filters.toDate) {
-          const toDateObj = new Date(filters.toDate);
-          if (recordDateObj > toDateObj) {
-            return false;
-          }
+        } else {
+          return false;
         }
       }
 
+      // 3. Self/Dependent Filter
       if (filters.caseForOption) {
-        const isSelf = record.relation === "Self";
-        if (filters.caseForOption === "1" && !isSelf) {
+        const relation = (record.relation || "").toString().toLowerCase();
+        // Handle both spellings for reliability
+        const isDependent = relation === "dependent" || relation === "dependant";
+
+        if (filters.caseForOption === "1" && relation !== "self") {
           return false;
         }
-        if (filters.caseForOption === "2" && isSelf) {
+        if (filters.caseForOption === "2" && !isDependent) {
           return false;
         }
       }
@@ -2380,45 +2690,7 @@ const HealthRecords: React.FC = () => {
     setDocumentType('');
   };
 
-  // Handle view document
-  const handleViewDocument = (document: any) => {
-    const filePath = formatFilePath(document.UplordDocPath);
-    if (filePath) {
-      window.open(filePath, '_blank', 'noopener,noreferrer');
-    }
-  };
 
-  // Handle download document
-  const handleDownloadDocument = async (document: any) => {
-    if (typeof window === 'undefined' || !window.document) {
-      return;
-    }
-
-    const filePath = formatFilePath(document.UplordDocPath);
-    if (!filePath) return;
-
-    try {
-      const response = await fetch(filePath);
-      if (!response.ok) throw new Error('Failed to fetch file');
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-
-      const link = window.document.createElement('a');
-      link.href = url;
-      link.download = document.UplordDocName || 'document';
-      link.style.display = 'none';
-
-      window.document.body.appendChild(link);
-      link.click();
-      window.document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-    } catch (error) {
-      console.error('Download failed:', error);
-      window.open(filePath, '_blank');
-    }
-  };
 
   // Handle view all documents
   const handleViewAllDocuments = (documents: any[]) => {
@@ -2477,10 +2749,18 @@ const HealthRecords: React.FC = () => {
         return;
       }
 
-      const employeeRefId = user.employeeRefId || user.id;
-      const parameters = await HealthRecordsAPI.CRMGetCustomerTestReportParameterDetails(employeeRefId);
+      const recordDetails = await HealthRecordsAPI.getPrescriptionById(recordId);
 
-      const recordParameters = parameters.filter(param => param.TR_id === recordId);
+      let recordParameters: any[] = [];
+      if (recordDetails && recordDetails.parameters && Array.isArray(recordDetails.parameters)) {
+        recordParameters = recordDetails.parameters.map((p: any) => ({
+          ParameterName: p.parameter_name,
+          Result: p.result,
+          ResultType: p.unit,
+          StartRange: "", // New API might not return this yet
+          EndRange: ""   // New API might not return this yet
+        }));
+      }
 
       setSelectedParameters(recordParameters);
       setParametersCount(recordParameters.length);
@@ -2520,8 +2800,14 @@ const HealthRecords: React.FC = () => {
 
       switch (recordType) {
         case 'prescription':
-          recordData = await HealthRecordsAPI.CRMGetCustomerTestReportDetailsById(record.id);
-          documents = getTestReportDocuments(record.id);
+          recordData = await HealthRecordsAPI.getPrescriptionById(record.id);
+          // Documents are inside the record now
+          documents = (recordData.documents || []).map((doc: any) => ({
+            id: doc.id,
+            UplordDocName: doc.file.split('/').pop(),
+            UplordDocPath: doc.file,
+            // ... other fields if necessary
+          }));
           break;
         case 'hospitalization':
           const hospitalizationData = await HealthRecordsAPI.CRMGetCustomerHospitalizationDetailsById(record.id);
@@ -2530,11 +2816,20 @@ const HealthRecords: React.FC = () => {
           break;
         case 'medicalBill':
           recordData = await HealthRecordsAPI.CRMGetCustomerMedicalBillDetailsById(record.id);
-          documents = getMedicalBillDocuments(record.id);
+          documents = (recordData.documents || []).map((doc: any) => ({
+            id: doc.id,
+            UplordDocName: doc.file.split('/').pop(),
+            UplordDocPath: doc.file,
+          }));
           break;
         case 'vaccination':
-          recordData = await HealthRecordsAPI.CRMGetCustomerVaccinationDetailsById(record.id);
-          documents = getVaccinationDocuments(record.id);
+          const vData = await HealthRecordsAPI.CRMGetCustomerVaccinationDetailsById(record.id);
+          recordData = vData; // New API returns direct object
+          documents = (recordData.documents || []).map((doc: any) => ({
+            id: doc.id,
+            UplordDocName: doc.file.split('/').pop(),
+            UplordDocPath: doc.file,
+          }));
           break;
         default:
           recordData = record;
@@ -2550,98 +2845,112 @@ const HealthRecords: React.FC = () => {
         setUploadedFiles([]);
 
         if (recordType === 'prescription') {
+          // Flatten recordData if it's nested (API might return { id: 1, ... } or { data: { ... } })
+          const data = recordData;
+
           setFormData({
-            person: record.relation === "Self" ? "self" : "dependant",
-            recordFor: record.name,
-            recordDate: record.recordDate,
-            recordName: record.recordName,
-            typeOfRecord: record.typeOfRecord,
-            recordDoctorName: record.doctor,
-            doctorSpecialization: record.specialization || "",
-            reasonForConsultation: record.notes || "",
+            person: data.for_whom === "self" ? "self" : "dependant",
+            recordFor: data.for_whom === "self" ? (user?.name || "Self") : (data.dependant_name || "Dependant"), // Best effort
+            recordDate: data.record_date,
+            recordName: data.record_name,
+            typeOfRecord: data.record_type === 'lab_test' ? 'Medical Report' : 'Doctor Prescription',
+            recordDoctorName: data.doctor_name,
+            doctorSpecialization: data.doctor_specialization?.toString() || "",
+            reasonForConsultation: data.reason || "",
             hospitalName: "",
             additionalNotes: "",
             billNumber: "",
             vaccinationDose: "",
             vaccinationCenter: "",
             registrationId: "",
-            relationshipId: "",
-            relationshipPersonId: "",
-            name: record.name,
-            relation: record.relation
+            relationshipId: "", // Relationship ID might need to be resolved if needed for dropdown
+            relationshipPersonId: data.dependant?.toString() || "",
+            name: data.record_name,
+            relation: data.for_whom
           });
 
-          if (record.labParameters && record.labParameters.length > 0) {
-            setLabParameters(record.labParameters);
+          if (data.parameters && data.parameters.length > 0) {
+            setLabParameters(data.parameters.map((p: any) => ({
+              parameterName: p.parameter_name,
+              result: p.result,
+              unit: p.unit,
+              startRange: "",
+              endRange: ""
+            })));
             setShowLabParameters(true);
           } else {
             setLabParameters([createLabParameter()]);
             setShowLabParameters(false);
           }
         } else if (recordType === 'hospitalization') {
+          // Use the fetched recordData which comes from CRMGetCustomerHospitalizationDetailsById
+          const data = recordData.details && recordData.details[0] ? recordData.details[0] : recordData; // Handle wrapped structure if any
+
           setFormData({
-            person: record.relation === "Self" ? "self" : "dependant",
-            recordFor: record.recordFor,
-            recordDate: record.recordDate,
-            recordName: record.recordName,
-            typeOfRecord: record.type,
-            recordDoctorName: record.doctor,
+            person: data.for_whom === "self" ? "self" : "dependant",
+            recordFor: data.patient_name || (data.for_whom === "self" ? (user?.name || "Self") : "Dependant"),
+            recordDate: data.admitted_date || data.Record_date,
+            recordName: data.record_name || data.RecordName,
+            typeOfRecord: data.hospitalization_type || data.Type_of_Record,
+            recordDoctorName: data.doctor_name || data.Record_Doctor_Name,
             doctorSpecialization: "",
             reasonForConsultation: "",
-            hospitalName: record.hospital,
-            additionalNotes: record.notes || "",
+            hospitalName: data.hospital_name || data.Record_Hospital_Name,
+            additionalNotes: data.notes || data.Additional_Notes || "",
             billNumber: "",
             vaccinationDose: "",
             vaccinationCenter: "",
             registrationId: "",
             relationshipId: "",
-            relationshipPersonId: "",
-            name: record.recordFor,
-            relation: record.relation
+            relationshipPersonId: data.dependant?.toString() || data.EmployeeDependentDetailsId?.toString() || "",
+            name: data.record_name || data.RecordName,
+            relation: data.for_whom === "self" ? "Self" : "Dependant"
           });
           setShowLabParameters(false);
         } else if (recordType === 'medicalBill') {
+          const data = recordData;
           setFormData({
-            person: record.relation === "Self" ? "self" : "dependant",
-            recordFor: record.recordFor,
-            recordDate: record.recordDate,
-            recordName: record.recordName,
-            typeOfRecord: record.type,
+            person: data.for_whom === "self" ? "self" : "dependant",
+            recordFor: data.for_whom === "self" ? (user?.name || "Self") : (data.dependant_name || "Dependant"),
+            recordDate: data.record_date,
+            recordName: data.record_name,
+            typeOfRecord: data.bill_type,
             recordDoctorName: "",
             doctorSpecialization: "",
-            reasonForConsultation: "",
-            hospitalName: record.hospital,
-            additionalNotes: "",
-            billNumber: record.billNumber || "",
+            reasonForConsultation: data.notes || "",
+            hospitalName: data.record_hospital_name,
+            additionalNotes: data.notes || "",
+            billNumber: data.record_bill_number,
             vaccinationDose: "",
             vaccinationCenter: "",
             registrationId: "",
             relationshipId: "",
-            relationshipPersonId: "",
-            name: record.recordFor,
-            relation: record.relation
+            relationshipPersonId: data.dependant?.toString() || "",
+            name: data.record_name,
+            relation: data.for_whom
           });
           setShowLabParameters(false);
         } else if (recordType === 'vaccination') {
+          const data = recordData;
           setFormData({
-            person: record.relation === "Self" ? "self" : "dependant",
-            recordFor: record.recordFor,
-            recordDate: record.recordDate,
-            recordName: record.recordName,
+            person: data.for_whom === "self" ? "self" : "dependant",
+            recordFor: data.for_whom === "self" ? (user?.name || "Self") : (data.dependant_name || "Dependant"),
+            recordDate: data.vaccination_date,
+            recordName: data.vaccination_name,
             typeOfRecord: "",
             recordDoctorName: "",
             doctorSpecialization: "",
-            reasonForConsultation: "",
+            reasonForConsultation: data.notes || "",
             hospitalName: "",
-            additionalNotes: "",
+            additionalNotes: data.notes || "",
             billNumber: "",
-            vaccinationDose: record.vaccinationDose,
-            vaccinationCenter: record.vaccinationCenter,
-            registrationId: record.registrationId || "",
+            vaccinationDose: data.vaccination_dose,
+            vaccinationCenter: data.vaccination_center,
+            registrationId: data.registration_id || "",
             relationshipId: "",
-            relationshipPersonId: "",
-            name: record.recordFor,
-            relation: record.relation
+            relationshipPersonId: data.dependant?.toString() || "",
+            name: data.vaccination_name,
+            relation: data.for_whom
           });
           setShowLabParameters(false);
         }
@@ -3620,7 +3929,7 @@ const HealthRecords: React.FC = () => {
   };
 
   const HospitalizationCard = ({ record }: { record: any }) => {
-    const documents = getHospitalizationDocuments(record.id);
+    const documents = record.documents || [];
 
     return (
       <div key={record.id} className="record-card-custom hospitalization-card">
@@ -3671,7 +3980,7 @@ const HealthRecords: React.FC = () => {
   };
 
   const MedicalBillCard = ({ record }: { record: any }) => {
-    const documents = getMedicalBillDocuments(record.id);
+    const documents = record.documents || [];
 
     return (
       <div key={record.id} className="record-card-custom medical-bill-card">
@@ -3722,7 +4031,7 @@ const HealthRecords: React.FC = () => {
   };
 
   const VaccinationCard = ({ record }: { record: any }) => {
-    const documents = getVaccinationDocuments(record.id);
+    const documents = record.documents || [];
 
     return (
       <div key={record.id} className="record-card-custom vaccination-card">
@@ -3971,27 +4280,18 @@ const HealthRecords: React.FC = () => {
       <div className="Health-filters-container">
         <Input
           type="text"
-          placeholder="Doctor/Hospital Name"
-          className="filter-input"
+          placeholder="Search records (Doctor, Record Name...)"
+          className="filter-input search-filter"
           value={filters.doctorName}
           onChange={(e) => handleFilterChange('doctorName', e.target.value)}
         />
         <div className="date-input-wrapper">
           <Input
             type="date"
-            placeholder="From Date"
+            placeholder="Record Date"
             className="date-input"
-            value={filters.fromDate}
-            onChange={(e) => handleFilterChange('fromDate', e.target.value)}
-          />
-        </div>
-        <div className="date-input-wrapper">
-          <Input
-            type="date"
-            placeholder="To Date"
-            className="date-input"
-            value={filters.toDate}
-            onChange={(e) => handleFilterChange('toDate', e.target.value)}
+            value={filters.date}
+            onChange={(e) => handleFilterChange('date', e.target.value)}
           />
         </div>
         <select
@@ -4007,20 +4307,7 @@ const HealthRecords: React.FC = () => {
           ))}
         </select>
 
-        <button
-          className="Health-action-btn add-record"
-          onClick={applyFilters}
-          disabled={filterLoading}
-        >
-          {filterLoading ? "Applying..." : "Apply Filters"}
-        </button>
-        <button
-          className="Health-action-btn clear-filters"
-          onClick={clearFilters}
-          disabled={filterLoading}
-        >
-          Clear Filters
-        </button>
+
       </div>
 
       {/* Tabs */}
@@ -4131,7 +4418,7 @@ const HealthRecords: React.FC = () => {
                         <td className="align-middle">{index + 1}</td>
                         <td className="align-middle">
                           <div className="d-flex align-items-center">
-                            {doc.UplordDocName || doc.DocumentName || 'Document'}
+                            {doc.UplordDocName || doc.DocumentName || (doc.file ? doc.file.split('/').pop() : 'Document')}
                           </div>
                         </td>
                         <td className="align-middle text-center">

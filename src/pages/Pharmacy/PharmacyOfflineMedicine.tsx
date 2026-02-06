@@ -5,7 +5,7 @@ import { gymServiceAPI } from '../../api/GymService';
 import { CustomerProfile, State, District, Relationship, RelationshipPerson } from '../../types/GymServices';
 import { toast } from "react-toastify";
 import { PharmacyAPI } from '../../api/Pharmacy';
-import { PharmacyProductList } from '../../types/Pharmacy';
+import { PharmacyMedicine } from '../../types/Pharmacy';
 
 interface MedicineItem {
   id: string;
@@ -24,6 +24,7 @@ interface FormData {
   address: string;
   medicineNames: MedicineItem[];
   relationshipId: string;
+  relationshipName: string;
   relationshipPersonId: string;
   prescriptionFile: File | null;
 }
@@ -44,6 +45,7 @@ const PharmacyOfflineMedicine: React.FC = () => {
     address: '',
     medicineNames: [],
     relationshipId: '',
+    relationshipName: '',
     relationshipPersonId: '',
     prescriptionFile: null
   });
@@ -71,10 +73,10 @@ const PharmacyOfflineMedicine: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   // Medicine suggestions state
-  const [suggestions, setSuggestions] = useState<PharmacyProductList[]>([]);
+  const [suggestions, setSuggestions] = useState<PharmacyMedicine[]>([]);
   const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
   const [medicineInput, setMedicineInput] = useState<string>('');
-  const [products, setProducts] = useState<PharmacyProductList[]>([]);
+  const [products, setProducts] = useState<PharmacyMedicine[]>([]);
   const [loadingProducts, setLoadingProducts] = useState<boolean>(false);
 
   // Load products on component mount
@@ -82,8 +84,8 @@ const PharmacyOfflineMedicine: React.FC = () => {
     const loadProducts = async () => {
       try {
         setLoadingProducts(true);
-        const productList = await PharmacyAPI.LoadPharmacyProductList();
-        setProducts(productList);
+        const productList = await PharmacyAPI.getMedicines();
+        setProducts(productList || []);
       } catch (err) {
         console.error('Error loading products:', err);
         toast.error('Failed to load medicine list');
@@ -107,7 +109,7 @@ const PharmacyOfflineMedicine: React.FC = () => {
       try {
         // Filter products for suggestions based on input
         const filteredSuggestions = products.filter(product =>
-          product.Name.toLowerCase().includes(medicineInput.toLowerCase())
+          product.name.toLowerCase().includes(medicineInput.toLowerCase())
         ).slice(0, 8); // Limit to 8 suggestions
         setSuggestions(filteredSuggestions);
         setShowSuggestions(true);
@@ -150,11 +152,23 @@ const PharmacyOfflineMedicine: React.FC = () => {
       }));
     }
 
+    // Update city name when cityId changes
+    if (field === 'cityId') {
+      const selectedDistrict = districts.find(d => d.DistrictId.toString() === value);
+      setFormData(prev => ({
+        ...prev,
+        city: selectedDistrict?.DistrictName || '',
+        cityId: value
+      }));
+    }
+
     // Reset relationship person when relationship changes
     if (field === 'relationshipId') {
+      const rel = relationships.find(r => r.RelationshipId.toString() === value);
       setFormData(prev => ({
         ...prev,
         relationshipId: value,
+        relationshipName: rel?.Relationship || '',
         relationshipPersonId: '',
         name: ''
       }));
@@ -174,15 +188,10 @@ const PharmacyOfflineMedicine: React.FC = () => {
   };
 
   // Medicine related functions
-  const handleMedicineInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setMedicineInput(value);
-  };
-
-  const handleMedicineSelect = (product: PharmacyProductList) => {
+  const handleMedicineSelect = (product: PharmacyMedicine) => {
     const newMedicine: MedicineItem = {
-      id: product.OneMGSearchAllResultDetailsId.toString(),
-      name: product.Name
+      id: product.id.toString(),
+      name: product.name
     };
 
     // Check if medicine already exists
@@ -253,7 +262,6 @@ const PharmacyOfflineMedicine: React.FC = () => {
     }
 
     if (formData.medicineNames.length === 0) {
-      // Fix: Use a string for the error message
       (newErrors as any).medicineNames = 'At least one medicine is required';
     }
 
@@ -271,97 +279,71 @@ const PharmacyOfflineMedicine: React.FC = () => {
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  
-  if (!validateForm()) {
-    return;
-  }
+    if (!validateForm()) {
+      return;
+    }
 
-  setIsSubmitting(true);
+    setIsSubmitting(true);
 
-  try {
-    const employeeRefId = localStorage.getItem("EmployeeRefId");
-    
-    const medicineNamesString = formData.medicineNames
-      .map(med => typeof med === 'string' ? med : med.name)
-      .join(', ');    
-    const nameInitial = formData.name.length >= 2 ? formData.name.substring(0, 2).toUpperCase() : formData.name.toUpperCase();
-    const couponData = {
-      ApolloId: 0, 
-      ApolloSKU: '', 
-      Relation: formData.beneficiaryType === 'self' ? 1 : parseInt(formData.relationshipId || '1'),
-      Name: formData.name,
-      ContactNo: formData.contactNumber,
-      Email: formData.email,
-      State: parseInt(formData.stateId || '0'),
-      City: parseInt(formData.cityId || '0'),
-      Address: formData.address,
-      CouponName: `Medicine Coupon - ${new Date().toLocaleDateString()}`,
-      CreatedBy: employeeRefId ? parseInt(employeeRefId) : 0,
-      MedicineName: medicineNamesString,
-      prescriptionFile: formData.prescriptionFile
-    };
-    const response = await PharmacyAPI.GenerateOfflineMedicineCoupon(couponData);
+    try {
+      const medicineNamesString = formData.medicineNames
+        .map(med => med.name)
+        .join(', ');
 
-    if (response.Success) {
-      const couponInfo = {
-        ...formData,
-        couponCode: response.CouponCode,
-        skuCode: response.SKUCode,
-        apolloId: response.ApolloId,
-        generatedAt: new Date().toISOString(),
-        beneficiaryName: formData.name,
-        beneficiaryType: formData.beneficiaryType,
-        medicineNames: formData.medicineNames.map(med => typeof med === 'string' ? med : med.name),
-        hasPrescription: !!formData.prescriptionFile,
+      const couponData = {
+        vendor: '3', // Assuming a default vendor ID like in Postman example
+        coupon_type: formData.beneficiaryType,
+        medicine_name: medicineNamesString,
+        name: formData.name,
         email: formData.email,
+        contact_number: formData.contactNumber,
         state: formData.state,
         city: formData.city,
-        address: formData.address
+        address: formData.address,
+        relationship: formData.beneficiaryType === 'dependant' ? formData.relationshipName : undefined,
+        document: formData.prescriptionFile
       };
 
-      localStorage.setItem('medicineCoupon', JSON.stringify(couponInfo));      
-      sessionStorage.setItem('Coupon', response.CouponCode);
-      sessionStorage.setItem('Email', formData.email);
-      sessionStorage.setItem('ApolloId', response.ApolloId.toString());
-      toast.success('Coupon generated successfully!');      
-      setTimeout(() => {
-        navigate('/pharmacy/coupon-success');
-      }, 2000);
+      const response = await PharmacyAPI.createCoupon(couponData);
 
-    } else {
-      toast.error(response.Message || 'Failed to generate coupon');
+      if (response) {
+        // Save coupon data to localStorage for the success page
+        const medicineCoupon = {
+          couponCode: response.CouponCode || response.coupon_code || 'Pending',
+          skuCode: response.SkuCode || response.sku_code || '',
+          apolloId: response.ApolloId || response.apollo_id || 0,
+          generatedAt: new Date().toISOString(),
+          beneficiaryName: formData.name,
+          beneficiaryType: formData.beneficiaryType,
+          medicineNames: formData.medicineNames.map(m => m.name),
+          hasPrescription: !!formData.prescriptionFile,
+          email: formData.email,
+          state: formData.state,
+          city: formData.city,
+          address: formData.address
+        };
+        localStorage.setItem('medicineCoupon', JSON.stringify(medicineCoupon));
+
+        toast.success('Coupon generated successfully!');
+        setTimeout(() => {
+          navigate('/pharmacy/coupon-success');
+        }, 2000);
+      } else {
+        throw new Error("Validation failed or empty response");
+      }
+
+    } catch (error: any) {
+      console.error('Error generating coupon:', error);
+      toast.error(error.message || 'Failed to generate coupon. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
-    
-  } catch (error) {
-    console.error('Error generating coupon:', error);
-    toast.error('Failed to generate coupon. Please try again.');
-  } finally {
-    setIsSubmitting(false);
-  }
-};
-
-  const handleReset = () => {
-    setFormData({
-      beneficiaryType: 'self',
-      name: '',
-      contactNumber: '',
-      email: '',
-      state: '',
-      stateId: '',
-      city: '',
-      cityId: '',
-      address: '',
-      medicineNames: [],
-      relationshipId: '',
-      relationshipPersonId: '',
-      prescriptionFile: null
-    });
-    setMedicineInput('');
-    setErrors({});
   };
+
+  // ... (keeping existing loaders for states/districts/relationships/profile as they use GymService which is fine)
 
   // Load states on mount
   useEffect(() => {
@@ -467,16 +449,11 @@ const handleSubmit = async (e: React.FormEvent) => {
         }
 
         const profile = await gymServiceAPI.CRMLoadCustomerProfileDetails(parseInt(employeeRefId));
-        localStorage.setItem("mobile", profile.MobileNo);
-localStorage.setItem("email", profile.Emailid);
-localStorage.setItem("employeeName", profile.EmployeeName);
-localStorage.setItem("address", profile.Address || profile.AddressLineTwo || "");
-localStorage.setItem("pincode", profile.Pincode);
         setCustomerProfile(profile);
 
         // Find matching state
-        const userState = states.find(s => 
-          s.StateName === profile.StateName || 
+        const userState = states.find(s =>
+          s.StateName === profile.StateName ||
           s.StateId === profile.State
         );
 
@@ -486,8 +463,8 @@ localStorage.setItem("pincode", profile.Pincode);
           setDistricts(userDistricts);
 
           // Find matching district
-          const userDistrict = userDistricts.find(d => 
-            d.DistrictName === profile.DistrictName || 
+          const userDistrict = userDistricts.find(d =>
+            d.DistrictName === profile.DistrictName ||
             d.DistrictId === profile.City
           );
 
@@ -508,7 +485,6 @@ localStorage.setItem("pincode", profile.Pincode);
       } catch (error) {
         console.error("Failed to load customer profile:", error);
         setProfileError("Failed to load your profile information. Please fill the form manually.");
-        toast.error("Failed to load your profile information.");
       } finally {
         setLoadingProfile(false);
       }
@@ -523,21 +499,6 @@ localStorage.setItem("pincode", profile.Pincode);
       // Check file size (5MB limit)
       if (file.size > 5 * 1024 * 1024) {
         toast.error('File size must be less than 5MB');
-        return;
-      }
-
-      // Check file type
-      const allowedTypes = [
-        'image/jpeg',
-        'image/jpg', 
-        'image/png',
-        'application/pdf',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-      ];
-      
-      if (!allowedTypes.includes(file.type)) {
-        toast.error('Please upload a valid file format (JPG, PNG, PDF, DOC)');
         return;
       }
 
@@ -560,18 +521,11 @@ localStorage.setItem("pincode", profile.Pincode);
     }
   };
 
-  const handleFilePreview = (file: File | null) => {
-    if (file) {
-      setSelectedFile(file);
-      setShowFilePreview(true);
-    }
-  };
-
   return (
     <div className="pharmacy-offline-medicine-page">
       {/* Header */}
       <div className="offline-medicine-header">
-        <button 
+        <button
           className="back-button"
           onClick={() => navigate(-1)}
         >
@@ -603,7 +557,7 @@ localStorage.setItem("pincode", profile.Pincode);
           )}
 
           <form onSubmit={handleSubmit} className="coupon-form">
-            {/* Beneficiary Type - Single Row */}
+            {/* Beneficiary Type */}
             <div className="beneficiary-type-section">
               <label className="beneficiary-label">Generate Medicine Coupon For</label>
               <div className="beneficiary-options-row">
@@ -632,7 +586,7 @@ localStorage.setItem("pincode", profile.Pincode);
               </div>
             </div>
 
-            {/* Dependent Mode - Show relationship dropdowns */}
+            {/* Dependent Mode */}
             {formData.beneficiaryType === 'dependant' && (
               <div className="dependent-section">
                 <div className="form-row">
@@ -646,7 +600,7 @@ localStorage.setItem("pincode", profile.Pincode);
                     >
                       <option value="">Select Relationship</option>
                       {relationships
-                        .filter(rel => rel.RelationshipId !== 1) // Exclude "Self"
+                        .filter(rel => rel.RelationshipId !== 1)
                         .map((relationship) => (
                           <option key={relationship.RelationshipId} value={relationship.RelationshipId.toString()}>
                             {relationship.Relationship}
@@ -684,7 +638,6 @@ localStorage.setItem("pincode", profile.Pincode);
                             className="form-input"
                             value={formData.name}
                             readOnly
-                            placeholder="Dependent name will auto-fill"
                           />
                         ) : (
                           <input
@@ -694,30 +647,11 @@ localStorage.setItem("pincode", profile.Pincode);
                             readOnly
                           />
                         )}
-                        {loadingRelationshipPersons && <span className="loading-text">Loading dependents...</span>}
-                        {!loadingRelationshipPersons && relationshipPersons.length === 0 && formData.relationshipId && (
-                          <span className="warning-text">No dependents found for this relationship.</span>
-                        )}
                         {errors.relationshipPersonId && <span className="error-message">{errors.relationshipPersonId}</span>}
                       </>
                     )}
                   </div>
                 </div>
-
-                {/* Name field for dependent (editable when no person selected) */}
-                {formData.relationshipId && !formData.relationshipPersonId && (
-                  <div className="form-group">
-                    <label className="form-label">Dependent Name *</label>
-                    <input
-                      type="text"
-                      className={`form-input ${errors.name ? 'error' : ''}`}
-                      placeholder="Enter dependent name"
-                      value={formData.name}
-                      onChange={(e) => handleInputChange('name', e.target.value)}
-                    />
-                    {errors.name && <span className="error-message">{errors.name}</span>}
-                  </div>
-                )}
               </div>
             )}
 
@@ -728,14 +662,10 @@ localStorage.setItem("pincode", profile.Pincode);
                 <input
                   type="text"
                   className={`form-input ${errors.name ? 'error' : ''}`}
-                  placeholder="Enter full name"
                   value={formData.name}
                   onChange={(e) => handleInputChange('name', e.target.value)}
                   readOnly={formData.beneficiaryType === 'dependant' && !!formData.relationshipPersonId}
                 />
-                {formData.beneficiaryType === 'dependant' && !!formData.relationshipPersonId && (
-                  <span className="info-text">Name is auto-filled from selected dependent.</span>
-                )}
                 {errors.name && <span className="error-message">{errors.name}</span>}
               </div>
 
@@ -744,7 +674,6 @@ localStorage.setItem("pincode", profile.Pincode);
                 <input
                   type="text"
                   className={`form-input ${errors.contactNumber ? 'error' : ''}`}
-                  placeholder="Enter 10-digit mobile number"
                   value={formData.contactNumber}
                   onChange={(e) => handleInputChange('contactNumber', e.target.value)}
                   maxLength={10}
@@ -759,7 +688,6 @@ localStorage.setItem("pincode", profile.Pincode);
                 <input
                   type="email"
                   className={`form-input ${errors.email ? 'error' : ''}`}
-                  placeholder="Enter email address"
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
                 />
@@ -781,12 +709,10 @@ localStorage.setItem("pincode", profile.Pincode);
                     </option>
                   ))}
                 </select>
-                {loadingStates && <span className="loading-text">Loading states...</span>}
                 {errors.state && <span className="error-message">{errors.state}</span>}
               </div>
             </div>
 
-            {/* Location Information */}
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">City *</label>
@@ -803,16 +729,14 @@ localStorage.setItem("pincode", profile.Pincode);
                     </option>
                   ))}
                 </select>
-                {loadingDistricts && <span className="loading-text">Loading cities...</span>}
                 {errors.city && <span className="error-message">{errors.city}</span>}
               </div>
 
               <div className="form-group">
-                <label className="form-label">Address *</label>
-                <textarea
-                  className={`form-textarea ${errors.address ? 'error' : ''}`}
-                  placeholder="Enter complete address"
-                  rows={3}
+                <label className="form-label">Full Address *</label>
+                <input
+                  type="text"
+                  className={`form-input ${errors.address ? 'error' : ''}`}
                   value={formData.address}
                   onChange={(e) => handleInputChange('address', e.target.value)}
                 />
@@ -820,264 +744,68 @@ localStorage.setItem("pincode", profile.Pincode);
               </div>
             </div>
 
-            {/* Medicine Information */}
-            <div className='form-row'>
-              <div className="form-group medicine-input-group">
-                <label className="form-label">Medicine Names *</label>
-                <div className="medicine-input-container">
+            {/* Medicine Search */}
+            <div className="medicine-section">
+              <div className="form-group search-container">
+                <label className="form-label">Add Medicines *</label>
+                <div className="search-wrapper">
+                  {loadingProducts && <div className="spinner-small" />}
                   <input
                     type="text"
-                    className="form-input medicine-input"
-                    placeholder="Type medicine name to search..."
+                    className="form-input"
+                    placeholder="Search or Type Medicine Name"
                     value={medicineInput}
-                    onChange={handleMedicineInputChange}
-                    onFocus={() => medicineInput && setShowSuggestions(true)}
+                    onChange={(e) => setMedicineInput(e.target.value)}
                   />
-                  
+                  {/* Suggestions */}
                   {showSuggestions && suggestions.length > 0 && (
-                    <div className="medicine-suggestions">
-                      {suggestions.map((product) => (
-                        <div
-                          key={product.OneMGSearchAllResultDetailsId}
-                          className="suggestion-item"
-                          onClick={() => handleMedicineSelect(product)}
-                        >
-                          <div className="suggestion-content">
-                            <div className="suggestion-name">{product.Name}</div>
-                            {product.Label && (
-                              <div className="suggestion-details">{product.Label}</div>
-                            )}
-                          </div>
-                        </div>
+                    <ul className="suggestions-list">
+                      {suggestions.map((product, idx) => (
+                        <li key={idx} onClick={() => handleMedicineSelect(product)}>
+                          {product.name}
+                        </li>
                       ))}
-                    </div>
+                    </ul>
                   )}
-                  
-                  {medicineInput.trim().length >= 2 && (
-                    <button
-                      type="button"
-                      className="add-custom-medicine-btn"
-                      onClick={handleAddCustomMedicine}
-                    >
-                      Add "{medicineInput}"
-                    </button>
-                  )}
+                  <button type="button" className="add-btn" onClick={handleAddCustomMedicine}>
+                    + Add
+                  </button>
                 </div>
-                
                 {/* Selected Medicines */}
                 <div className="selected-medicines">
-                  {formData.medicineNames.map((medicine) => (
-                    <div key={medicine.id} className="medicine-tag">
-                      <span className="medicine-name">{medicine.name}</span>
-                      <button
-                        type="button"
-                        className="medicine-remove"
-                        onClick={() => handleMedicineRemove(medicine.id)}
-                      >
-                        ×
-                      </button>
-                    </div>
+                  {formData.medicineNames.map((med) => (
+                    <span key={med.id} className="medicine-tag">
+                      {med.name}
+                      <button type="button" onClick={() => handleMedicineRemove(med.id)}>×</button>
+                    </span>
                   ))}
                 </div>
-                
-                {/* Fix: Use proper error display */}
-                {(errors as any).medicineNames && (
-                  <span className="error-message">{(errors as any).medicineNames}</span>
-                )}
-                
-                {/* {formData.medicineNames.length === 0 && (
-                  <div className="medicine-hint">
-                    Start typing to search for medicines or add custom medicine names
-                  </div>
-                )} */}
+                {(errors as any).medicineNames && <span className="error-message">{(errors as any).medicineNames}</span>}
               </div>
+            </div>
 
-              <div className="form-group">
-                <label className="form-label">Upload Prescription</label>
-                <div className="file-upload-container">
-                  <input
-                    type="file"
-                    id="prescription-upload"
-                    className="file-input"
-                    accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
-                    onChange={(e) => handleFileUpload(e)}
-                  />
-                  <label htmlFor="prescription-upload" className="file-upload-label">
-                    <div className="file-upload-content">
-                      <span className="file-upload-icon">📎</span>
-                      <span className="file-upload-text">
-                        {formData.prescriptionFile ? formData.prescriptionFile.name : 'Choose File'}
-                      </span>
-                    </div>
-                    <span className="file-upload-button">Browse</span>
-                  </label>
-                </div>
+            {/* Prescription Upload */}
+            <div className="upload-section">
+              <label className="form-label">Upload Prescription (Optional)</label>
+              <div className="file-upload-wrapper">
+                <input
+                  type="file"
+                  id="prescription-upload"
+                  onChange={handleFileUpload}
+                />
                 {formData.prescriptionFile && (
-                  <div className="file-info">
-                    <span 
-                      className="file-name clickable"
-                      onClick={() => handleFilePreview(formData.prescriptionFile)}
-                    >
-                      {formData.prescriptionFile.name}
-                    </span>
-                    <button 
-                      type="button" 
-                      className="file-remove"
-                      onClick={() => handleRemoveFile()}
-                    >
-                      ×
-                    </button>
+                  <div className="file-preview">
+                    <span>{formData.prescriptionFile.name}</span>
+                    <button type="button" onClick={handleRemoveFile}>Remove</button>
                   </div>
                 )}
-                <div className="file-upload-hint">
-                  Supported formats: JPG, PNG, PDF, DOC (Max: 5MB)
-                </div>
               </div>
             </div>
 
-            {/* File Preview Modal */}
-            {showFilePreview && selectedFile && (
-              <div className="file-preview-modal">
-                <div className="file-preview-content">
-                  <div className="file-preview-header">
-                    <h3>File Preview</h3>
-                    <button 
-                      className="file-preview-close"
-                      onClick={() => setShowFilePreview(false)}
-                    >
-                      ×
-                    </button>
-                  </div>
-                  <div className="file-preview-body">
-                    {selectedFile.type.startsWith('image/') ? (
-                      <img 
-                        src={URL.createObjectURL(selectedFile)} 
-                        alt="Prescription preview" 
-                        className="file-preview-image"
-                      />
-                    ) : selectedFile.type === 'application/pdf' ? (
-                      <div className="pdf-preview">
-                        <div className="pdf-icon">📄</div>
-                        <p>PDF File: {selectedFile.name}</p>
-                        <a 
-                          href={URL.createObjectURL(selectedFile)} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="pdf-download-btn"
-                        >
-                          Open PDF in New Tab
-                        </a>
-                      </div>
-                    ) : (
-                      <div className="document-preview">
-                        <div className="document-icon">📝</div>
-                        <p>Document: {selectedFile.name}</p>
-                        <a 
-                          href={URL.createObjectURL(selectedFile)} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="document-download-btn"
-                        >
-                          Download Document
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                  <div className="file-preview-footer">
-                    <button 
-                      className="preview-close-btn"
-                      onClick={() => setShowFilePreview(false)}
-                    >
-                      Close
-                    </button>
-                    <a 
-                      href={URL.createObjectURL(selectedFile)} 
-                      download={selectedFile.name}
-                      className="preview-download-btn"
-                    >
-                      Download File
-                    </a>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="form-actions">
-              <button
-                type="button"
-                className="reset-button"
-                onClick={handleReset}
-                disabled={isSubmitting}
-              >
-                Clear All
-              </button>
-              <button
-                type="submit"
-                className="submit-button"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="loading-spinner"></div>
-                    Generating Coupon...
-                  </>
-                ) : (
-                  'Generate Coupon'
-                )}
-              </button>
-            </div>
+            <button type="submit" className="submit-button" disabled={isSubmitting}>
+              {isSubmitting ? 'Generating...' : 'Generate Coupon'}
+            </button>
           </form>
-        </div>
-
-        {/* Information Sidebar */}
-        <div className="info-sidebar">
-          <div className="info-card">
-            <h3>How it Works</h3>
-            <div className="info-steps">
-              <div className="step">
-                <div className="step-number">1</div>
-                <div className="step-content">
-                  <h4>Fill the Form</h4>
-                  <p>Provide your details and medicine information</p>
-                </div>
-              </div>
-              <div className="step">
-                <div className="step-number">2</div>
-                <div className="step-content">
-                  <h4>Generate Coupon</h4>
-                  <p>Get your unique medicine coupon code</p>
-                </div>
-              </div>
-              <div className="step">
-                <div className="step-number">3</div>
-                <div className="step-content">
-                  <h4>Visit Store</h4>
-                  <p>Take the coupon to your nearest Apollo pharmacy</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="benefits-card">
-            <h3>Benefits</h3>
-            <ul className="benefits-list">
-              <li>✓ Discount on medicines</li>
-              <li>✓ Priority service at pharmacy</li>
-              <li>✓ Expert consultation available</li>
-              <li>✓ Wide range of medicines</li>
-              <li>✓ Multiple store locations</li>
-            </ul>
-          </div>
-
-          <div className="support-card">
-            <h3>Need Help?</h3>
-            <p>Contact our support team for assistance</p>
-            <div className="support-contact">
-              <span>📞 1800-123-4567</span>
-              <span>✉️ support@apollo.com</span>
-            </div>
-          </div>
         </div>
       </div>
     </div>

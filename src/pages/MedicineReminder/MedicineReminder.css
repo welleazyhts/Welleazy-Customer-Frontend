@@ -375,3 +375,117 @@
 .medicine-reminder__field:nth-child(5) { animation-delay: 0.5s; }
 .medicine-reminder__field:nth-child(6) { animation-delay: 0.6s; }
 .medicine-reminder__field:nth-child(7) { animation-delay: 0.7s; }
+
+/* List View Styles */
+.medicine-reminder__list-section {
+  width: 100%;
+}
+
+.medicine-reminder__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.medicine-reminder__add-btn {
+  background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 0.8rem 1.5rem;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.2);
+}
+
+.medicine-reminder__add-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(33, 150, 243, 0.3);
+}
+
+.medicine-reminder__empty {
+  text-align: center;
+  padding: 4rem 1rem;
+  background: #f9fafb;
+  border-radius: 16px;
+  border: 2px dashed #e0e0e0;
+  color: #757575;
+  font-size: 1.1rem;
+}
+
+.medicine-reminder__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.medicine-reminder__card {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #edf2f7;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  position: relative;
+  overflow: hidden;
+}
+
+.medicine-reminder__card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  border-color: #bbdefb;
+}
+
+.medicine-reminder__card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(to bottom, #2196f3, #64b5f6);
+}
+
+.medicine-reminder__card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.medicine-reminder__card-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #1a237e;
+  font-weight: 700;
+}
+
+.medicine-reminder__type-badge {
+  font-size: 0.75rem;
+  background: #e3f2fd;
+  color: #1565c0;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.medicine-reminder__card-body p {
+  margin: 0.5rem 0;
+  color: #555;
+  font-size: 0.95rem;
+  display: flex;
+  justify-content: space-between;
+}
+
+.medicine-reminder__card-body strong {
+  color: #333;
+  font-weight: 600;
+}

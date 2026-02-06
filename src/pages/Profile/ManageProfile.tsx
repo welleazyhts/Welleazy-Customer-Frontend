@@ -45,8 +45,8 @@ const ManageProfile: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [employeeProfileId, setEmployeeProfileId] = useState<number>(0);
-const [profileImage, setProfileImage] = useState<string | null>(null);
-const [uploadingImage, setUploadingImage] = useState(false);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
 
   const [formData, setFormData] = useState({
@@ -84,74 +84,90 @@ const [uploadingImage, setUploadingImage] = useState(false);
     { value: "AB-", label: "AB-" },
   ];
 
-const fetchProfilePicture = async () => {
-  const employeeRefIdStr = localStorage.getItem('EmployeeRefId');
-  if (!employeeRefIdStr) return;
+  const fetchProfilePicture = async () => {
+    const employeeRefIdStr = localStorage.getItem('EmployeeRefId');
+    if (!employeeRefIdStr) return;
 
-  const employeeRefId = Number(employeeRefIdStr);
+    const employeeRefId = Number(employeeRefIdStr);
 
-  try {
-    const imageData =
-      await MangeProfileApi.CRMFetchCustomerProfilePicture({
-        EmployeeRefId: employeeRefId,
-      });
+    try {
+      const imageData =
+        await MangeProfileApi.CRMFetchCustomerProfilePicture({
+          EmployeeRefId: employeeRefId,
+        });
 
-    if (Array.isArray(imageData) && imageData.length > 0) {
-      const profile = imageData[0];
+      if (Array.isArray(imageData) && imageData.length > 0) {
+        const profile = imageData[0];
 
-      setProfileImage(profile.ProfileImagePath);
-      setEmployeeProfileId(profile.EmployeeProfileId); // 
+        setProfileImage(profile.ProfileImagePath);
+        setEmployeeProfileId(profile.EmployeeProfileId); // 
 
-    
-    } else {
-      // No image exists
-      setEmployeeProfileId(0);
+
+      } else {
+        // No image exists
+        setEmployeeProfileId(0);
+      }
+    } catch (error) {
+      console.error('Failed to fetch profile picture:', error);
     }
-  } catch (error) {
-    console.error('Failed to fetch profile picture:', error);
-  }
-};
+  };
 
 
 
-const handleImageUpload = async (
-  event: React.ChangeEvent<HTMLInputElement>
-) => {
-  const file = event.target.files?.[0];
-  if (!file) return;
+  const handleImageUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-  const employeeRefId = Number(localStorage.getItem('EmployeeRefId'));
+    const employeeRefId = Number(localStorage.getItem('EmployeeRefId'));
 
-  try {
-    const res = await MangeProfileApi.CRMSaveCustomerProfilePicture(
-      employeeProfileId, 
-      employeeRefId,
-      file
-    );
+    try {
+      const res = await MangeProfileApi.CRMSaveCustomerProfilePicture(
+        employeeProfileId,
+        employeeRefId,
+        file
+      );
 
-    setProfileImage(res.Message);
-    toast.success('Profile picture updated');
- setIsEditMode(false);
-  } catch {
-    toast.error('Upload failed');
-  } finally {
-    event.target.value = '';
-  }
-};
+      setProfileImage(res.Message);
+      toast.success('Profile picture updated');
+      setIsEditMode(false);
+    } catch {
+      toast.error('Upload failed');
+    } finally {
+      event.target.value = '';
+    }
+  };
 
 
 
-  
+
   // Fetch Marital Status data
   const fetchMaritalStatus = async () => {
     setLoading(true);
+    let apiData: CRMMaritalStatusResponse[] = [];
     try {
-      const data = await MangeProfileApi.CRMMaritalStatus();
-      setMaritalStatusOptions(data);
+      apiData = await MangeProfileApi.CRMMaritalStatus();
     } catch (err) {
       console.error('Failed to fetch marital status:', err);
-      setError('Failed to load marital status options');
+      // We don't set global error here to allow fallback to defaults
     }
+
+    // Ensure "Married" and "Unmarried" are included as minimum options
+    const defaultOptions = [
+      { MaritalStatusId: 1, MaritalDescription: "Married" },
+      { MaritalStatusId: 2, MaritalDescription: "Unmarried" }
+    ];
+
+    const mergedOptions = [...apiData];
+    defaultOptions.forEach(def => {
+      if (!mergedOptions.some(opt => opt.MaritalDescription?.toLowerCase() === def.MaritalDescription.toLowerCase())) {
+        mergedOptions.push(def);
+      }
+    });
+
+    setMaritalStatusOptions(mergedOptions);
+    setLoading(false);
   };
 
   // Fetch State data
@@ -185,30 +201,30 @@ const handleImageUpload = async (
       const [day, month, year] = parts;
       return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
     }
-    
+
     const parts2 = dateString.split('/');
     if (parts2.length === 3) {
       const [day, month, year] = parts2;
       return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
     }
-    
+
     return dateString;
   };
 
   // Fetch Profile Details
   const fetchProfileDetails = async () => {
     const EmployeeRefId = localStorage.getItem("EmployeeRefId");
-    
+
     if (EmployeeRefId) {
       setLoading(true);
       try {
         const profileData = await MangeProfileApi.CRMLoadCustomerProfileDetails(parseInt(EmployeeRefId));
-        
+
         console.log("Profile Data:", profileData);
-        
+
         const maritalStatusId = profileData.MaritalStatus;
         let maritalStatusDesc = "";
-        
+
         if (maritalStatusId && maritalStatusOptions.length > 0) {
           const maritalOption = maritalStatusOptions.find(
             option => option.MaritalStatusId === maritalStatusId
@@ -217,7 +233,7 @@ const handleImageUpload = async (
         }
         const stateId = profileData.StateId;
         let stateName = profileData.StateName || "";
-        
+
         if (stateId && stateOptions.length > 0) {
           const stateOption = stateOptions.find(
             option => option.StateId === stateId
@@ -227,14 +243,14 @@ const handleImageUpload = async (
             fetchCities(stateId);
           }
         }
-        
+
         const formattedDOB = formatDateForInput(profileData.Employee_DOB || "");
         setFormData({
           memberId: profileData.MemberId || "",
           userName: profileData.EmployeeName || "",
           employeeId: profileData.EmployeeId || "",
           corporateName: profileData.CorporateName || "",
-          customerName: profileData.EmployeeName || "", 
+          customerName: profileData.EmployeeName || "",
           gender: profileData.Gender || "",
           personalEmail: profileData.PersonalEmailid || "",
           corporateEmail: profileData.Emailid || "",
@@ -319,13 +335,13 @@ const handleImageUpload = async (
   const handleStateChange = (selectedOption: any) => {
     const stateId = selectedOption?.value || "";
     const stateName = selectedOption?.label || "";
-    
-    setAddressData(prev => ({ 
-      ...prev, 
+
+    setAddressData(prev => ({
+      ...prev,
       state: stateName,
-      city: "" 
+      city: ""
     }));
-    
+
     if (selectedOption?.originalValue?.StateId) {
       fetchCities(selectedOption.originalValue.StateId);
     }
@@ -356,11 +372,9 @@ const handleImageUpload = async (
         employeeRefId: parseInt(EmployeeRefId),
         employeeName: formData.customerName,
         gender: formData.gender,
-        dob: formData.dateOfBirth,
+        dob: formatDateForInput(formData.dateOfBirth),
         mobileNo: formData.mobileNo,
-        maritalStatus: maritalStatusOptions.find(
-          (m) => m.MaritalDescription === formData.maritalStatus
-        )?.MaritalStatusId || 0,
+        maritalStatus: formData.maritalStatus,
         bloodGroup: formData.bloodGroup,
         personalEmailid: formData.personalEmail,
       };
@@ -378,24 +392,24 @@ const handleImageUpload = async (
 
   const handleCancel = () => {
     setIsEditMode(false);
-    fetchProfileDetails(); 
+    fetchProfileDetails();
   };
 
   const handleAddressTypeChange = async (type: string) => {
     const EmployeeRefId = localStorage.getItem("EmployeeRefId");
-    
+
     if (EmployeeRefId) {
       try {
         const addressDataResponse = await MangeProfileApi.CRMLoadCustomerProfileDetailsByType(
-          parseInt(EmployeeRefId), 
-          type.toLowerCase() 
+          parseInt(EmployeeRefId),
+          type.toLowerCase()
         );
-        
+
         if (addressDataResponse && addressDataResponse.length > 0) {
           const addr = addressDataResponse[0];
-          
+
           setEmployeeAddressDetailsId(addr.EmployeeAddressDetailsId || 0);
-          
+
           let stateName = "";
           let cityName = "";
           if (stateOptions.length > 0) {
@@ -412,7 +426,7 @@ const handleImageUpload = async (
               }
             }
           }
-          
+
           setAddressData({
             addressLine1: addr.AddressLineOne || "",
             addressLine2: addr.AddressLineTwo || "",
@@ -430,7 +444,7 @@ const handleImageUpload = async (
             state: "",
             city: "",
             pincode: ""
-          });        
+          });
           if (addressType !== type) {
             setCityOptions([]);
           }
@@ -473,14 +487,14 @@ const handleImageUpload = async (
 
       const requestData = {
         employeeRefId: parseInt(EmployeeRefId),
-        employeeAddressDetailsId: employeeAddressDetailsId, 
+        employeeAddressDetailsId: employeeAddressDetailsId,
         addressLineOne: addressData.addressLine1,
         addressLineTwo: addressData.addressLine2,
         landmark: addressData.landmark,
         stateId: selectedState?.StateId || 0,
         cityId: selectedCity?.DistrictId || selectedCity?.CityId || 0,
         pincode: addressData.pincode,
-        addressType: addressType.toLowerCase() 
+        addressType: addressType.toLowerCase()
       };
 
       console.log("ADDRESS UPDATE REQUEST:", requestData);
@@ -489,7 +503,7 @@ const handleImageUpload = async (
 
       toast.success(response);
       setIsEditMode(false);
-      
+
       await handleAddressTypeChange(addressType);
 
     } catch (error) {
@@ -516,9 +530,9 @@ const handleImageUpload = async (
             <div className="profile-image-section">
               <div className="profile-image-container">
                 {profileImage ? (
-                  <img 
-                    src={profileImage} 
-                    alt="Profile" 
+                  <img
+                    src={profileImage}
+                    alt="Profile"
                     className="profile-image-preview"
                   />
                 ) : (
@@ -528,7 +542,7 @@ const handleImageUpload = async (
                 )}
                 {isEditMode && (
                   <div className="profile-image-actions">
-                    <button 
+                    <button
                       className="profile-image-action-btn upload-btn"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploadingImage}
@@ -557,9 +571,9 @@ const handleImageUpload = async (
               </p>
             </div>
           </div>
-          
+
           <div className="profile-actions">
-            <button 
+            <button
               className="profile-edit-btn"
               onClick={() => navigate("/dependants")}
             >
@@ -568,7 +582,7 @@ const handleImageUpload = async (
             </button>
 
             {!isEditMode ? (
-              <button 
+              <button
                 className="profile-edit-btn"
                 onClick={() => setIsEditMode(true)}
               >
@@ -577,7 +591,7 @@ const handleImageUpload = async (
               </button>
             ) : (
               <div className="edit-mode-actions">
-                <button 
+                <button
                   className="profile-save-btn large"
                   onClick={activeTab === "details" ? handleSave : handleAddressSave}
                 >
@@ -585,7 +599,7 @@ const handleImageUpload = async (
                   Save Changes
                 </button>
 
-                <button 
+                <button
                   className="profile-cancel-btn"
                   onClick={handleCancel}
                 >
@@ -602,14 +616,14 @@ const handleImageUpload = async (
       {/* Tab Navigation */}
       <div className="profile-tabs">
         <div className="mange-tabs-container">
-          <button 
+          <button
             className={`mange-tab-btn ${activeTab === "details" ? "active" : ""}`}
             onClick={() => setActiveTab("details")}
           >
             <FontAwesomeIcon icon={faUser} />
             Details
           </button>
-          <button 
+          <button
             className={`mange-tab-btn ${activeTab === "address" ? "active" : ""}`}
             onClick={() => setActiveTab("address")}
           >
@@ -642,7 +656,7 @@ const handleImageUpload = async (
                     value={formData.memberId}
                     onChange={handleInputChange}
                     placeholder="Enter Member Id"
-                   disabled
+                    disabled
                   />
                 </div>
 
@@ -658,7 +672,7 @@ const handleImageUpload = async (
                     value={formData.corporateEmail}
                     onChange={handleInputChange}
                     placeholder="Enter User Name"
-                  disabled
+                    disabled
                   />
                 </div>
 
@@ -674,12 +688,12 @@ const handleImageUpload = async (
                     value={formData.employeeId}
                     onChange={handleInputChange}
                     placeholder="Enter Employee Id"
-                   disabled
+                    disabled
                   />
                 </div>
 
 
-                   {/* Corporate Name */}
+                {/* Corporate Name */}
                 <div className="profile-form-group">
                   <label className="profile-form-label">
                     <FontAwesomeIcon icon={faUser} className="input-icon" />
@@ -723,9 +737,9 @@ const handleImageUpload = async (
                       name="gender"
                       value={formData.gender ? { value: formData.gender, label: formData.gender } : null}
                       onChange={(selectedOption) =>
-                        setFormData(prev => ({ 
-                          ...prev, 
-                          gender: selectedOption?.value || "" 
+                        setFormData(prev => ({
+                          ...prev,
+                          gender: selectedOption?.value || ""
                         }))
                       }
                       isDisabled={!isEditMode}
@@ -778,7 +792,7 @@ const handleImageUpload = async (
                 </div>
 
 
-                  {/*Personal Email ID  */}
+                {/*Personal Email ID  */}
                 <div className="profile-form-group">
                   <label className="profile-form-label">
                     <FontAwesomeIcon icon={faUser} className="input-icon" />
@@ -794,7 +808,7 @@ const handleImageUpload = async (
                   />
                 </div>
 
-                 {/*Corporate Email ID*/}
+                {/*Corporate Email ID*/}
                 <div className="profile-form-group">
                   <label className="profile-form-label">
                     <FontAwesomeIcon icon={faUser} className="input-icon" />
@@ -1053,9 +1067,9 @@ const handleImageUpload = async (
                       name="city"
                       value={addressData.city ? { value: addressData.city, label: addressData.city } : null}
                       onChange={(selectedOption) =>
-                        setAddressData(prev => ({ 
-                          ...prev, 
-                          city: selectedOption?.value || "" 
+                        setAddressData(prev => ({
+                          ...prev,
+                          city: selectedOption?.value || ""
                         }))
                       }
                       isDisabled={!isEditMode}
@@ -1130,14 +1144,14 @@ const handleImageUpload = async (
         {/* Action Buttons (Bottom) */}
         {isEditMode && (
           <div className="profile-action-buttons">
-            <button 
+            <button
               className="profile-save-btn large"
               onClick={activeTab === "details" ? handleSave : handleAddressSave}
             >
               <FontAwesomeIcon icon={faSave} />
               Save Changes
             </button>
-            <button 
+            <button
               className="profile-cancel-btn large"
               onClick={handleCancel}
             >

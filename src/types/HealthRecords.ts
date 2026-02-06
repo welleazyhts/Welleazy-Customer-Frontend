@@ -59,6 +59,7 @@ export interface HospitalizationDetail {
   UpdatedOn: string;
   UpdatedBy: number;
   OtherRecordName: string;
+  documents?: any[];
 
 
 
@@ -88,6 +89,7 @@ export interface MedicalBillDetail {
   UpdatedOn: string | null;
   UpdatedBy: number | null;
   OtherRecordName: string | null;
+  documents?: any[];
 }
 
 export interface MedicalBillDetailApiResponse {
@@ -113,6 +115,7 @@ export interface VaccinationDetails {
   CreatedBy: number;
   UpdatedOn: string | null;
   UpdatedBy: number | null;
+  documents?: any[];
 }
 
 export interface VaccinationDetailApiResponse {
@@ -244,4 +247,29 @@ export interface MedicineChoices {
   meal_relation: { value: string; label: string }[];
   interval_type: { value: string; label: string }[];
   dosage_unit: { value: string; label: string }[];
+}
+
+export interface Prescription {
+  id: number;
+  record_date: string;
+  record_type: string;
+  record_name: string;
+  doctor_name: string;
+  doctor_specialization: number | null;
+  reason: string;
+  for_whom: string;
+  dependant: number | null;
+  parameters: {
+    id?: number;
+    parameter_name: string;
+    result: string;
+    unit: string;
+  }[];
+  documents?: {
+    id: number;
+    file: string;
+    created_at: string;
+  }[];
+  created_at: string;
+  updated_at: string;
 }

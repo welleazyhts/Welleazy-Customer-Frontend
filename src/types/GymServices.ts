@@ -1,13 +1,16 @@
 import exp from "constants";
 
 export interface GymPackage {
-    Duration:number;
-    ActualPrice:number;
-    Discount:number;
-    DiscountPrice:number;
-    PackageName:string;
-    City:number;
-    VendorName:string;
+  PackageId: number;
+  Duration: number;
+  ActualPrice: number;
+  Discount: number;
+  DiscountPrice: number;
+  PackageName: string;
+  City: number;
+  VendorName: string;
+  VendorLogo?: string;
+  Features?: string[];
 }
 export interface CustomerProfile {
   EmployeeRefId: number;
@@ -77,17 +80,14 @@ export interface GymCenter {
   GymStateId: number;
   GymCityId: number;
   GymLocality: string;
-  IsActive: number;
-  CreatedOn: string | null;
-  CreatedBy: number;
-  UpdatedOn: string | null;
-  UpdatedBy: number | null;
+  IsActive?: number;
   GymAddress: string;
-  AddressURL: string;
+  AddressURL?: string;
+  Logo?: string;
 }
-export interface Relationship{
-  RelationshipId:number,
-  Relationship:string,
+export interface Relationship {
+  RelationshipId: number,
+  Relationship: string,
 }
 export interface RelationshipPerson {
   EmployeeDependentDetailsId: number;

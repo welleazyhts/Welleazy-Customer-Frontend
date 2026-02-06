@@ -1,12 +1,10 @@
 import { api } from "../services/api";
 
-const API_URL = "http://3.110.32.224";
-
 export const homeAPI = {
   // Main API for all health basic details
   CRMCustomerHealthBasicDetails: async (employeeRefId: number) => {
     try {
-      const response = await api.post("/CRMCustomerHealthBasicDetails", { EmployeeRefId: employeeRefId });
+      const response = await api.post("/api/CRMCustomerHealthBasicDetails/", { EmployeeRefId: employeeRefId });
       return response.data;
     } catch (error) {
       console.error("Error fetching health basic details:", error);
@@ -17,7 +15,7 @@ export const homeAPI = {
   // Individual metric history APIs
   GetBMIMetricHistory: async (employeeRefId: number) => {
     try {
-      const response = await api.post("/CRMFetchCustomerBMIDetails", { EmployeeRefId: employeeRefId });
+      const response = await api.post("/api/CRMFetchCustomerBMIDetails/", { EmployeeRefId: employeeRefId });
       return response.data;
     } catch (error) {
       console.error("Error fetching BMI history:", error);
@@ -27,7 +25,7 @@ export const homeAPI = {
 
   GetBloodPressureMetricHistory: async (employeeRefId: number) => {
     try {
-      const response = await api.post("/CRMFetchCustomerBloodPressureDetails", { EmployeeRefId: employeeRefId });
+      const response = await api.post("/api/CRMFetchCustomerBloodPressureDetails/", { EmployeeRefId: employeeRefId });
       return response.data;
     } catch (error) {
       console.error("Error fetching Blood Pressure history:", error);
@@ -37,7 +35,7 @@ export const homeAPI = {
 
   GetHeartRateMetricHistory: async (employeeRefId: number) => {
     try {
-      const response = await api.post("/CRMFetchCustomerHeartRateDetails", { EmployeeRefId: employeeRefId });
+      const response = await api.post("/api/CRMFetchCustomerHeartRateDetails/", { EmployeeRefId: employeeRefId });
       return response.data;
     } catch (error) {
       console.error("Error fetching Heart Rate history:", error);
@@ -47,7 +45,7 @@ export const homeAPI = {
 
   GetO2SaturationMetricHistory: async (employeeRefId: number) => {
     try {
-      const response = await api.post("/CRMFetchCustomerOxygenSaturationLevelDetails", { EmployeeRefId: employeeRefId });
+      const response = await api.post("/api/CRMFetchCustomerOxygenSaturationLevelDetails/", { EmployeeRefId: employeeRefId });
       return response.data;
     } catch (error) {
       console.error("Error fetching O2 Saturation history:", error);
@@ -57,7 +55,7 @@ export const homeAPI = {
 
   GetGlucoseMetricHistory: async (employeeRefId: number) => {
     try {
-      const response = await api.post("/CRMFetchCustomerGlucoseDetails", { EmployeeRefId: employeeRefId });
+      const response = await api.post("/api/CRMFetchCustomerGlucoseDetails/", { EmployeeRefId: employeeRefId });
       return response.data;
     } catch (error) {
       console.error("Error fetching Glucose history:", error);
@@ -67,7 +65,7 @@ export const homeAPI = {
 
   GetHeightDetailsMetricHistory: async (employeeRefId: number) => {
     try {
-      const response = await api.post("/CRMFetchCustomerHeightDetails", { EmployeeRefId: employeeRefId });
+      const response = await api.post("/api/CRMFetchCustomerHeightDetails/", { EmployeeRefId: employeeRefId });
       return response.data;
     } catch (error) {
       console.error("Error fetching height details history:", error);
@@ -76,7 +74,7 @@ export const homeAPI = {
   },
   GetWeightDetailsMetricHistory: async (employeeRefId: number) => {
     try {
-      const response = await api.post("/CRMFetchCustomerWeightDetails", { EmployeeRefId: employeeRefId });
+      const response = await api.post("/api/CRMFetchCustomerWeightDetails/", { EmployeeRefId: employeeRefId });
       return response.data;
     } catch (error) {
       console.error("Error fetching weight details history:", error);
@@ -87,7 +85,7 @@ export const homeAPI = {
   // Update BMI metric
   UpdateBMIMetric: async (employeeRefId: number, bmi: string, bmiUnit: string, loginRefId: number) => {
     try {
-      const response = await api.post("/CRMSaveCustomerBMIDetails", {
+      const response = await api.post("/api/CRMSaveCustomerBMIDetails/", {
         EmployeeRefId: employeeRefId,
         BMI: bmi,
         HRBMIValue: bmiUnit,
@@ -102,7 +100,7 @@ export const homeAPI = {
 
   CRMSaveCustomerWeightDetails: async (employeeRefId: number, weight: string, weightUnit: string, loginRefId: number) => {
     try {
-      const response = await api.post("/CRMSaveCustomerWeightDetails", {
+      const response = await api.post("/api/CRMSaveCustomerWeightDetails/", {
         EmployeeRefId: employeeRefId,
         Weight: weight,
         HRWeightValue: weightUnit,
@@ -118,7 +116,7 @@ export const homeAPI = {
   // Update Blood Pressure
   UpdateBloodPressureMetric: async (employeeRefId: number, bp: string, bpUnit: string, loginRefId: number) => {
     try {
-      const response = await api.post("/CRMSaveCustomerBloodPressureDetails", {
+      const response = await api.post("/api/CRMSaveCustomerBloodPressureDetails/", {
         EmployeeRefId: employeeRefId,
         BloodPressure: bp,
         HRBloodPressureValue: bpUnit,
@@ -134,7 +132,7 @@ export const homeAPI = {
   // Update Heart Rate
   UpdateHeartRateMetric: async (employeeRefId: number, hr: string, hrUnit: string, loginRefId: number) => {
     try {
-      const response = await api.post("/CRMSaveCustomerHeartRateDetails", {
+      const response = await api.post("/api/CRMSaveCustomerHeartRateDetails/", {
         EmployeeRefId: employeeRefId,
         HeartRate: hr,
         HRHeartRateValue: hrUnit,
@@ -150,12 +148,12 @@ export const homeAPI = {
   // Update O₂ Saturation Levels
   UpdateO2SaturationMetric: async (employeeRefId: number, o2: string, o2Unit: string, loginRefId: number) => {
     try {
-      const response = await api.post("/CRMSaveCustomerOxygenSaturationDetails", {
+      const response = await api.post("/api/CRMSaveCustomerOxygenSaturationDetails/", {
         EmployeeRefId: employeeRefId,
-        OxygenSaturationValueOne: o2, // Assuming this maps to O2SaturationLevels
-        OxygenSaturationValueTwo: (parseInt(o2) + 1).toString(), // Keeping original logic for derived values
-        OxygenSaturationValueThree: (parseInt(o2) - 1).toString(), // Keeping original logic for derived values
-        MeasurementValue: o2Unit, // Assuming this maps to HRO2SaturationLevelsValue
+        OxygenSaturationValueOne: o2,
+        OxygenSaturationValueTwo: (parseInt(o2) + 1).toString(),
+        OxygenSaturationValueThree: (parseInt(o2) - 1).toString(),
+        MeasurementValue: o2Unit,
         LoginRefId: loginRefId
       });
       return response.data;
@@ -168,7 +166,7 @@ export const homeAPI = {
   // Update Glucose
   UpdateGlucoseMetric: async (employeeRefId: number, glucose: string, glucoseUnit: string, loginRefId: number) => {
     try {
-      const response = await api.post("/CRMSaveCustomerGlucoseDetails", {
+      const response = await api.post("/api/CRMSaveCustomerGlucoseDetails/", {
         EmployeeRefId: employeeRefId,
         Glucose: glucose,
         HRGlucoseValue: glucoseUnit,
@@ -183,7 +181,7 @@ export const homeAPI = {
 
   UpdateHeightMetric: async (employeeRefId: number, heightValue: string, heightUnit: string, loginRefId: number) => {
     try {
-      const response = await api.post("/CRMSaveCustomerHeightDetails", {
+      const response = await api.post("/api/CRMSaveCustomerHeightDetails/", {
         EmployeeRefId: employeeRefId,
         Height: heightValue,
         HRHeightValue: heightUnit,
@@ -199,7 +197,7 @@ export const homeAPI = {
   // Get upcoming events
   GetUpcomingEvents: async (employeeRefId?: number, corporateId?: number, roleId?: number, loginType?: number) => {
     try {
-      const response = await api.post("/CRMUpcomingEventsDetails", {
+      const response = await api.post("/api/CRMUpcomingEventsDetails/", {
         EmployeeRefId: employeeRefId,
         RoleId: roleId || 0,
         LoginType: loginType,
@@ -214,7 +212,7 @@ export const homeAPI = {
 
   CRMLoadSponsoredServices: async (employeeRefId: number) => {
     try {
-      const response = await api.get(`/CRMLoadSponsoredServices/${employeeRefId}`);
+      const response = await api.get(`/api/CRMLoadSponsoredServices/${employeeRefId}/`);
       return response.data;
     } catch (error) {
       console.error("Error fetching sponsored services:", error);

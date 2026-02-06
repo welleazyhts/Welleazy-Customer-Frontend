@@ -42,7 +42,7 @@ const GymServices: React.FC = () => {
   const [customerProfile, setCustomerProfile] = useState<CustomerProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
-  
+
   // Dynamic states and districts
   const [states, setStates] = useState<State[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
@@ -180,7 +180,7 @@ const GymServices: React.FC = () => {
             parseInt(formData.relationshipId)
           );
           setRelationshipPersons(personsData);
-          
+
           // If only one person exists, auto-select it
           if (personsData.length === 1) {
             setFormData(prev => ({
@@ -204,37 +204,30 @@ const GymServices: React.FC = () => {
   }, [formData.membershipType, formData.relationshipId]);
 
   // Load packages
- useEffect(() => {
-  const fetchPackages = async () => {
-    try {
-      let districtId = localStorage.getItem("DistrictId");
-      if (!districtId) {
-        districtId = "0";
-        localStorage.setItem("DistrictId", districtId);
+  useEffect(() => {
+    const fetchPackages = async () => {
+      try {
+        const response = await gymServiceAPI.LoadGymCardDetails();
+        if (Array.isArray(response)) {
+          setPackages(response);
+        }
+        else {
+          setError("No packages available.");
+        }
+      } catch (error) {
+        console.error("Failed to load gym packages:", error);
+        setPackages([]);
       }
-      const response = await gymServiceAPI.LoadGymCardDetails(districtId);
-      if (Array.isArray(response)) {
-        setPackages(response);
-      } 
-      else
-     {
-       // setPackages([]);
-          setError( "No packages available for the selected district." );
-      }
-    } catch (error) {
-      console.error("Failed to load gym packages:", error);
-      setPackages([]);
-    }
-  };
+    };
 
-  fetchPackages();
-}, []);
+    fetchPackages();
+  }, []);
 
 
   // Fetch profile when modal opens
   useEffect(() => {
     const fetchCustomerProfile = async () => {
-      if (showModal) {
+      if (showModal && !customerProfile) {
         setLoadingProfile(true);
         setProfileError(null);
         try {
@@ -249,7 +242,6 @@ const GymServices: React.FC = () => {
           setCustomerProfile(profile);
 
           const userState = states.find(s => s.StateName === profile.StateName || s.StateId === profile.State);
-          const userDistrict = districts.find(d => d.DistrictName === profile.DistrictName || d.DistrictId === profile.City);
 
           setFormData(prev => ({
             ...prev,
@@ -259,12 +251,12 @@ const GymServices: React.FC = () => {
             state: profile.StateName,
             stateId: userState ? userState.StateId.toString() : profile.State?.toString() || '',
             district: profile.DistrictName,
-            districtId: userDistrict ? userDistrict.DistrictId.toString() : profile.City?.toString() || '',
+            districtId: profile.City?.toString() || '',
             address: `${profile.AddressLineOne || ''} ${profile.AddressLineTwo || ''}`.trim(),
             landmark: profile.Landmark || '',
             pincode: profile.Pincode || '',
-            membershipType: 'self', // Default to self
-            relationshipId: '1' // Default to Self relationship
+            membershipType: 'self',
+            relationshipId: '1'
           }));
         } catch (error) {
           console.error("Failed to load customer profile:", error);
@@ -276,40 +268,39 @@ const GymServices: React.FC = () => {
       }
     };
 
-    if (showModal && states.length > 0) {
+    if (showModal && states.length > 0 && !customerProfile) {
       fetchCustomerProfile();
     }
-  }, [showModal, states, districts]);
+  }, [showModal, states, customerProfile]);
 
-const handleGymCenterSelectClick = async () => {
-  if (!formData.districtId) {
-    toast.warning("Please select a district first to view available gym centers.");
-    return;
-  }
-
-  setShowGymCenterModal(true);
-  setLoadingGymCenters(true);
-  setGymCenterError(null);
-
-  try {
-    console.log("Fetching gym centers for district ID:", formData.districtId, "District:", formData.district);
-    const centers = await gymServiceAPI.LoadGymDropDown(parseInt(formData.districtId));
-    console.log("API Response - Gym Centers:", centers);
-    console.log("Number of centers found:", centers.length);
-    
-    setGymCenters(centers);
-    
-    if (centers.length === 0) {
-      console.log("No gym centers found for district:", formData.district);
+  const handleGymCenterSelectClick = async () => {
+    if (!formData.districtId) {
+      toast.warning("Please select a district first to view available gym centers.");
+      return;
     }
-  } catch (error) {
-    console.error("Failed to load gym centers:", error);
-    setGymCenterError(`Failed to load gym centers for ${formData.district}. Please try again.`);
-    setGymCenters([]);
-  } finally {
-    setLoadingGymCenters(false);
-  }
-};
+
+    setShowGymCenterModal(true);
+    setLoadingGymCenters(true);
+    setGymCenterError(null);
+
+    try {
+      const centers = await gymServiceAPI.LoadGymDropDown();
+      console.log("API Response - Gym Centers:", centers);
+      console.log("Number of centers found:", centers.length);
+
+      setGymCenters(centers);
+
+      if (centers.length === 0) {
+        console.log("No gym centers found for district:", formData.district);
+      }
+    } catch (error) {
+      console.error("Failed to load gym centers:", error);
+      setGymCenterError(`Failed to load gym centers for ${formData.district}. Please try again.`);
+      setGymCenters([]);
+    } finally {
+      setLoadingGymCenters(false);
+    }
+  };
 
   const handlePrev = () => {
     setLocationCarouselIndex(prev =>
@@ -399,7 +390,7 @@ const handleGymCenterSelectClick = async () => {
           name: '' // Reset name when relationship changes
         }));
       } else if (name === 'relationshipPersonId') {
-        const selectedPerson = relationshipPersons.find(person => 
+        const selectedPerson = relationshipPersons.find(person =>
           person.EmployeeDependentDetailsId.toString() === selectedOption.value
         );
         setFormData(prev => ({
@@ -476,7 +467,7 @@ const handleGymCenterSelectClick = async () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validation for dependent selection
     if (formData.membershipType === 'dependent') {
       if (!formData.relationshipId) {
@@ -488,7 +479,7 @@ const handleGymCenterSelectClick = async () => {
         return;
       }
     }
-    
+
     console.log('Form submitted:', formData);
     console.log('Selected package:', selectedPackage);
     console.log('Customer profile:', customerProfile);
@@ -504,13 +495,13 @@ const handleGymCenterSelectClick = async () => {
 
   const handleGymCenterSelect = (center: any) => {
     console.log('Selected gym center:', center);
-    
+
     // Set the GymDetailsId to formData.gymCenter
     setFormData(prev => ({
       ...prev,
       gymCenter: center.GymDetailsId ? center.GymDetailsId.toString() : ""
     }));
-    
+
     setSelectedGymCenterName(center.GymCenterName);
     setShowGymCenterModal(false);
     toast.success(`Selected ${center.GymCenterName}`);
@@ -531,40 +522,28 @@ const handleGymCenterSelectClick = async () => {
         value === null || value === undefined || value === "" ? defaultValue : value.toString();
 
       const formDataPayload = new FormData();
-      formDataPayload.append("MiscellaneousmCaseDetailsId", "0");
-      formDataPayload.append("MiscellaneousProgramCaseId", "0");
-      formDataPayload.append("CorporateId", corporateId);
-      formDataPayload.append("CorporateBranchId", "5");
-      formDataPayload.append("EmployeeDependentDetailsId", formData.membershipType === 'dependent' ? formData.relationshipPersonId : "0");
-      formDataPayload.append("CaseFor", formData.membershipType === 'self' ? "1" : "2");
-      formDataPayload.append("CustomerName", formData.name);
-      formDataPayload.append("ContactNumber", formData.contactNumber);
-      formDataPayload.append("EmailId", formData.email);
-      formDataPayload.append("State", toNumberString(formData.stateId)); 
-      formDataPayload.append("City", toNumberString(formData.districtId)); 
-      formDataPayload.append("Address", formData.address);
-      formDataPayload.append("CareProgramId", "1");
-      formDataPayload.append("CaseStatus", "1");
-      formDataPayload.append("IsActive", "1");
-      formDataPayload.append("CreatedBy", createdBy);
-      formDataPayload.append("Amount", toNumberString(selectedPackage?.DiscountPrice, "0"));
-      formDataPayload.append("Status", paymentStatus);
-      formDataPayload.append("TransactionId", transactionId);
-      formDataPayload.append("GymCenterID", toNumberString(formData.gymCenter));
-      formDataPayload.append("EmployeeRefId", employeeRefId);
-      formDataPayload.append("PackagePrice", toNumberString(selectedPackage?.Duration, "0")); 
-      
-      console.log("FormData being sent:");
-      Array.from(formDataPayload.entries()).forEach(([key, value]: [string, FormDataEntryValue]) => {
-        console.log(`${key}: ${value}`);
-      });
-      
+      formDataPayload.append("package_id", selectedPackage?.PackageId.toString() || "0");
+      formDataPayload.append("booking_for", formData.membershipType === 'dependent' ? "dependant" : "self");
+      formDataPayload.append("gym_center_id", formData.gymCenter);
+      formDataPayload.append("contact_number", formData.contactNumber);
+      formDataPayload.append("email", formData.email);
+      formDataPayload.append("state_id", formData.stateId);
+      formDataPayload.append("address", formData.address);
+      formDataPayload.append("city_id", formData.districtId);
+      formDataPayload.append("transaction_id", transactionId);
+      formDataPayload.append("payment_status", paymentStatus);
+      if (formData.membershipType === 'dependent') {
+        formDataPayload.append("dependant_id", formData.relationshipPersonId);
+      }
+
+      console.log("FormData being sent:", formDataPayload);
+
       const voucherResult = await gymServiceAPI.SaveGymVoucherDetails(formDataPayload);
       console.log("Voucher saved successfully:", voucherResult);
 
       const selectedGymCenter = gymCenters.find(center => center.GymDetailsId.toString() === formData.gymCenter);
       const voucherDisplayData = {
-        voucherId: voucherResult.voucherId || Math.floor(Math.random() * 1000), 
+        voucherId: voucherResult.id || voucherResult.voucherId || Math.floor(Math.random() * 1000),
         customerName: formData.name,
         contactNumber: formData.contactNumber,
         email: formData.email,
@@ -586,9 +565,9 @@ const handleGymCenterSelectClick = async () => {
       };
 
       toast.success("Voucher saved successfully!");
-    
+
       navigate('/gym-voucher', { state: { voucherData: voucherDisplayData } });
-      
+
       handleCloseModal();
     } catch (error) {
       console.error("Error saving voucher in test mode:", error);
@@ -626,61 +605,28 @@ const handleGymCenterSelectClick = async () => {
             PaymentId: response.razorpay_payment_id,
           });
 
-          console.log("Payment confirmed from API:", paymentResult);
-
-          const transactionId = paymentResult.transactionId;
-          const paymentStatus =
-            paymentResult.status || paymentResult.paymentStatus;
-          const corporateId = localStorage.getItem("CorporateId") || "0";
-          const createdBy = localStorage.getItem("LoginRefId") || "0";
-          const employeeRefId = localStorage.getItem("EmployeeRefId") || "0";
-          const toNumberString = (value: any, defaultValue = "0") =>
-            value === null || value === undefined || value === ""
-              ? defaultValue
-              : value.toString();
+          const transactionId = paymentResult.transactionId || response.razorpay_payment_id;
+          const paymentStatus = paymentResult.status || paymentResult.paymentStatus || "completed";
 
           const formDataPayload = new FormData();
-          formDataPayload.append("MiscellaneousmCaseDetailsId", "0");
-          formDataPayload.append("MiscellaneousProgramCaseId", "0");
-          formDataPayload.append("CorporateId", corporateId);
-          formDataPayload.append("CorporateBranchId", "5");
-          formDataPayload.append("EmployeeDependentDetailsId", formData.membershipType === 'dependent' ? formData.relationshipPersonId : "0");
-          formDataPayload.append("CaseFor", formData.membershipType === 'self' ? "1" : "2");
-          formDataPayload.append("CustomerName", formData.name);
-          formDataPayload.append("ContactNumber", formData.contactNumber);
-          formDataPayload.append("EmailId", formData.email);
-          formDataPayload.append("State", toNumberString(formData.stateId));
-          formDataPayload.append("City", toNumberString(formData.districtId));
-          formDataPayload.append("Address", formData.address);
-          formDataPayload.append("CareProgramId", "1");
-          formDataPayload.append("CaseStatus", "1");
-          formDataPayload.append("IsActive", "1");
-          formDataPayload.append("CreatedBy", createdBy);
-          formDataPayload.append(
-            "Amount",
-            toNumberString(selectedPackage?.DiscountPrice, "0")
-          );
-          formDataPayload.append("Status", paymentStatus);
-          formDataPayload.append("TransactionId", transactionId);
-          formDataPayload.append(
-            "GymCenterID",
-            toNumberString(formData.gymCenter)
-          );
-          formDataPayload.append("EmployeeRefId", employeeRefId);
-          formDataPayload.append(
-            "PackagePrice",
-            toNumberString(selectedPackage?.DiscountPrice, "0")
-          );
+          formDataPayload.append("package_id", selectedPackage?.PackageId.toString() || "0");
+          formDataPayload.append("booking_for", formData.membershipType === 'dependent' ? "dependant" : "self");
+          formDataPayload.append("gym_center_id", formData.gymCenter);
+          formDataPayload.append("contact_number", formData.contactNumber);
+          formDataPayload.append("email", formData.email);
+          formDataPayload.append("state_id", formData.stateId);
+          formDataPayload.append("address", formData.address);
+          formDataPayload.append("city_id", formData.districtId);
+          formDataPayload.append("transaction_id", transactionId);
+          formDataPayload.append("payment_status", paymentStatus);
+          if (formData.membershipType === 'dependent') {
+            formDataPayload.append("dependant_id", formData.relationshipPersonId);
+          }
 
-          console.log("FormData being sent for voucher:");
-          Array.from(formDataPayload.entries()).forEach(([key, value]) =>
-            console.log(`${key}: ${value}`)
-          );
-          const voucherResult = await gymServiceAPI.SaveGymVoucherDetails(
-            formDataPayload
-          );
+          console.log("FormData being sent for voucher:", formDataPayload);
+          const voucherResult = await gymServiceAPI.SaveGymVoucherDetails(formDataPayload);
           console.log("Voucher saved successfully:", voucherResult);
-          const voucherId = voucherResult?.voucherId;
+          const voucherId = voucherResult?.id || voucherResult?.voucherId;
 
           if (!voucherId) {
             throw new Error("Voucher ID not returned from API.");
@@ -748,20 +694,20 @@ const handleGymCenterSelectClick = async () => {
         <img src="/cult.fit.png" alt="GYM Services" className="gym-service-image" />
         <p className="fw-bold text-center fs-4 mt-3">Select Your Package</p>
       </div>
-   
+
       {error && (
-  <div
-    className="alert alert-danger mt-3 mx-auto px-3 py-2"
-    role="alert"
-    style={{
-      width: "fit-content",
-      fontSize: "14px",
-      color:'red'
-    }}
-  >
-    {error}
-  </div>
-)}
+        <div
+          className="alert alert-danger mt-3 mx-auto px-3 py-2"
+          role="alert"
+          style={{
+            width: "fit-content",
+            fontSize: "14px",
+            color: 'red'
+          }}
+        >
+          {error}
+        </div>
+      )}
 
 
 
@@ -773,18 +719,35 @@ const handleGymCenterSelectClick = async () => {
               <h3 className="duration">{pkg.Duration}</h3>
               <p className="months-text">MONTHS</p>
             </div>
-            <p className="price-old">₹{pkg.ActualPrice.toFixed(2)}</p>
-            <p className="price-new">₹{pkg.DiscountPrice.toFixed(2)}</p>
-            <p className="discount">({pkg.Discount}%)</p>
-            <hr />
+            <div className="package-name">
+              {pkg.PackageName}
+            </div>
+
+            <div className="vendor-logo-container">
+              {pkg.VendorLogo && (
+                <img src={pkg.VendorLogo} alt={pkg.VendorName} className="vendor-logo-img" />
+              )}
+            </div>
+
+            <div className="price-container">
+              <p className="price-old">₹{(pkg.ActualPrice ?? 0).toFixed(2)}</p>
+              <p className="price-new">₹{(pkg.DiscountPrice ?? 0).toFixed(2)}</p>
+              <div className="discount">{pkg.Discount}% OFF</div>
+            </div>
+
+            <hr className="card-separator" />
             <ul className="package-benefits">
-              <li>Access to cult centres</li>
-              <li>Access to cult gyms</li>
-              <li>Access to all centers</li>
-              <li>Access to cult home</li>
-              <li>45 days membership pause</li>
-              <li>Unlimited access in your base city</li>
-              <li>Access to 5 sessions outside your base city</li>
+              {pkg.Features && pkg.Features.length > 0 ? (
+                pkg.Features.map((feature, fIdx) => (
+                  <li key={fIdx}>{feature}</li>
+                ))
+              ) : (
+                <>
+                  <li>Access to cult centres</li>
+                  <li>Access to cult gyms</li>
+                  <li>Access to all centers</li>
+                </>
+              )}
             </ul>
             <Button variant="light" className="buy-now-btn" onClick={() => handleBuyNowClick(pkg)}>
               BUY NOW
@@ -803,7 +766,7 @@ const handleGymCenterSelectClick = async () => {
           {profileError && <Alert variant="warning">{profileError}</Alert>}
 
           <Form onSubmit={handleSubmit}>
-            <Form.Group className="mb-3"style={{ marginTop: '-5px' }} >
+            <Form.Group className="mb-3" style={{ marginTop: '-5px' }} >
               <Form.Label as="legend" className="fw-bold">Membership For *</Form.Label>
               <div>
                 <Form.Check
@@ -852,6 +815,7 @@ const handleGymCenterSelectClick = async () => {
                       <Form.Label>Relationship *</Form.Label>
                       <Select
                         name="relationshipId"
+                        instanceId="relationshipId-select"
                         value={relationshipOptions.find(option => option.value === formData.relationshipId) || null}
                         onChange={(selectedOption) => handleSelectChange('relationshipId', selectedOption as OptionType)}
                         options={relationshipOptions}
@@ -862,6 +826,9 @@ const handleGymCenterSelectClick = async () => {
                         required
                         className="react-select-container"
                         classNamePrefix="react-select"
+                        menuPortalTarget={document.body}
+                        styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
+                        menuPlacement="auto"
                       />
                       {loadingRelationships && <small className="text-muted">Loading relationships...</small>}
                     </Form.Group>
@@ -875,6 +842,7 @@ const handleGymCenterSelectClick = async () => {
                         {relationshipPersons.length > 1 ? (
                           <Select
                             name="relationshipPersonId"
+                            instanceId="relationshipPersonId-select"
                             value={relationshipPersonOptions.find(option => option.value === formData.relationshipPersonId) || null}
                             onChange={(selectedOption) => handleSelectChange('relationshipPersonId', selectedOption as OptionType)}
                             options={relationshipPersonOptions}
@@ -885,6 +853,9 @@ const handleGymCenterSelectClick = async () => {
                             required
                             className="react-select-container"
                             classNamePrefix="react-select"
+                            menuPortalTarget={document.body}
+                            styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
+                            menuPlacement="auto"
                           />
                         ) : relationshipPersons.length === 1 ? (
                           <Input
@@ -968,6 +939,7 @@ const handleGymCenterSelectClick = async () => {
                   <Form.Label>State *</Form.Label>
                   <Select
                     name="stateId"
+                    instanceId="stateId-select"
                     value={stateOptions.find(option => option.value === formData.stateId) || null}
                     onChange={(selectedOption) => handleSelectChange('stateId', selectedOption as OptionType)}
                     options={stateOptions}
@@ -978,6 +950,9 @@ const handleGymCenterSelectClick = async () => {
                     required
                     className="react-select-container"
                     classNamePrefix="react-select"
+                    menuPortalTarget={document.body}
+                    styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
+                    menuPlacement="auto"
                   />
                   {loadingStates && <small className="text-muted">Loading states...</small>}
                 </Form.Group>
@@ -987,6 +962,7 @@ const handleGymCenterSelectClick = async () => {
                   <Form.Label>District *</Form.Label>
                   <Select
                     name="districtId"
+                    instanceId="districtId-select"
                     value={districtOptions.find(option => option.value === formData.districtId) || null}
                     onChange={(selectedOption) => handleSelectChange('districtId', selectedOption as OptionType)}
                     options={districtOptions}
@@ -997,6 +973,9 @@ const handleGymCenterSelectClick = async () => {
                     required
                     className="react-select-container"
                     classNamePrefix="react-select"
+                    menuPortalTarget={document.body}
+                    styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
+                    menuPlacement="auto"
                   />
                   {loadingDistricts && <small className="text-muted">Loading districts...</small>}
                 </Form.Group>
@@ -1006,8 +985,8 @@ const handleGymCenterSelectClick = async () => {
             <Form.Group className="mb-3">
               <Form.Label>Address *</Form.Label>
               <Input
-              type="textarea"
-                
+                type="textarea"
+
                 name="address"
                 value={formData.address}
                 onChange={(e) => handleInputChange('address', e.target.value)}
@@ -1063,103 +1042,108 @@ const handleGymCenterSelectClick = async () => {
           </div>
 
           {/* SIMPLIFIED CONDITION - No Gym Centers Available Message */}
-          {!loadingGymCenters && 
-          !gymCenterError && 
-          Array.isArray(gymCenters) && 
-          gymCenters.length === 0 && (
-            <Alert variant="danger" className="text-center">
-              <div className="fw-bold mb-2">🚫 No Gym Centers Available</div>
-              <p className="mb-2">
-                Sorry, there are no gym centers available in{" "}
-                <strong>{formData.district || "this district"}</strong>.
-              </p>
-              <div className="small">
-                Please try selecting a different district or contact support for assistance.
-              </div>
-              <div className="mt-2">
-                <Button 
-                  variant="outline-danger" 
-                  size="sm"
-                  onClick={() => setShowGymCenterModal(false)}
-                >
-                  Change District
-                </Button>
-              </div>
-            </Alert>
-          )}
-
-          {/* Gym Centers List */}
-          {!loadingGymCenters && 
-          !gymCenterError && 
-          Array.isArray(gymCenters) && 
-          gymCenters.length > 0 && (
-            <div className="gym-center-list">
-              <Alert variant="success" className="small mb-3">
-                <strong>{gymCenters.length}</strong> gym center(s) found in{" "}
-                <strong>{formData.district || "selected district"}</strong>
-              </Alert>
-              
-              {gymCenters.map((center, idx) => (
-                <div
-                  key={idx}
-                  className="gym-center-item p-3 border rounded mb-3 d-flex justify-content-between align-items-center"
-                  style={{ 
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    borderLeft: '4px solid #0d6efd'
-                  }}
-                  onClick={() => handleGymCenterSelect(center)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#f8f9fa';
-                    e.currentTarget.style.borderColor = '#0d6efd';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '';
-                    e.currentTarget.style.borderColor = '';
-                  }}
-                >
-                  <div className="flex-grow-1">
-                    <div className="d-flex align-items-center mb-2">
-                      <strong className="me-2">{center.GymCenterName}</strong>
-                      {center.GymCenterType && (
-                        <span className="badge bg-primary me-2">{center.GymCenterType}</span>
-                      )}
-                      {center.GymBusinessLine && (
-                        <span className="badge bg-success">{center.GymBusinessLine}</span>
-                      )}
-                    </div>
-                    
-                    {center.GymAddress && (
-                      <div className="mb-2">
-                        <small className="text-muted">
-                          <FontAwesomeIcon icon={faMapMarkerAlt} className="text-danger me-1" />
-                          {center.GymAddress}
-                        </small>
-                      </div>
-                    )}
-                    
-                    {center.AddressURL && (
-                      <div>
-                        <a
-                          href={center.AddressURL}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-decoration-none small"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <FontAwesomeIcon icon={faMapMarkerAlt} className="text-danger me-1" />
-                          View on Google Maps
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                  <Button variant="outline-primary" size="sm" className="ms-3">
-                    Select
+          {!loadingGymCenters &&
+            !gymCenterError &&
+            Array.isArray(gymCenters) &&
+            gymCenters.length === 0 && (
+              <Alert variant="danger" className="text-center">
+                <div className="fw-bold mb-2">🚫 No Gym Centers Available</div>
+                <p className="mb-2">
+                  Sorry, there are no gym centers available in{" "}
+                  <strong>{formData.district || "this district"}</strong>.
+                </p>
+                <div className="small">
+                  Please try selecting a different district or contact support for assistance.
+                </div>
+                <div className="mt-2">
+                  <Button
+                    variant="outline-danger"
+                    size="sm"
+                    onClick={() => setShowGymCenterModal(false)}
+                  >
+                    Change District
                   </Button>
                 </div>
-              ))}
-            </div>
-          )}
+              </Alert>
+            )}
+
+          {/* Gym Centers List */}
+          {!loadingGymCenters &&
+            !gymCenterError &&
+            Array.isArray(gymCenters) &&
+            gymCenters.length > 0 && (
+              <div className="gym-center-list">
+                <Alert variant="success" className="small mb-3">
+                  <strong>{gymCenters.length}</strong> gym center(s) found in{" "}
+                  <strong>{formData.district || "selected district"}</strong>
+                </Alert>
+
+                {gymCenters.map((center, idx) => (
+                  <div
+                    key={idx}
+                    className="gym-center-item p-3 border rounded mb-3 d-flex align-items-center"
+                    style={{
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      borderLeft: '4px solid #0d6efd'
+                    }}
+                    onClick={() => handleGymCenterSelect(center)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#f8f9fa';
+                      e.currentTarget.style.borderColor = '#0d6efd';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '';
+                      e.currentTarget.style.borderColor = '';
+                    }}
+                  >
+                    {center.Logo && (
+                      <div className="me-3">
+                        <img src={center.Logo} alt={center.GymCenterName} style={{ width: '50px', height: '50px', objectFit: 'contain', borderRadius: '8px', border: '1px solid #eee' }} />
+                      </div>
+                    )}
+                    <div className="flex-grow-1">
+                      <div className="d-flex align-items-center mb-2">
+                        <strong className="me-2">{center.GymCenterName}</strong>
+                        {center.GymCenterType && (
+                          <span className="badge bg-primary me-2">{center.GymCenterType}</span>
+                        )}
+                        {center.GymBusinessLine && (
+                          <span className="badge bg-success">{center.GymBusinessLine}</span>
+                        )}
+                      </div>
+
+                      {center.GymAddress && (
+                        <div className="mb-2">
+                          <small className="text-muted">
+                            <FontAwesomeIcon icon={faMapMarkerAlt} className="text-danger me-1" />
+                            {center.GymAddress}
+                          </small>
+                        </div>
+                      )}
+
+                      {center.AddressURL && (
+                        <div>
+                          <a
+                            href={center.AddressURL}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-decoration-none small"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <FontAwesomeIcon icon={faMapMarkerAlt} className="text-danger me-1" />
+                            View on Google Maps
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                    <Button variant="outline-primary" size="sm" className="ms-3">
+                      Select
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
 
           <div className="mt-3 p-2 border rounded bg-warning bg-opacity-10">
             <small className="text-muted">

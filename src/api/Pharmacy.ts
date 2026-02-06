@@ -1,280 +1,206 @@
-import { PharmacyProductList,SearchPharmacyProductList, SearchAllResponse,InventoryCheckRequest,InventoryCheckResponse,OneMGGenerateOrderRequest,OneMGGenerateOrderResponse
-,DrugStaticRequest,DrugStaticResponse,OneMGPharmacyAddToCartDetailsRequest,OneMGPharmacyAddToCartDetailsResponse,
-EmployeeDeliveryAddress
- } from '../types/Pharmacy';
+import {
+  PharmacyMedicine,
+  PharmacyMedicineResponse,
+  PharmacyCategory,
+  CartSummary,
+  PharmacyCoupon,
+  PharmacyAddress,
+  CreateOrderResponse
+} from '../types/Pharmacy';
+import { api } from '../services/api';
 
-
-const API_URL = "https://api.welleazy.com";
-
-export const PharmacyAPI = {
-    //tata one mg pharmacy apis
-    LoadPharmacyProductList: async (): Promise<PharmacyProductList[]> => {
-        try {
-            const response = await fetch(`${API_URL}/LoadPharmacyProductList`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            return data;
-        } catch (error) {
-            console.error('Error loading pharmacy product list:', error);
-            throw error;
-        }
-    },
-    SearchAllProducts: async (searchTerm: string = ""): Promise<SearchPharmacyProductList[]> => {
-        try {
-            const response = await fetch(`${API_URL}/SearchAll`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    q: searchTerm || "medicine", 
-                    type: "sku,udp,otc,drug",
-                    per_page: "10"
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-        
-            const data: SearchAllResponse = await response.json();
-            
-            if (!data.data.result_found) {
-                return [];
-            }
-            
-            const sortedProducts = data.data.search_results.sort((a, b) => 
-                a.name.localeCompare(b.name)
-            );
-            
-            return sortedProducts;
-        } catch (error) {
-            console.error('Error searching pharmacy products:', error);
-            throw error;
-        }
-    },
-    GenerateOfflineMedicineCoupon: async (couponData: any): Promise<any> => {
-        try {
-            const formData = new FormData();            
-            formData.append('ApolloId', couponData.ApolloId?.toString() || '0');
-            formData.append('ApolloSKU', couponData.ApolloSKU || '');
-            formData.append('Relation', couponData.Relation?.toString() || '1');
-            formData.append('Name', couponData.Name || '');
-            formData.append('ContactNo', couponData.ContactNo || '');
-            formData.append('Email', couponData.Email || '');
-            formData.append('State', couponData.State?.toString() || '0');
-            formData.append('City', couponData.City?.toString() || '0');
-            formData.append('Address', couponData.Address || '');
-            formData.append('CouponName', couponData.CouponName || '');
-            formData.append('CreatedBy', couponData.CreatedBy?.toString() || '0');
-            formData.append('MedicineName', couponData.MedicineName || '');
-            if (couponData.prescriptionFile) {
-                formData.append('prescriptionFile', couponData.prescriptionFile);
-            }
-
-            const response = await fetch(`${API_URL}/Pharmacyofflinemedicine`, {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error('Error generating offline medicine coupon:', error);
-            throw error;
-        }
-    },
-    InventoryCheck: async (inventoryData: InventoryCheckRequest): Promise<InventoryCheckResponse> => {
-        try {
-            const response = await fetch(`${API_URL}/InventoryCheck`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(inventoryData)
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const data: InventoryCheckResponse = await response.json();
-            return data;
-        } catch (error) {
-            console.error('Error checking inventory:', error);
-            throw error;
-        }
-    },
-    OneMGGenerateOrder: async (orderData: OneMGGenerateOrderRequest): Promise<OneMGGenerateOrderResponse> => {
-    try {
-      const response = await fetch(`${API_URL}/OneMGGenerateOrder`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(orderData)
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data: OneMGGenerateOrderResponse = await response.json();
-      return data;
-    } catch (error) {
-      console.error('Error generating order:', error);
-      throw error;
-    }
-    }, 
-    DrugStatic: async (requestData: DrugStaticRequest): Promise<DrugStaticResponse> => {
-        try {
-            const response = await fetch(`${API_URL}/DrugStatic`, {
-                method: 'POST', 
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(requestData)
-            }); 
-            
-            if (!response.ok) { 
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const data: DrugStaticResponse = await response.json();
-            return data;
-        } catch (error) {
-            console.error('Error loading drug static data:', error);                
-            throw error;
-        }
-    },
-    OneMGPharmacyAddToCartDetails: async (cartData: OneMGPharmacyAddToCartDetailsRequest ): Promise<OneMGPharmacyAddToCartDetailsResponse> => {
-    try {
-      
-      const requestData = {
-        MedicineName: cartData.MedicineName,
-        SKUID: cartData.SKUID,
-        SKUIdQuantity: cartData.SKUIdQuantity.toString(),
-        EmployeeRefId: cartData.EmployeeRefId.toString(),
-        LoginRefId: cartData.LoginRefId.toString(),
-        PharmacyCartDetailsId: cartData.PharmacyCartDetailsId
-      };
-      const response = await fetch(`${API_URL}/OneMGPharmacyAddToCartDetails`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestData)
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Add to Cart API Error Response:', errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data: OneMGPharmacyAddToCartDetailsResponse = await response.json();
-      console.log('Add to Cart response received:', data);
-      return data;
-    } catch (error) {
-      console.error('Error adding to cart details:', error);
-      throw error;
-    }
-    },
-    LoadEmployeeDeliveryAddressDetails: async ( employeeRefId: number): Promise<EmployeeDeliveryAddress[]> => {
-   try {
-    const response = await fetch(
-      `${API_URL}/LoadEmployeeDeliveryAddressDetails/${employeeRefId}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data: EmployeeDeliveryAddress[] = await response.json();
-    return data;
-   } catch (error) {
-    console.error("Error loading employee delivery address details:", error);
-    throw error;
-   }
-    },
-   //pillow apis 
-
-   PillowSearchMedicnemsearch: async (searchTerm: string = ""): Promise<any> => {
-   try {
-    const formData = new FormData();
-    formData.append("apikey", "Uw2rCf9sS5ZWktHLzRENKYl1wb8IHytJ");
-    formData.append("searchstring", searchTerm || "medicine");
-    
-    const response = await fetch(
-      "https://dev-api.evitalrx.in/v1/fulfillment/medicines/search",
-      {
-        method: "POST",
-        body: formData
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    
-    console.log("Pillo API raw response:", data);
-    
-    // Return the FULL response object, not just data.result
-    return data;
-    
-   } catch (error) {
-    console.error("Error searching pillow medicine products:", error);
+// Helper for API calls using the centralized axios instance
+const apiCall = async (endpoint: string, method: string = 'GET', body?: any, isFormData: boolean = false) => {
+  try {
+    const response = await api({
+      url: endpoint,
+      method: method,
+      data: body,
+      // Let axios handle multipart headers automatically if body is FormData
+      headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : {},
+    });
+    return response.data;
+  } catch (error: any) {
+    // Error is logged/handled in centralized api service interceptors
     throw error;
   }
+};
+
+
+const mapMedicine = (m: PharmacyMedicineResponse): PharmacyMedicine => ({
+  id: m.id,
+  name: m.name,
+  description: m.description,
+  manufacturer: m.vendor_name || 'Unknown',
+  price: parseFloat(m.selling_price),
+  mrp: parseFloat(m.mrp_price),
+  discount: m.discount_percent,
+  stock: m.stock_count,
+  image: m.image,
+  slug: m.id.toString(),
+  // Map details if present
+  introduction: m.details?.introduction,
+  uses: m.details?.uses,
+  benefits: m.details?.benefits,
+  side_effects: m.details?.side_effects,
+  safety_advice: m.details?.safety_advice,
+  pack_size: m.pack_size
+});
+
+// Helper to map flat cart items from API
+const mapCartItem = (item: any): any => ({
+  id: item.id,
+  medicine: {
+    id: item.medicine, // ID is provided directly
+    name: item.medicine_name,
+    manufacturer: item.vendor_name,
+    price: parseFloat(item.selling_price),
+    mrp: parseFloat(item.mrp_price),
+    discount: 0, // Calculated in UI if needed (mrp > price)
+    image: item.image,
+    slug: item.medicine.toString(),
+    stock: 0
   },
-  Pillowmedicinesview: async (medicineId: string): Promise<any> => {
-    try {
-      const formData = new FormData();
-      formData.append("apikey", "Uw2rCf9sS5ZWktHLzRENKYl1wb8IHytJ");
-      formData.append("medicine_id", medicineId);
-      
-      const response = await fetch(
-        "https://dev-api.evitalrx.in/v1/fulfillment/medicines/view",
-        {
-          method: "POST",
-          body: formData
-        }
-      );
+  quantity: item.quantity,
+  total_price: parseFloat(item.selling_price) * item.quantity
+});
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+export const PharmacyAPI = {
+  // Categories
+  getCategories: async (): Promise<PharmacyCategory[]> => {
+    return apiCall('/api/pharmacy/categories/');
+  },
 
-      const data = await response.json();
-      
-      console.log("Pillo API raw response:", data);
-      
-      // Return the FULL response object, not just data.result
-      return data;
-      
-    } catch (error) {
-      console.error("Error viewing pillow medicine details:", error);
-      throw error;
+  // Medicines
+  getMedicines: async (): Promise<PharmacyMedicine[]> => {
+    const response = await apiCall('/api/pharmacy/medicines/');
+    const data = Array.isArray(response) ? response : (response as any).data || [];
+    return data.map((m: any) => mapMedicine(m));
+  },
+
+  filterMedicines: async (search: string, sort?: string): Promise<PharmacyMedicine[]> => {
+    const response = await apiCall('/api/pharmacy/medicines/filter/', 'POST', { search, sort });
+    const data = Array.isArray(response) ? response : (response as any).data || [];
+    return data.map((m: any) => mapMedicine(m));
+  },
+
+  getMedicineDetail: async (slug: string): Promise<PharmacyMedicine> => {
+    // Fallback to searching detail since slug == id in our logic
+    const response = await apiCall(`/api/pharmacy/medicines/detail/${slug}/`);
+    return mapMedicine(response);
+  },
+
+  // Cart
+  getCart: async (): Promise<CartSummary> => {
+    const response = await apiCall('/api/pharmacy/cart/');
+
+    let items = [];
+    if (response && response.items) {
+      items = response.items.map((item: any) => mapCartItem(item));
     }
+
+    return {
+      items: items,
+      total_amount: parseFloat(response.total_mrp || '0'),
+      discount_amount: parseFloat(response.discount_on_mrp || '0'),
+      final_amount: parseFloat(response.total_pay || '0'),
+      delivery_charges: parseFloat(response.delivery_charge || '0'),
+      coupon_code: response.coupon
+    };
   },
+
+  addToCart: async (medicineId: number, quantity: number = 1): Promise<any> => {
+    return apiCall('/api/pharmacy/cart/add/', 'POST', { medicine_id: medicineId, quantity });
+  },
+
+  removeFromCart: async (itemId: number): Promise<any> => {
+    return apiCall(`/api/pharmacy/cart/item/${itemId}/remove/`, 'DELETE');
+  },
+
+  increaseQuantity: async (itemId: number): Promise<any> => {
+    return apiCall('/api/pharmacy/cart/increase/', 'POST', { item_id: itemId });
+  },
+
+  decreaseQuantity: async (itemId: number): Promise<any> => {
+    return apiCall('/api/pharmacy/cart/decrease/', 'POST', { item_id: itemId });
+  },
+
+  // Coupons
+  getCoupons: async (): Promise<PharmacyCoupon[]> => {
+    return apiCall('/api/pharmacy/coupons/');
+  },
+
+  createCoupon: async (couponData: any): Promise<any> => {
+    const formData = new FormData();
+    Object.keys(couponData).forEach(key => {
+      if (key === 'document' && couponData[key]) {
+        formData.append('document', couponData[key]);
+      } else if (couponData[key] !== null && couponData[key] !== undefined) {
+        formData.append(key, couponData[key]);
+      }
+    });
+    return apiCall('/api/pharmacy/coupons/create/', 'POST', formData, true);
+  },
+
+  applyCoupon: async (couponCode: string): Promise<any> => {
+    return apiCall('/api/pharmacy/cart/coupon/apply/', 'POST', { coupon: couponCode });
+  },
+
+  removeCoupon: async (): Promise<any> => {
+    return apiCall('/api/pharmacy/cart/coupon/remove/', 'POST');
+  },
+
+  // Address
+  getAddresses: async (): Promise<PharmacyAddress[]> => {
+    return apiCall('/api/pharmacy/cart/addresses/');
+  },
+
+  getAddressTypes: async (): Promise<any> => {
+    return apiCall('/api/pharmacy/cart/addresses/types/');
+  },
+
+  selectAddressType: async (typeId: number): Promise<any> => {
+    return apiCall('/api/pharmacy/cart/addresses/type/select/', 'POST', { address_type_id: typeId });
+  },
+
+  selectAddress: async (addressId: number): Promise<any> => {
+    return apiCall('/api/pharmacy/cart/addresses/select/', 'POST', { address_id: addressId });
+  },
+
+  // Delivery
+  estimateDelivery: async (pincode: string): Promise<any> => {
+    return apiCall('/api/pharmacy/cart/delivery/estimate/', 'POST', { pincode });
+  },
+
+  setDeliveryMode: async (mode: 'cod' | 'online'): Promise<any> => {
+    return apiCall('/api/pharmacy/cart/delivery_mode/', 'POST', { delivery_mode: mode });
+  },
+
+  // Order
+  createOrder: async (): Promise<CreateOrderResponse> => {
+    return apiCall('/api/pharmacy/cart/order/create/', 'POST');
+  },
+
+  // Prescriptions
+  uploadPrescription: async (file: File, notes?: string): Promise<any> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (notes) formData.append('notes', notes);
+    return apiCall('/api/pharmacy/cart/prescription/upload/', 'POST', formData, true);
+  },
+
+  getPrescriptions: async (): Promise<any> => {
+    return apiCall('/api/pharmacy/cart/prescriptions/');
+  },
+
+  downloadPrescription: async (id: number): Promise<any> => {
+    const response = await api.get(`/api/pharmacy/cart/prescription/download/${id}/`, {
+      responseType: 'blob'
+    });
+    return response.data;
+  },
+
+  getEPrescriptions: async (): Promise<any> => {
+    return apiCall('/api/pharmacy/cart/e-prescription/');
+  }
 };

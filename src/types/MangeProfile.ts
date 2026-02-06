@@ -1,6 +1,6 @@
 export interface CRMMaritalStatusResponse {
-    MaritalStatusId: number;
-    MaritalDescription: string;
+  MaritalStatusId: number;
+  MaritalDescription: string;
 }
 export interface CustomerProfile {
   EmployeeRefId: number;
@@ -53,9 +53,9 @@ export interface CustomerProfile {
   EmployeeDependentDetailsId: number;
   TwoFAEnabled: string;
 }
-export interface CRMStateListResponse{
-    StateId:number,
-    StateName:string
+export interface CRMStateListResponse {
+  StateId: number,
+  StateName: string
 }
 export interface CRMCityListResponse {
   DistrictId: number;
@@ -80,25 +80,26 @@ export interface CRMAddressByTypeResponse {
 }
 
 export interface CRMUpdateMangeProfileRequest {
-    employeeRefId: number;
-    employeeName: string;
-    gender: string;
-    dob: string; 
-    mobileNo: string;
-    maritalStatus: number;
-    bloodGroup: string;
-    personalEmailid: string;
+  employeeRefId: number;
+  employeeName: string;
+  gender: string;
+  dob: string;
+  mobileNo: string;
+  maritalStatus: string | number;
+  bloodGroup: string;
+  personalEmailid: string;
 }
 
 export interface CRMUpdateMangeProfileAddressRequest {
-    employeeRefId: number;
-    employeeAddressDetailsId: number;
-    addressLineOne: string;
-    addressLineTwo: string;
-    landmark: string;
-    stateId: number;
-    cityId: number;
-    pincode: string;
+  employeeRefId: number;
+  employeeAddressDetailsId: number;
+  addressLineOne: string;
+  addressLineTwo: string;
+  landmark: string;
+  stateId: number;
+  cityId: number;
+  pincode: string;
+  addressType: string;
 }
 
 

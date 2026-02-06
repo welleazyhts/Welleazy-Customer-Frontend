@@ -1,143 +1,145 @@
 /* src/pages/GymServices/GymServices.css */
 .gym-services-page {
-    padding: 20px;
-    font-family: 'Poppins', sans-serif;
-    margin-top: 24px;
-  }
-  
-  .locations-bar {
-    display: flex;
-    align-items: center;
-    background-color: #f8f9fa;
-    padding: 10px 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    margin-left: 400px;
-    position: relative;
-    width: fit-content;
-  }
-  
-  .location-dot {
-    width: 10px;
-    height: 10px;
-    background-color: #28a745;
-    border-radius: 50%;
-    margin-right: 10px;
-  }
-  
-  .change-btn {
-    margin-left: 15px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 5px;
-    cursor: pointer;
-  }
-  
-  .location-dropdown {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    background-color: white;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    z-index: 1000;
-    margin-top: 5px;
-  }
-  
-  .location-option {
-    padding: 10px 20px;
-    cursor: pointer;
-  }
-  
-  .location-option:hover {
-    background-color: #f1f1f1;
-  }
-  
-  .gym-service-card {
-    background-color: #ffffff;
-    border-radius: 15px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    padding: 36px;
-    width: 700px;
-    max-width: 95vw;
-    margin: 0 auto;
-    text-align: center;
-  }
-  
-  .gym-service-card h2 {
-    font-size: 24px;
-    font-weight: 600;
-    margin-bottom: 16px;
-    color: #333;
-  }
-  
-  /* .gym-service-image {
+  padding: 20px;
+  font-family: 'Poppins', sans-serif;
+  margin-top: 24px;
+}
+
+.locations-bar {
+  display: flex;
+  align-items: center;
+  background-color: #f8f9fa;
+  padding: 10px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  margin-left: 400px;
+  position: relative;
+  width: fit-content;
+}
+
+.location-dot {
+  width: 10px;
+  height: 10px;
+  background-color: #28a745;
+  border-radius: 50%;
+  margin-right: 10px;
+}
+
+.change-btn {
+  margin-left: 15px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.location-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  margin-top: 5px;
+}
+
+.location-option {
+  padding: 10px 20px;
+  cursor: pointer;
+}
+
+.location-option:hover {
+  background-color: #f1f1f1;
+}
+
+.gym-service-card {
+  background-color: #ffffff;
+  border-radius: 15px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  padding: 36px;
+  width: 700px;
+  max-width: 95vw;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.gym-service-card h2 {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #333;
+}
+
+/* .gym-service-image {
     width: 100%;
     max-height: 300px;
     object-fit: cover;
     border-radius: 10px;
     margin-bottom: 16px;
   } */
-  
-  .gym-service-content {
-    font-size: 16px;
-    color: #666;
-    line-height: 1.6;
-    text-align: left;
-  }
-  
-  .read-more-toggle {
-    color: #007bff;
-    cursor: pointer;
-    font-weight: 600;
-  }
-  
-  .book-appointment-btn {
-    background-color: #ff9800;
-    color: white;
-    border: none;
-    padding: 12px 24px;
-    border-radius: 25px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    margin-top: 20px;
-    transition: background-color 0.3s;
-  }
-  
-  .book-appointment-btn:hover {
-    background-color: #f57c00;
-  }
-  
+
+.gym-service-content {
+  font-size: 16px;
+  color: #666;
+  line-height: 1.6;
+  text-align: left;
+}
+
+.read-more-toggle {
+  color: #007bff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.book-appointment-btn {
+  background-color: #ff9800;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 25px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 20px;
+  transition: background-color 0.3s;
+}
+
+.book-appointment-btn:hover {
+  background-color: #f57c00;
+}
+
+.our-location-section {
+  margin-left: 80px;
+}
+
+@media (max-width: 900px) {
   .our-location-section {
-    margin-left: 80px;
+    margin-left: 0;
   }
-  
-  @media (max-width: 900px) {
-    .our-location-section {
-      margin-left: 0;
-    }
-  }
-  
-  .location-card, .large-location-card {
-    min-width: 160px;
-    max-width: 200px;
-    height: 140px;
-    border-radius: 16px;
-    padding: 18px 10px 10px 10px;
-  }
-  
-  .location-img, .large-location-img {
-    width: 60px;
-    height: 60px;
-    margin-bottom: 14px;
-  } 
+}
+
+.location-card,
+.large-location-card {
+  min-width: 160px;
+  max-width: 200px;
+  height: 140px;
+  border-radius: 16px;
+  padding: 18px 10px 10px 10px;
+}
+
+.location-img,
+.large-location-img {
+  width: 60px;
+  height: 60px;
+  margin-bottom: 14px;
+}
 
 
-  .package-cards-container {
+.package-cards-container {
   display: flex;
   justify-content: center;
   gap: 24px;
@@ -152,17 +154,19 @@
   border-radius: 12px;
   padding: 24px 16px;
   text-align: center;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .package-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 6px 14px rgba(0,0,0,0.35);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
 }
+
 .package-header {
   margin-bottom: 10px;
 }
+
 months-text {
   text-transform: uppercase;
   color: #d0d0d0;
@@ -179,28 +183,57 @@ months-text {
   color: #bfbfbf;
   font-size: 14px;
   margin: 0;
-  margin-top: -71px;
-}
-
-.price-row {
-  display: flex;
-  justify-content: center;
-  align-items: baseline;
-  gap: 4px;
 }
 
 .price-new {
   color: #f9a825;
-  font-size: 17px;
+  font-size: 24px;
   font-weight: bold;
-  margin: 2px 0;
+  margin: 5px 0;
 }
 
 .discount {
-  color: #d0d0d0;
-  font-size: 13px;
-  margin-left: 217px;
-      margin-top: -29px;
+  background-color: rgba(249, 168, 37, 0.2);
+  color: #f9a825;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  display: inline-block;
+  margin-top: 5px;
+}
+
+.price-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 15px 0;
+}
+
+.package-name {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 10px 0;
+  color: #fff;
+  min-height: 54px;
+  /* Ensure consistency for different name lengths */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vendor-logo-container {
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.vendor-logo-img {
+  max-height: 40px;
+  max-width: 100%;
+  object-fit: contain;
 }
 
 .card-separator {
@@ -235,6 +268,7 @@ months-text {
   text-align: left;
   color: #d0d0d0;
 }
+
 .duration {
   font-size: 28px;
   font-weight: bold;
@@ -379,17 +413,17 @@ months-text {
     margin: 0;
     padding: 0;
   }
-  
+
   .voucher-card {
     border: 2px solid #000;
     box-shadow: none;
     margin: 0;
   }
-  
+
   .action-btn {
     display: none !important;
   }
-  
+
   .alert {
     border: 1px solid #000 !important;
   }
@@ -400,16 +434,16 @@ months-text {
   .voucher-page-container {
     margin: 1rem auto;
   }
-  
+
   .voucher-number {
     font-size: 2rem;
   }
-  
+
   .action-btn {
     width: 100%;
     margin-bottom: 0.5rem;
   }
-  
+
   .detail-card {
     margin-bottom: 0.5rem;
   }

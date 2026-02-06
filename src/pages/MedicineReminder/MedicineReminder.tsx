@@ -7,7 +7,10 @@ import { toast } from 'react-toastify';
 
 const MedicineReminder: React.FC = () => {
   const [activeContent, setActiveContent] = useState<'main' | 'profile' | 'dependents' | 'addressBook'>('main');
+  const [viewMode, setViewMode] = useState<'list' | 'form'>('list');
   const navigate = useNavigate();
+  const [medicineReminders, setMedicineReminders] = useState<any[]>([]);
+  const [loadingReminders, setLoadingReminders] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -33,7 +36,7 @@ const MedicineReminder: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
 
-  // Fetch choices on mount
+  // Fetch choices and reminders on mount
   React.useEffect(() => {
     const fetchChoices = async () => {
       try {
@@ -44,8 +47,23 @@ const MedicineReminder: React.FC = () => {
         console.error('Error fetching medicine choices:', error);
       }
     };
+
     fetchChoices();
+    fetchReminders();
   }, []);
+
+  const fetchReminders = async () => {
+    setLoadingReminders(true);
+    try {
+      const data = await HealthRecordsAPI.listMedicineReminders();
+      setMedicineReminders(data);
+    } catch (error) {
+      console.error("Failed to load reminders", error);
+      toast.error("Failed to load medicine reminders");
+    } finally {
+      setLoadingReminders(false);
+    }
+  };
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -70,7 +88,11 @@ const MedicineReminder: React.FC = () => {
 
       await HealthRecordsAPI.createMedicineReminder(payload, files);
       toast.success('Medicine reminder saved successfully!');
-      navigate('/health-records'); // or wherever appropriate
+      await HealthRecordsAPI.createMedicineReminder(payload, files);
+      toast.success('Medicine reminder saved successfully!');
+      setViewMode('list');
+      fetchReminders();
+      // navigate('/health-records'); // Removed navigation to keep user in module
     } catch (error) {
       console.error('Error saving reminder:', error);
       toast.error('Failed to save medicine reminder');
@@ -128,7 +150,44 @@ const MedicineReminder: React.FC = () => {
     <div className="medicine-reminder">
       <main className="medicine-reminder__main">
         <div className="medicine-reminder__container">
-          {activeContent === 'main' && (
+          {viewMode === 'list' ? (
+            <div className="medicine-reminder__list-section">
+              <div className="medicine-reminder__header">
+                <h2 className="medicine-reminder__title">My Medicine Reminders</h2>
+                <button
+                  className="medicine-reminder__add-btn"
+                  onClick={() => setViewMode('form')}
+                >
+                  + Add New Reminder
+                </button>
+              </div>
+
+              {loadingReminders ? (
+                <div className="text-center p-5">Loading reminders...</div>
+              ) : medicineReminders.length === 0 ? (
+                <div className="medicine-reminder__empty">
+                  <p>No reminders set. Click "Add New Reminder" to get started.</p>
+                </div>
+              ) : (
+                <div className="medicine-reminder__grid">
+                  {medicineReminders.map((reminder) => (
+                    <div key={reminder.id} className="medicine-reminder__card">
+                      <div className="medicine-reminder__card-header">
+                        <h3>{reminder.medicine_name}</h3>
+                        <span className="medicine-reminder__type-badge">{reminder.medicine_type}</span>
+                      </div>
+                      <div className="medicine-reminder__card-body">
+                        <p><strong>From:</strong> {reminder.start_date}</p>
+                        <p><strong>To:</strong> {reminder.end_date}</p>
+                        <p><strong>Dosage:</strong> {reminder.dosage_value} {reminder.dosage_unit}</p>
+                        <p><strong>Frequency:</strong> {reminder.frequency_type}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
             <div className="medicine-reminder__form-section">
               <h2 className="medicine-reminder__title">Medicine Reminder</h2>
               <p className="medicine-reminder__subtitle">Set reminders for your medications</p>
@@ -409,7 +468,7 @@ const MedicineReminder: React.FC = () => {
                 <button
                   type="button"
                   className="medicine-reminder__btn medicine-reminder__btn--cancel"
-                  onClick={() => navigate('/')}
+                  onClick={() => setViewMode('list')}
                 >
                   Cancel
                 </button>
@@ -417,8 +476,8 @@ const MedicineReminder: React.FC = () => {
             </div>
           )}
         </div>
-      </main>
-    </div>
+      </main >
+    </div >
   );
 };
 

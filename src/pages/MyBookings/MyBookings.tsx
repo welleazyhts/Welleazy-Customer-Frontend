@@ -16,6 +16,8 @@ import {
 import { Container } from 'react-bootstrap';
 import { MyBookingsAPI } from '../../api/MyBookings';
 import { CustomerAppointment, PharmacyOrder } from '../../types/MyBookings';
+import { toast } from 'react-toastify';
+import { api } from '../../services/api';
 
 // Define interface for Pharmacy Coupon Address
 export interface PharmacyCouponAddress {
@@ -72,12 +74,9 @@ const MyBookings: React.FC = () => {
 
   // Fetch pharmacy orders
   useEffect(() => {
-    const EmployeeRefId = Number(localStorage.getItem('EmployeeRefId'));
-    if (!EmployeeRefId) return;
-
     const fetchPharmacyOrders = async () => {
       try {
-        const data = await MyBookingsAPI.FetchPharmacyListDetails(EmployeeRefId);
+        const data = await MyBookingsAPI.FetchPharmacyListDetails();
         setPharmacyOrders(data);
       } catch (err) {
         console.error('Error fetching pharmacy orders:', err);
@@ -89,12 +88,9 @@ const MyBookings: React.FC = () => {
 
   // Fetch pharmacy coupons (SECOND API)
   useEffect(() => {
-    const EmployeeRefId = Number(localStorage.getItem('EmployeeRefId'));
-    if (!EmployeeRefId) return;
-
     const fetchPharmacyCoupons = async () => {
       try {
-        const data = await MyBookingsAPI.FetchPharmacyCouponListDetails(EmployeeRefId);
+        const data = await MyBookingsAPI.FetchPharmacyCouponListDetails();
         setPharmacyCoupons(data);
       } catch (err) {
         console.error('Error fetching pharmacy coupons:', err);
@@ -104,35 +100,50 @@ const MyBookings: React.FC = () => {
     fetchPharmacyCoupons();
   }, []);
 
+  // Filter pharmacy orders based on active tab
+  const filteredPharmacyOrders = activeTab === 'All'
+    ? pharmacyOrders
+    : pharmacyOrders.filter(o => {
+      const status = o.status?.toLowerCase() || '';
+      if (activeTab === 'Scheduled') {
+        return ['confirmed', 'processing', 'dispatched', 'in progress', 'pending'].includes(status);
+      }
+      if (activeTab === 'Completed') {
+        return ['delivered', 'completed', 'used'].includes(status);
+      }
+      if (activeTab === 'Cancelled') {
+        return ['cancelled', 'rejected', 'expired'].includes(status);
+      }
+      return false;
+    });
+
+  // Filter pharmacy coupons - without status, we show them in All and Scheduled (active)
+  const filteredPharmacyCoupons = activeTab === 'All' || activeTab === 'Scheduled'
+    ? pharmacyCoupons
+    : [];
+
   const PHARMACY_CARDS_PER_PAGE = 5;
   const PHARMACY_ROWS_PER_PAGE = 2;
-  const totalPharmacyPages = Math.ceil(pharmacyOrders.length / (PHARMACY_CARDS_PER_PAGE * PHARMACY_ROWS_PER_PAGE));
+  const totalPharmacyPages = Math.ceil(filteredPharmacyOrders.length / (PHARMACY_CARDS_PER_PAGE * PHARMACY_ROWS_PER_PAGE));
 
   const getPaginatedPharmacyOrders = (page: number) => {
     const startIndex = (page - 1) * (PHARMACY_CARDS_PER_PAGE * PHARMACY_ROWS_PER_PAGE);
-    const endIndex = Math.min(startIndex + (PHARMACY_CARDS_PER_PAGE * PHARMACY_ROWS_PER_PAGE), pharmacyOrders.length);
-    return pharmacyOrders.slice(startIndex, endIndex);
+    const endIndex = Math.min(startIndex + (PHARMACY_CARDS_PER_PAGE * PHARMACY_ROWS_PER_PAGE), filteredPharmacyOrders.length);
+    return filteredPharmacyOrders.slice(startIndex, endIndex);
   };
 
   const PHARMACY_COUPON_CARDS_PER_PAGE = 5;
   const PHARMACY_COUPON_ROWS_PER_PAGE = 2;
-  const totalPharmacyCouponPages = Math.ceil(pharmacyCoupons.length / (PHARMACY_COUPON_CARDS_PER_PAGE * PHARMACY_COUPON_ROWS_PER_PAGE));
+  const totalPharmacyCouponPages = Math.ceil(filteredPharmacyCoupons.length / (PHARMACY_COUPON_CARDS_PER_PAGE * PHARMACY_COUPON_ROWS_PER_PAGE));
 
   const getPaginatedPharmacyCoupons = (page: number) => {
     const startIndex = (page - 1) * (PHARMACY_COUPON_CARDS_PER_PAGE * PHARMACY_COUPON_ROWS_PER_PAGE);
-    const endIndex = Math.min(startIndex + (PHARMACY_COUPON_CARDS_PER_PAGE * PHARMACY_COUPON_ROWS_PER_PAGE), pharmacyCoupons.length);
-    return pharmacyCoupons.slice(startIndex, endIndex);
+    const endIndex = Math.min(startIndex + (PHARMACY_COUPON_CARDS_PER_PAGE * PHARMACY_COUPON_ROWS_PER_PAGE), filteredPharmacyCoupons.length);
+    return filteredPharmacyCoupons.slice(startIndex, endIndex);
   };
 
   // Fetch appointments
   useEffect(() => {
-    const EmployeeRefId = Number(localStorage.getItem('EmployeeRefId'));
-    const CorporateId = Number(localStorage.getItem('CorporateId'));
-    const LoginType = Number(localStorage.getItem('LoginType'));
-    const RoleId = Number(localStorage.getItem('RoleID'));
-
-    if (!EmployeeRefId || !CorporateId) return;
-
     const fetchBookings = async () => {
       try {
         setLoading(true);
@@ -288,6 +299,7 @@ const MyBookings: React.FC = () => {
       case 'scheduled':
       case 'pending':
       case 'active':
+      case 'confirmed':
         return '#1976d2';
       case 'completed':
       case 'delivered':
@@ -303,6 +315,78 @@ const MyBookings: React.FC = () => {
         return '#2196f3';
       default:
         return '#666';
+    }
+  };
+
+  // Helper actions
+  const handleViewAppointmentVoucher = async (id: string) => {
+    try {
+      const data = await MyBookingsAPI.getAppointmentVoucher(Number(id));
+      if (data.voucher_url) {
+        window.open(data.voucher_url, '_blank');
+      } else {
+        toast.info("Voucher not available yet");
+      }
+    } catch (err) {
+      console.error("Error viewing voucher:", err);
+    }
+  };
+
+  const handleDownloadInvoice = async (id: string) => {
+    try {
+      const blob = await MyBookingsAPI.downloadInvoice(Number(id));
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Invoice-${id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error downloading invoice:", err);
+    }
+  };
+
+  const handleViewPharmacyVoucher = async (id: number) => {
+    try {
+      const data = await MyBookingsAPI.getPharmacyOrderVoucher(id);
+      if (data.voucher_url) {
+        window.open(data.voucher_url, '_blank');
+      } else {
+        toast.info("Voucher not available yet");
+      }
+    } catch (err) {
+      console.error("Error viewing pharmacy voucher:", err);
+    }
+  };
+
+  const handleViewPharmacyCouponVoucher = async (id: number) => {
+    try {
+      const data = await MyBookingsAPI.getPharmacyCouponVoucher(id);
+      if (data.voucher_url) {
+        window.open(data.voucher_url, '_blank');
+      } else {
+        toast.info("Voucher not available yet");
+      }
+    } catch (err) {
+      console.error("Error viewing pharmacy coupon voucher:", err);
+    }
+  };
+
+  const downloadPharmacyOrderVoucher = async (orderId: string, url: string) => {
+    try {
+      // url might be local or full, api.get handles it if it starts with /api
+      const response = await api.get<Blob>(url, { responseType: 'blob' });
+      const blobUrl = window.URL.createObjectURL(response.data);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `Voucher-${orderId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error("Error downloading pharmacy voucher:", err);
+      toast.error("Failed to download voucher");
     }
   };
 
@@ -359,11 +443,11 @@ const MyBookings: React.FC = () => {
         )}
 
         {/* NO BOOKINGS MESSAGE */}
-        {!loading && paginatedBookings.length === 0 && pharmacyOrders.length === 0 && pharmacyCoupons.length === 0 && (
+        {!loading && paginatedBookings.length === 0 && filteredPharmacyOrders.length === 0 && filteredPharmacyCoupons.length === 0 && (
           <div className="no-bookings">
             <div className="no-bookings-icon">📋</div>
             <h3>No bookings found</h3>
-            <p>You don't have any bookings at the moment.</p>
+            <p>You don't have any {activeTab !== 'All' ? activeTab.toLowerCase() : ''} bookings at the moment.</p>
           </div>
         )}
 
@@ -417,7 +501,11 @@ const MyBookings: React.FC = () => {
 
                   {/* ACTION BUTTONS */}
                   <div className="booking-actions compact">
-                    <button className="Mybookings-action-btn" title="View Voucher">
+                    <button
+                      className="Mybookings-action-btn"
+                      title="View Voucher"
+                      onClick={() => handleViewAppointmentVoucher(booking.AppointmentId)}
+                    >
                       <FontAwesomeIcon icon={faEye} />
                       <span>Voucher</span>
                     </button>
@@ -429,7 +517,11 @@ const MyBookings: React.FC = () => {
                       <FontAwesomeIcon icon={faFilePrescription} />
                       <span>Rx</span>
                     </button>
-                    <button className="Mybookings-action-btn" title="Download Invoice">
+                    <button
+                      className="Mybookings-action-btn"
+                      title="Download Invoice"
+                      onClick={() => handleDownloadInvoice(booking.AppointmentId)}
+                    >
                       <FontAwesomeIcon icon={faFileInvoiceDollar} />
                       <span>Invoice</span>
                     </button>
@@ -496,7 +588,7 @@ const MyBookings: React.FC = () => {
         )}
 
         {/* PHARMACY ORDERS */}
-        {pharmacyOrders.length > 0 && (
+        {filteredPharmacyOrders.length > 0 && (
           <>
             <div className="section-title">
               <FontAwesomeIcon icon={faFilePrescription} className="section-icon" />
@@ -504,17 +596,17 @@ const MyBookings: React.FC = () => {
             </div>
             <div className="bookings-grid five-per-row">
               {getPaginatedPharmacyOrders(pharmacyPage).map(order => (
-                <div className="MyBookings-PH-booking-card compact" key={order.PharmacyOrderDetailsId}>
+                <div className="MyBookings-PH-booking-card compact" key={order.order_id}>
                   <div className="booking-header">
                     <div className="case-id">
                       <span className="label">Order ID:</span>
-                      <span className="value">{order.OrderId || 'N/A'}</span>
+                      <span className="value">{order.order_id || 'N/A'}</span>
                     </div>
                     <div className="status-badge" style={{
-                      backgroundColor: getStatusColor(order.PharmacyDescription) + '15',
-                      color: getStatusColor(order.PharmacyDescription)
+                      backgroundColor: getStatusColor(order.status) + '15',
+                      color: getStatusColor(order.status)
                     }}>
-                      {order.PharmacyDescription || 'Unknown'}
+                      {order.status || 'Unknown'}
                     </div>
                   </div>
 
@@ -523,35 +615,54 @@ const MyBookings: React.FC = () => {
                   <div className="booking-details compact">
                     <div className="detail-row">
                       <span className="label">Patient:</span>
-                      <span className="value">{order.EmployeeName || 'N/A'}</span>
+                      <span className="value">{order.patient_name || 'N/A'}</span>
                     </div>
                     <div className="detail-row">
                       <span className="label">Service:</span>
-                      <span className="value">{order.TypeOfService || 'N/A'}</span>
+                      <span className="value">{order.type_of_service || 'N/A'}</span>
                     </div>
                     <div className="detail-row">
                       <span className="label">Order Type:</span>
-                      <span className="value">{order.OrderType || 'N/A'}</span>
+                      <span className="value">{order.order_type || 'N/A'}</span>
                     </div>
                     <div className="detail-row">
                       <span className="label">Ordered:</span>
-                      <span className="value">{order.OrderedDate || 'N/A'}</span>
+                      <span className="value">{order.ordered_date || 'N/A'}</span>
                     </div>
                     <div className="detail-row">
                       <span className="label">Delivery:</span>
-                      <span className="value">{order.DeliveryDate || 'N/A'}</span>
+                      <span className="value">{order.expected_delivery || 'N/A'}</span>
                     </div>
                     <div className="detail-row">
                       <span className="label">Amount:</span>
-                      <span className="value">₹{order.GrandTotal || '0'}</span>
+                      <span className="value">₹{order.order_amount || '0'}</span>
                     </div>
                     <div className="detail-row">
                       <span className="label">Address:</span>
                       <AddressDisplay
-                        text={order.ShippingAddress || ''}
-                        id={order.PharmacyOrderDetailsId}
+                        text={order.address ? `${order.address.address}, ${order.address.city} - ${order.address.pincode}` : 'N/A'}
+                        id={order.address?.id || 0}
                       />
                     </div>
+                  </div>
+
+                  <div className="booking-actions compact mt-2">
+                    <button
+                      className="Mybookings-action-btn"
+                      title="View Voucher"
+                      onClick={() => downloadPharmacyOrderVoucher(order.order_id, order.actions.view_voucher_url)}
+                    >
+                      <FontAwesomeIcon icon={faEye} />
+                      <span>Voucher</span>
+                    </button>
+                    <button
+                      className="Mybookings-action-btn"
+                      title="View Medicine Details"
+                      onClick={() => window.open(order.actions.view_medicine_details_url, '_blank')}
+                    >
+                      <FontAwesomeIcon icon={faFileMedical} />
+                      <span>Details</span>
+                    </button>
                   </div>
                 </div>
               ))}
@@ -562,8 +673,8 @@ const MyBookings: React.FC = () => {
               <div className="pagination-container">
                 <div className="pagination-info">
                   Showing {(pharmacyPage - 1) * (PHARMACY_CARDS_PER_PAGE * PHARMACY_ROWS_PER_PAGE) + 1} to{' '}
-                  {Math.min(pharmacyPage * (PHARMACY_CARDS_PER_PAGE * PHARMACY_ROWS_PER_PAGE), pharmacyOrders.length)} of{' '}
-                  {pharmacyOrders.length} pharmacy orders
+                  {Math.min(pharmacyPage * (PHARMACY_CARDS_PER_PAGE * PHARMACY_ROWS_PER_PAGE), filteredPharmacyOrders.length)} of{' '}
+                  {filteredPharmacyOrders.length} pharmacy orders
                 </div>
 
                 <div className="pagination-controls">
@@ -615,7 +726,7 @@ const MyBookings: React.FC = () => {
         )}
 
         {/* PHARMACY COUPONS (SECOND API) */}
-        {pharmacyCoupons.length > 0 && (
+        {filteredPharmacyCoupons.length > 0 && (
           <>
             <div className="section-title">
               <FontAwesomeIcon icon={faTag} className="section-icon" />
@@ -675,7 +786,11 @@ const MyBookings: React.FC = () => {
                   </div>
 
                   <div className="booking-actions compact">
-                    <button className="Mybookings-action-btn" title="View Voucher">
+                    <button
+                      className="Mybookings-action-btn"
+                      title="View Voucher"
+                      onClick={() => handleViewPharmacyCouponVoucher(coupon.ApolloId)}
+                    >
                       <FontAwesomeIcon icon={faEye} />
                       <span>Voucher</span>
                     </button>
@@ -689,8 +804,8 @@ const MyBookings: React.FC = () => {
               <div className="pagination-container">
                 <div className="pagination-info">
                   Showing {(pharmacyCouponPage - 1) * (PHARMACY_COUPON_CARDS_PER_PAGE * PHARMACY_COUPON_ROWS_PER_PAGE) + 1} to{' '}
-                  {Math.min(pharmacyCouponPage * (PHARMACY_COUPON_CARDS_PER_PAGE * PHARMACY_COUPON_ROWS_PER_PAGE), pharmacyCoupons.length)} of{' '}
-                  {pharmacyCoupons.length} pharmacy coupons
+                  {Math.min(pharmacyCouponPage * (PHARMACY_COUPON_CARDS_PER_PAGE * PHARMACY_COUPON_ROWS_PER_PAGE), filteredPharmacyCoupons.length)} of{' '}
+                  {filteredPharmacyCoupons.length} pharmacy coupons
                 </div>
 
                 <div className="pagination-controls">

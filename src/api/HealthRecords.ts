@@ -10,7 +10,8 @@ import {
   VaccinationDocument,
   HospitalizationDocument,
   DoctorSpecialization, TestReportParameterRecord,
-  MedicineReminder, MedicineChoices
+  MedicineReminder, MedicineChoices,
+  Prescription
 } from "../types/HealthRecords";
 
 const HealthRecordsAPI = {
@@ -112,6 +113,56 @@ const HealthRecordsAPI = {
     }
   },
 
+  // Prescription APIs
+  listPrescriptions: async (): Promise<any[]> => {
+    try {
+      const response = await api.get("/api/prescriptions/");
+      const data = response.data as any;
+      if (Array.isArray(data)) return data;
+      if (data && Array.isArray(data.results)) return data.results;
+      return [];
+    } catch (error) {
+      console.error("Error fetching prescriptions:", error);
+      return [];
+    }
+  },
+
+  getPrescriptionById: async (id: number): Promise<any> => {
+    return (await api.get(`/api/prescriptions/${id}/`)).data;
+  },
+
+  createPrescription: async (data: any, documents: File[]): Promise<any> => {
+    const formData = new FormData();
+    formData.append("data", JSON.stringify(data));
+    documents.forEach((file) => formData.append("documents", file));
+
+    return (await api.post("/api/prescriptions/", formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })).data;
+  },
+
+  updatePrescription: async (id: number, data: any, documents: File[]): Promise<any> => {
+    const formData = new FormData();
+    formData.append("data", JSON.stringify(data));
+    documents.forEach((file) => formData.append("documents", file));
+
+    return (await api.put(`/api/prescriptions/${id}/`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })).data;
+  },
+
+  deletePrescription: async (id: number): Promise<void> => {
+    await api.delete(`/api/prescriptions/${id}/`);
+  },
+
+  getPrescriptionDoctorSpecializations: async (): Promise<any[]> => {
+    return (await api.get("/api/prescriptions/doctor_specializations/")).data as any[];
+  },
+
+  getPrescriptionTypeChoices: async (): Promise<any> => {
+    return (await api.get("/api/prescriptions/prescription_type_choices/")).data;
+  },
+
   // Hospitalization APIs
   listHospitalizations: async (): Promise<any[]> => {
     try {
@@ -160,26 +211,32 @@ const HealthRecordsAPI = {
 
   // Legacy adaptations (to minimize component breakage before full refactor)
   GetHospitalizationDetails: async (employeeRefId: number): Promise<HospitalizationDetail[]> => {
-    const data = await HealthRecordsAPI.listHospitalizations();
-    // Map new API data to old interface if needed, or return as is if compatible
-    return data.map((item: any) => ({
-      H_id: item.id,
-      Record_for: item.for_whom === 'self' ? 1 : 2, // Approximation
-      Record_date: item.admitted_date,
-      RecordName: item.record_name,
-      Record_Doctor_Name: item.doctor_name,
-      Record_Hospital_Name: item.hospital_name,
-      Type_of_Record: item.hospitalization_type,
-      Additional_Notes: item.notes,
-      EmployeeRefId: employeeRefId,
-      RelationType: item.for_whom === 'self' ? 1 : 2,
-      Relation: item.for_whom,
-      EmployeeDependentDetailsId: item.dependant || 0,
-      CreatedOn: item.created_at,
-      UpdatedOn: item.updated_at,
-      // Map other fields as best as possible
-      ...item
-    }));
+    try {
+      const response = await api.get("/api/hospitalizations/");
+      const data = response.data as any;
+      const results = Array.isArray(data) ? data : (data.results || []);
+
+      return results.map((item: any) => ({
+        H_id: item.id,
+        Record_for: item.for_whom === 'self' ? "Self" : "Dependant",
+        Record_date: item.admitted_date,
+        RecordName: item.record_name,
+        Record_Doctor_Name: item.doctor_name,
+        Record_Hospital_Name: item.hospital_name,
+        Type_of_Record: item.hospitalization_type,
+        Additional_Notes: item.notes,
+        EmployeeRefId: employeeRefId,
+        RelationType: item.for_whom === 'self' ? 1 : 2,
+        Relation: item.patient_name || (item.for_whom === 'self' ? "Self" : "Dependant"),
+        EmployeeDependentDetailsId: item.dependant || 0,
+        CreatedOn: item.created_at,
+        UpdatedOn: item.updated_at,
+        documents: item.documents || []
+      }));
+    } catch (error) {
+      console.error("Error fetching hospitalizations:", error);
+      return [];
+    }
   },
 
   GetHospitalizationDocumentDetails: async (employeeRefId: number): Promise<HospitalizationDocument[]> => {
@@ -192,9 +249,25 @@ const HealthRecordsAPI = {
     try {
       const response = await api.get("/api/medical-bills/");
       const data = response.data as any;
-      if (Array.isArray(data)) return data;
-      if (data && Array.isArray(data.results)) return data.results;
-      return data.records || [];
+      const results = Array.isArray(data) ? data : (data.results || []);
+
+      return results.map((item: any) => ({
+        MB_id: item.id,
+        Record_for: item.for_whom === 'self' ? "Self" : "Dependant",
+        Record_date: item.record_date,
+        RecordName: item.record_name,
+        Record_Hospital_Name: item.record_hospital_name,
+        Record_Bill_Number: item.record_bill_number,
+        Type_of_Record: item.bill_type,
+        Additional_Notes: item.notes,
+        EmployeeRefId: employeeRefId,
+        RelationType: item.for_whom === 'self' ? 1 : 2,
+        Relation: item.for_whom === 'self' ? "Self" : (item.dependant_name || "Dependant"),
+        EmployeeDependentDetailsId: item.dependant || 0,
+        CreatedOn: item.created_at,
+        UpdatedOn: item.updated_at,
+        documents: item.documents || []
+      }));
     } catch (error) {
       console.error("Error fetching medical bill details:", error);
       return [];
@@ -205,9 +278,25 @@ const HealthRecordsAPI = {
     try {
       const response = await api.get("/api/vaccination-certificates/");
       const data = response.data as any;
-      if (Array.isArray(data)) return data;
-      if (data && Array.isArray(data.results)) return data.results;
-      return data.records || [];
+      const results = Array.isArray(data) ? data : (data.results || []);
+
+      return results.map((item: any) => ({
+        V_id: item.id,
+        Record_for: item.for_whom === 'self' ? "Self" : "Dependant",
+        Record_date: item.vaccination_date,
+        RecordName: item.vaccination_name,
+        Vaccination_dose: item.vaccination_dose,
+        Vaccination_center: item.vaccination_center,
+        Registration_id: item.registration_id,
+        Additional_Notes: item.notes,
+        EmployeeRefId: employeeRefId,
+        RelationType: item.for_whom === 'self' ? 1 : 2,
+        Relation: item.patient_name || (item.for_whom === 'self' ? "Self" : "Dependant"),
+        EmployeeDependentDetailsId: item.dependant || 0,
+        CreatedOn: item.created_at,
+        UpdatedOn: item.updated_at,
+        documents: item.documents || []
+      }));
     } catch (error) {
       console.error("Error fetching vaccination details:", error);
       return [];
@@ -239,29 +328,13 @@ const HealthRecordsAPI = {
   },
 
   GetMedicalBillDocumentDetails: async (employeeRefId: number): Promise<MedicalBillDocument[]> => {
-    try {
-      const response = await api.get("/api/medical-bills/");
-      const data = response.data as any;
-      if (Array.isArray(data)) return data;
-      if (data && Array.isArray(data.results)) return data.results;
-      return data.records || [];
-    } catch (error) {
-      console.error("Error fetching medical bill documents:", error);
-      return [];
-    }
+    // Documents are included in the list/detail response now
+    return [];
   },
 
   GetVaccinationDocumentDetails: async (employeeRefId: number): Promise<VaccinationDocument[]> => {
-    try {
-      const response = await api.get("/api/vaccination-certificates/");
-      const data = response.data as any;
-      if (Array.isArray(data)) return data;
-      if (data && Array.isArray(data.results)) return data.results;
-      return data.records || [];
-    } catch (error) {
-      console.error("Error fetching vaccination documents:", error);
-      return [];
-    }
+    // Documents are included in the list/detail response now
+    return [];
   },
 
   // ADD/UPDATE Methods
@@ -277,16 +350,55 @@ const HealthRecordsAPI = {
     })).data;
   },
 
-  CRMSaveCustomerMedicalBillDetails: async (formData: FormData): Promise<any> => {
+  createMedicalBill: async (data: any, documents: File[]): Promise<any> => {
+    const formData = new FormData();
+    formData.append("data", JSON.stringify(data));
+    documents.forEach((file) => formData.append("documents", file));
+
     return (await api.post("/api/medical-bills/", formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })).data;
   },
 
-  CRMSaveCustomerVaccinationDetails: async (formData: FormData): Promise<any> => {
+  updateMedicalBill: async (id: number, data: any, documents: File[]): Promise<any> => {
+    const formData = new FormData();
+    formData.append("data", JSON.stringify(data));
+    documents.forEach((file) => formData.append("documents", file));
+
+    return (await api.put(`/api/medical-bills/${id}/`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })).data;
+  },
+
+  CRMSaveCustomerMedicalBillDetails: async (formData: FormData): Promise<any> => {
+    // Deprecated for direct calls, but kept for compatibility if needed or removed if unused
+    // We will switch usage to createMedicalBill/updateMedicalBill in the component
+    throw new Error("Use createMedicalBill or updateMedicalBill instead");
+  },
+
+  createVaccinationCertificate: async (data: any, documents: File[]): Promise<any> => {
+    const formData = new FormData();
+    formData.append("data", JSON.stringify(data));
+    documents.forEach((file) => formData.append("documents", file));
+
     return (await api.post("/api/vaccination-certificates/", formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })).data;
+  },
+
+  updateVaccinationCertificate: async (id: number, data: any, documents: File[]): Promise<any> => {
+    const formData = new FormData();
+    formData.append("data", JSON.stringify(data));
+    documents.forEach((file) => formData.append("documents", file));
+
+    return (await api.put(`/api/vaccination-certificates/${id}/`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })).data;
+  },
+
+  CRMSaveCustomerVaccinationDetails: async (formData: FormData): Promise<any> => {
+    // Deprecated, use createVaccinationCertificate or updateVaccinationCertificate
+    throw new Error("Use createVaccinationCertificate or updateVaccinationCertificate instead");
   },
 
   // GET BY ID Methods for editing
@@ -305,7 +417,9 @@ const HealthRecordsAPI = {
   },
 
   CRMGetCustomerMedicalBillDetailsById: async (mbId: number): Promise<any> => {
-    return (await api.get(`/api/medical-bills/${mbId}/`)).data;
+    const data = (await api.get(`/api/medical-bills/${mbId}/`)).data;
+    // Normalize if needed, or return raw
+    return data;
   },
 
   CRMGetCustomerVaccinationDetailsById: async (vId: number): Promise<any> => {
