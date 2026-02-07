@@ -1,5 +1,5 @@
 export interface CRMGenerateDependentMemberIdResponse {
-    DependentMemberId: string;
+  DependentMemberId: string;
 }
 
 export interface CRMInsertUpdateEmployeeDependantDetailsRequest {
@@ -23,6 +23,21 @@ export interface CRMInsertUpdateEmployeeDependantDetailsRequest {
 
 export interface CRMInsertUpdateEmployeeDependantDetailsResponse {
   Message: string;
+  data?: {
+    id: number;
+    member_id: string;
+    name: string;
+    gender: string;
+    dob: string;
+    relationship: number;
+    mobile_number: string | null;
+    email: string;
+    occupation: string;
+    marital_status: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+  };
 }
 
 export interface CRMFetchDependentDetailsForEmployeeRequest {

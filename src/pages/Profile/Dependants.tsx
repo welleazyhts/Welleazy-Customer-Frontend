@@ -38,8 +38,7 @@ import Select from 'react-select';
 import Input from '../../components/Input';
 import { toast } from "react-toastify";
 import { MangeProfileApi } from "../../api/MangeProfile";
-import { 
-  CRMGenerateDependentMemberIdResponse, 
+import {
   CRMInsertUpdateEmployeeDependantDetailsRequest,
   CRMFetchDependentDetailsForEmployeeResponse
 } from '../../types/dependants'
@@ -69,11 +68,11 @@ const Dependants: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [maritalStatusOptions, setMaritalStatusOptions] = useState<CRMMaritalStatusResponse[]>([]);
   const [showPassword, setShowPassword] = useState(false);
-  
+
   // Relationship states
   const [relationships, setRelationships] = useState<Relationship[]>([]);
   const [loadingRelationships, setLoadingRelationships] = useState(false);
-  
+
   // Dependents list state
   const [dependents, setDependents] = useState<CRMFetchDependentDetailsForEmployeeResponse[]>([]);
   const [fetchingDependents, setFetchingDependents] = useState(false);
@@ -116,7 +115,7 @@ const Dependants: React.FC = () => {
       setLoadingRelationships(false);
     }
   };
-  
+
   const relationshipOptions = relationships.map((item) => ({
     value: item.RelationshipId.toString(),
     label: item.Relationship
@@ -126,63 +125,82 @@ const Dependants: React.FC = () => {
   const fetchMaritalStatus = async () => {
     try {
       const data = await MangeProfileApi.CRMMaritalStatus();
-      setMaritalStatusOptions(data);
+
+      // Ensure "Married" and "Unmarried" are included as minimum options
+      const defaultOptions = [
+        { MaritalStatusId: 1, MaritalDescription: "Married" },
+        { MaritalStatusId: 2, MaritalDescription: "Unmarried" }
+      ];
+
+      const mergedOptions = [...data];
+      defaultOptions.forEach(def => {
+        if (!mergedOptions.some(opt => opt.MaritalDescription?.toLowerCase() === def.MaritalDescription.toLowerCase())) {
+          mergedOptions.push(def);
+        }
+      });
+
+      setMaritalStatusOptions(mergedOptions);
     } catch (err) {
-      console.error('Failed to fetch marital status:', err);
-      setError('Failed to load marital status options');
+      // API endpoint doesn't exist, use default options
+      // This is expected behavior, so we don't log it as an error
+      setMaritalStatusOptions([
+        { MaritalStatusId: 1, MaritalDescription: "Married" },
+        { MaritalStatusId: 2, MaritalDescription: "Unmarried" }
+      ]);
+      // Don't set error state since this is expected and we have working defaults
     }
   };
 
   // Fetch dependents list
- const fetchDependents = async () => {
-  const EmployeeRefId = localStorage.getItem("EmployeeRefId");
+  const fetchDependents = async () => {
+    const EmployeeRefId = localStorage.getItem("EmployeeRefId");
 
-  if (!EmployeeRefId) {
-    toast.error("Employee reference ID not found");
-    return;
-  }
-
-  setFetchingDependents(true);
-  try {
-    const response = await DependantsAPI.CRMFetchDependentDetailsForEmployee({
-      EmployeeRefId: parseInt(EmployeeRefId),
-    });
-
-    // Ensure the data is always an array
-    let dependentsArray: CRMFetchDependentDetailsForEmployeeResponse[] = [];
-    if (Array.isArray(response)) {
-      dependentsArray = response;
-    } else if (response && typeof response === 'object' && 'Dependents' in response && Array.isArray((response as any).Dependents)) {
-      dependentsArray = (response as any).Dependents;
+    if (!EmployeeRefId) {
+      toast.error("Employee reference ID not found");
+      return;
     }
 
-    setDependents(dependentsArray);
-    setCurrentPage(1);
-  } catch (error) {
-    console.error("Error fetching dependents:", error);
-    toast.error("Failed to fetch dependent details");
-    setDependents([]); // fallback
-  } finally {
-    setFetchingDependents(false);
-  }
-};
+    setFetchingDependents(true);
+    try {
+      const response = await DependantsAPI.CRMFetchDependentDetailsForEmployee({
+        EmployeeRefId: parseInt(EmployeeRefId),
+      });
+
+      // Ensure the data is always an array
+      let dependentsArray: CRMFetchDependentDetailsForEmployeeResponse[] = [];
+      if (Array.isArray(response)) {
+        dependentsArray = response;
+      } else if (response && typeof response === 'object' && 'Dependents' in response && Array.isArray((response as any).Dependents)) {
+        dependentsArray = (response as any).Dependents;
+      }
+
+      setDependents(dependentsArray);
+      setCurrentPage(1);
+    } catch (error) {
+      console.error("Error fetching dependents:", error);
+      toast.error("Failed to fetch dependent details");
+      setDependents([]); // fallback
+    } finally {
+      setFetchingDependents(false);
+    }
+  };
 
 
   // Handle search filtering and sorting
   const handleFilterAndSort = () => {
     let result = [...dependents];
-    
+
     // Apply active/inactive filter
     if (activeFilter !== 'all') {
-      result = result.filter(dependent => 
+      result = result.filter(dependent =>
         activeFilter === 'active' ? dependent.IsActive : !dependent.IsActive
       );
     }
-    
+
     // Apply search filter
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
-      result = result.filter(dependent => 
+      result = result.filter(dependent =>
         dependent.DependentName?.toLowerCase().includes(term) ||
         dependent.DependentMemberId?.toLowerCase().includes(term) ||
         dependent.Relationship?.toLowerCase().includes(term) ||
@@ -190,19 +208,19 @@ const Dependants: React.FC = () => {
         dependent.DependentMobileNo?.includes(term)
       );
     }
-    
+
     // Apply sorting
     result.sort((a, b) => {
       const aValue = a[sortField as keyof CRMFetchDependentDetailsForEmployeeResponse] || '';
       const bValue = b[sortField as keyof CRMFetchDependentDetailsForEmployeeResponse] || '';
-      
+
       if (sortDirection === 'asc') {
         return String(aValue).localeCompare(String(bValue));
       } else {
         return String(bValue).localeCompare(String(aValue));
       }
     });
-    
+
     setFilteredDependents(result);
   };
 
@@ -223,7 +241,7 @@ const Dependants: React.FC = () => {
     try {
       setFetchingEditData(true);
       const EmployeeRefId = localStorage.getItem("EmployeeRefId");
-      
+
       if (!EmployeeRefId) {
         toast.error("Employee reference ID not found");
         return;
@@ -231,15 +249,15 @@ const Dependants: React.FC = () => {
 
       // Find the dependent from existing list
       const dependent = dependents.find(d => d.EmployeeDependentDetailsId === dependentId);
-      
+
       if (dependent) {
         const relationship = relationships.find(r => r.RelationshipId === dependent.DependentRelationShip);
         const relationshipValue = relationship ? relationship.RelationshipId.toString() : "";
-        
+
         // Find marital status by ID
         const maritalStatus = maritalStatusOptions.find(m => m.MaritalStatusId === dependent.MaritalStatus);
         const maritalStatusValue = maritalStatus ? maritalStatus.MaritalDescription : "";
-        
+
         setFormData({
           memberId: dependent.DependentMemberId || "",
           username: dependent.DependentEmailId || "",
@@ -253,13 +271,13 @@ const Dependants: React.FC = () => {
           occupation: dependent.Occupation ? dependent.Occupation.toString() : "",
           password: ""
         });
-        
+
         setConsentAccess(dependent.AccessProfilePermission || false);
         setEditingDependent(dependent.EmployeeDependentDetailsId);
         setIsEditing(true);
         setShowForm(true);
         setShowDependentsList(false);
-        
+
         if (!dependent.DependentEmailId) {
           toast.info("Editing dependent. Please enter username and password to update.");
         } else {
@@ -286,26 +304,13 @@ const Dependants: React.FC = () => {
     setIsEditing(false);
     setShowPassword(false);
     setError(null);
-    
-    // Generate new member ID
-    DependantsAPI.CRMGenerateDependentMemberId()
-      .then(response => {
-        if (response && response.DependentMemberId) {
-          setFormData(prev => ({
-            ...prev,
-            memberId: response.DependentMemberId
-          }));
-        }
-      })
-      .catch(error => {
-        console.error("Error generating member ID:", error);
-        toast.error("Failed to generate member ID");
-      });
-    
+
+    // Note: Member ID will be auto-generated by the backend when the dependent is created
+
     // Show form and hide list
     setShowForm(true);
     setShowDependentsList(false);
-    
+
     toast.info("Adding new dependent");
   };
 
@@ -322,33 +327,7 @@ const Dependants: React.FC = () => {
     }
   }, [dependents, searchTerm, sortField, sortDirection, activeFilter]);
 
-  // Fetch Dependent Member ID on component mount
-  useEffect(() => {
-    const fetchDependentMemberId = async () => {
-      setLoading(true);
-      try {
-        const response: CRMGenerateDependentMemberIdResponse = await DependantsAPI.CRMGenerateDependentMemberId();
-        
-        if (response && response.DependentMemberId) {
-          setFormData(prev => ({
-            ...prev,
-            memberId: response.DependentMemberId
-          }));
-        } else {
-          setError("Failed to generate Dependent Member ID");
-          toast.error("Failed to generate Dependent Member ID");
-        }
-      } catch (err) {
-        console.error('Error fetching Dependent Member ID:', err);
-        setError("Error generating Dependent Member ID");
-        toast.error("Error generating Dependent Member ID");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDependentMemberId();
-  }, []);
+  // Note: Member ID is auto-generated by the backend, no need to fetch it on mount
 
   // Update email and mobile when sameAsPrimary is checked
   useEffect(() => {
@@ -416,18 +395,18 @@ const Dependants: React.FC = () => {
       const [day, month, year] = parts;
       return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
     }
-    
+
     const parts2 = dateString.split('-');
     if (parts2.length === 3) {
       const [month, day, year] = parts2;
       return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
     }
-    
+
     return dateString;
   };
 
   const getGenderId = (gender: string): number => {
-    switch(gender) {
+    switch (gender) {
       case "Male": return 1;
       case "Female": return 2;
       case "Other": return 3;
@@ -436,7 +415,7 @@ const Dependants: React.FC = () => {
   };
 
   const getGenderFromId = (genderId: number): string => {
-    switch(genderId) {
+    switch (genderId) {
       case 1: return "Male";
       case 2: return "Female";
       case 3: return "Other";
@@ -482,10 +461,10 @@ const Dependants: React.FC = () => {
       setLoading(true);
       const selectedRelationship = relationships.find(r => r.RelationshipId.toString() === formData.relationship);
       const relationshipId = selectedRelationship ? selectedRelationship.RelationshipId : 0;
-      
+
       const selectedMaritalStatus = maritalStatusOptions.find(m => m.MaritalDescription === formData.maritalStatus);
       const maritalStatusId = selectedMaritalStatus ? selectedMaritalStatus.MaritalStatusId : 0;
-      
+
       // Get the dependent to edit
       let dependentToUpdate = null;
       if (editingDependent) {
@@ -513,29 +492,37 @@ const Dependants: React.FC = () => {
 
       console.log("Saving dependent data:", saveData);
       const response = await DependantsAPI.CRMInsertUpdateEmployeeDependantDetails(saveData);
-      
+
+      // Log the response data to console
+      console.log("API Response:", response);
+      if (response.data) {
+        console.log("Newly created/updated dependent data:", response.data);
+        console.log("Dependent ID:", response.data.id);
+        console.log("Member ID:", response.data.member_id);
+        console.log("Name:", response.data.name);
+        console.log("Email:", response.data.email);
+        console.log("Marital Status:", response.data.marital_status);
+        console.log("Occupation:", response.data.occupation);
+      }
+
       if (response.Message === "Dependant Data Already Exists") {
         toast.error("Dependent with these details already exists");
       } else {
         const successMessage = isEditing ? "Dependent updated successfully!" : "Dependent saved successfully!";
         toast.success(successMessage);
-        
+
+        // Show additional info if data is available
+        if (response.data) {
+          toast.info(`Dependent ${response.data.name} (${response.data.member_id}) has been ${isEditing ? 'updated' : 'added'}`);
+        }
+
         // Fetch updated dependents list
         await fetchDependents();
-        
+
         // Clear form and redirect to list view
         handleCancel();
-        
-        // Generate new member ID for next dependent (only for new entries)
-        if (!isEditing) {
-          const newMemberIdResponse = await DependantsAPI.CRMGenerateDependentMemberId();
-          if (newMemberIdResponse && newMemberIdResponse.DependentMemberId) {
-            setFormData(prev => ({
-              ...prev,
-              memberId: newMemberIdResponse.DependentMemberId
-            }));
-          }
-        }
+
+        // Member ID is auto-generated by the backend, no need to fetch it
       }
 
     } catch (error) {
@@ -555,25 +542,13 @@ const Dependants: React.FC = () => {
     setIsEditing(false);
     setShowPassword(false);
     setError(null);
-    
+
     // Always show list view after cancel (both for new and edit)
     setShowForm(false);
     setShowDependentsList(true);
-    
-    // Generate new member ID for next dependent
-    if (!isEditing) {
-      DependantsAPI.CRMGenerateDependentMemberId()
-        .then(response => {
-          if (response && response.DependentMemberId) {
-            setFormData(prev => ({
-              ...prev,
-              memberId: response.DependentMemberId
-            }));
-          }
-        })
-        .catch(error => console.error("Error generating member ID:", error));
-    }
-    
+
+    // Member ID will be auto-generated by the backend when creating a new dependent
+
     toast.info(isEditing ? "Edit cancelled" : "Form cleared");
   };
 
@@ -582,32 +557,26 @@ const Dependants: React.FC = () => {
   };
 
   const handleDeleteDependent = async (dependentId: number) => {
-    if (!window.confirm("Are you sure you want to deactivate this dependent?")) {
+    if (!window.confirm("Are you sure you want to delete this dependent? This action cannot be undone.")) {
       return;
     }
 
     try {
       setLoading(true);
-      const EmployeeId = localStorage.getItem("EmployeeRefId");
-      
-      if (!EmployeeId) {
-        toast.error("Employee ID not found");
-        return;
-      }
 
       const response = await DependantsAPI.DeactivateEmployeeDependent(dependentId);
-      
-      if (response =="Employee dependent deactivated successfully.") {
-        toast.success("Dependent deactivated successfully!");
+
+      if (response.success) {
+        toast.success(response.message || "Dependent deleted successfully!");
         // Refresh the dependents list to reflect the change
         await fetchDependents();
       } else {
-        toast.error(response?.message || "Failed to deactivate dependent");
+        toast.error(response?.message || "Failed to delete dependent");
       }
-      
+
     } catch (error) {
       console.error("Error deleting dependent:", error);
-      toast.error("Failed to deactivate dependent. Please try again.");
+      toast.error("Failed to delete dependent. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -621,7 +590,7 @@ const Dependants: React.FC = () => {
     try {
       setLoading(true);
       const EmployeeId = localStorage.getItem("EmployeeRefId");
-      
+
       if (!EmployeeId) {
         toast.error("Employee ID not found");
         return;
@@ -655,7 +624,7 @@ const Dependants: React.FC = () => {
       };
 
       const response = await DependantsAPI.CRMInsertUpdateEmployeeDependantDetails(activateData);
-      
+
       if (response.Message === "Dependant Data Already Exists") {
         toast.error("Dependent with these details already exists");
       } else {
@@ -663,7 +632,7 @@ const Dependants: React.FC = () => {
         // Refresh the dependents list to reflect the change
         await fetchDependents();
       }
-      
+
     } catch (error) {
       console.error("Error activating dependent:", error);
       toast.error("Failed to activate dependent. Please try again.");
@@ -712,7 +681,7 @@ const Dependants: React.FC = () => {
   const getPageNumbers = () => {
     const pageNumbers = [];
     const maxPagesToShow = 5;
-    
+
     if (totalPages <= maxPagesToShow) {
       for (let i = 1; i <= totalPages; i++) {
         pageNumbers.push(i);
@@ -720,16 +689,16 @@ const Dependants: React.FC = () => {
     } else {
       let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
       let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
-      
+
       if (endPage - startPage + 1 < maxPagesToShow) {
         startPage = Math.max(1, endPage - maxPagesToShow + 1);
       }
-      
+
       for (let i = startPage; i <= endPage; i++) {
         pageNumbers.push(i);
       }
     }
-    
+
     return pageNumbers;
   };
 
@@ -748,14 +717,14 @@ const Dependants: React.FC = () => {
       {/* Header Section */}
       <div className="dependants-header">
         <div className="dependants-header-content">
-          <button 
+          <button
             className="dependants-back-btn"
             onClick={() => window.history.back()}
           >
             <FontAwesomeIcon icon={faArrowLeft} />
             Back
           </button>
-          
+
           <div className="dependants-header-title">
             <h1>
               <FontAwesomeIcon icon={faUsers} className="header-icon" />
@@ -767,7 +736,7 @@ const Dependants: React.FC = () => {
           </div>
 
           <div className="dependants-header-actions">
-            <button 
+            <button
               className="view-dependents-btn"
               onClick={toggleView}
             >
@@ -799,12 +768,12 @@ const Dependants: React.FC = () => {
           {/* Consent Section */}
           <div className="consent-section">
             <div className="consent-item">
-              <div 
+              <div
                 className="consent-checkbox"
                 onClick={() => setConsentAccess(!consentAccess)}
               >
-                <FontAwesomeIcon 
-                  icon={consentAccess ? faCheckSquare : faSquare} 
+                <FontAwesomeIcon
+                  icon={consentAccess ? faCheckSquare : faSquare}
                   className={consentAccess ? "checkbox-checked" : "checkbox-unchecked"}
                 />
                 <span className="consent-label">
@@ -814,12 +783,12 @@ const Dependants: React.FC = () => {
             </div>
 
             <div className="consent-item">
-              <div 
+              <div
                 className="consent-checkbox"
                 onClick={() => setSameAsPrimary(!sameAsPrimary)}
               >
-                <FontAwesomeIcon 
-                  icon={sameAsPrimary ? faCheckSquare : faSquare} 
+                <FontAwesomeIcon
+                  icon={sameAsPrimary ? faCheckSquare : faSquare}
                   className={sameAsPrimary ? "checkbox-checked" : "checkbox-unchecked"}
                 />
                 <span className="consent-label">
@@ -904,7 +873,7 @@ const Dependants: React.FC = () => {
                 <Select
                   name="gender"
                   value={genderOptions.find(opt => opt.value === formData.gender)}
-                  onChange={(selectedOption) => 
+                  onChange={(selectedOption) =>
                     handleSelectChange("gender", selectedOption?.value || "")
                   }
                   options={genderOptions}
@@ -1006,9 +975,9 @@ const Dependants: React.FC = () => {
                     (opt) => opt.value === formData.maritalStatus
                   )}
                   onChange={(selectedOption) =>
-                    setFormData(prev => ({ 
-                      ...prev, 
-                      maritalStatus: selectedOption?.value || "" 
+                    setFormData(prev => ({
+                      ...prev,
+                      maritalStatus: selectedOption?.value || ""
                     }))
                   }
                   options={maritalStatusOptionsFormatted}
@@ -1041,7 +1010,7 @@ const Dependants: React.FC = () => {
                 <Select
                   name="occupation"
                   value={occupationOptions.find(opt => opt.value === formData.occupation)}
-                  onChange={(selectedOption) => 
+                  onChange={(selectedOption) =>
                     handleSelectChange("occupation", selectedOption?.value || "")
                   }
                   options={occupationOptions}
@@ -1067,7 +1036,7 @@ const Dependants: React.FC = () => {
 
           {/* Action Buttons */}
           <div className="dependants-action-buttons">
-            <button 
+            <button
               className="dependants-save-btn"
               onClick={handleSave}
               disabled={loading || loadingRelationships || fetchingEditData}
@@ -1084,7 +1053,7 @@ const Dependants: React.FC = () => {
                 </>
               )}
             </button>
-            <button 
+            <button
               className="dependants-cancel-btn"
               onClick={handleCancel}
               disabled={loading || loadingRelationships || fetchingEditData}
@@ -1109,7 +1078,7 @@ const Dependants: React.FC = () => {
                 {filteredDependents.length} dependent{filteredDependents.length !== 1 ? 's' : ''} shown
               </span>
             </div>
-            
+
             <div className="dependents-table-controls">
               <div className="search-box">
                 <input
@@ -1120,13 +1089,13 @@ const Dependants: React.FC = () => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              
+
               <button className="table-action-btn refresh-btn" onClick={fetchDependents}>
                 <FontAwesomeIcon icon={faSyncAlt} />
                 Refresh
               </button>
-              
-              <button 
+
+              <button
                 className="table-action-btn add-btn"
                 onClick={handleAddNewDependent}
               >
@@ -1147,7 +1116,7 @@ const Dependants: React.FC = () => {
                 All
                 <span className="filter-count">{totalCount}</span>
               </button>
-              
+
               <button
                 className={`status-filter-btn ${activeFilter === 'active' ? 'active' : ''}`}
                 onClick={() => setActiveFilter('active')}
@@ -1156,7 +1125,7 @@ const Dependants: React.FC = () => {
                 Active
                 <span className="filter-count">{activeCount}</span>
               </button>
-              
+
               <button
                 className={`status-filter-btn ${activeFilter === 'inactive' ? 'active' : ''}`}
                 onClick={() => setActiveFilter('inactive')}
@@ -1180,16 +1149,16 @@ const Dependants: React.FC = () => {
               </div>
               <h3>No Dependents Found</h3>
               <p>
-                {searchTerm 
-                  ? "No results match your search." 
-                  : activeFilter === 'active' 
-                    ? "No active dependents found." 
-                    : activeFilter === 'inactive' 
-                      ? "No inactive dependents found." 
+                {searchTerm
+                  ? "No results match your search."
+                  : activeFilter === 'active'
+                    ? "No active dependents found."
+                    : activeFilter === 'inactive'
+                      ? "No inactive dependents found."
                       : "You haven't added any dependents yet."
                 }
               </p>
-              <button 
+              <button
                 className="add-btn table-action-btn"
                 onClick={handleAddNewDependent}
               >
@@ -1206,8 +1175,8 @@ const Dependants: React.FC = () => {
                       <th className="sortable" onClick={() => handleSort('DependentName')}>
                         Name
                         {sortField === 'DependentName' && (
-                          <FontAwesomeIcon 
-                            icon={sortDirection === 'asc' ? faSortUp : faSortDown} 
+                          <FontAwesomeIcon
+                            icon={sortDirection === 'asc' ? faSortUp : faSortDown}
                             className="sort-icon"
                           />
                         )}
@@ -1239,7 +1208,7 @@ const Dependants: React.FC = () => {
                           </span>
                         </td>
                         <td>{dependent.DOB || dependent.DependentDOB}</td>
-                        <td>{dependent.Description}</td>
+                        <td>{getGenderFromId(dependent.DependentGender)}</td>
                         <td>
                           {dependent.DependentMobileNo ? (
                             <a href={`tel:${dependent.DependentMobileNo}`} className="text-blue-600 hover:text-blue-800">
@@ -1273,7 +1242,7 @@ const Dependants: React.FC = () => {
                             )}
                           </span>
                         </td>
-                        
+
                         <td>
                           <div className="table-actions">
                             <button
@@ -1284,7 +1253,7 @@ const Dependants: React.FC = () => {
                             >
                               <FontAwesomeIcon icon={faEdit} />
                             </button>
-                            
+
                             {dependent.IsActive ? (
                               <button
                                 className="dependt-delete-btn"
@@ -1301,7 +1270,7 @@ const Dependants: React.FC = () => {
                                 disabled={loading}
                                 title="Activate Dependent"
                               >
-                               <FontAwesomeIcon icon={faToggleOn} />
+                                <FontAwesomeIcon icon={faToggleOn} />
                               </button>
                             )}
                           </div>
@@ -1327,7 +1296,7 @@ const Dependants: React.FC = () => {
                       <FontAwesomeIcon icon={faChevronLeft} />
                       Previous
                     </button>
-                    
+
                     <div className="page-numbers">
                       {getPageNumbers().map(number => (
                         <button
@@ -1339,7 +1308,7 @@ const Dependants: React.FC = () => {
                         </button>
                       ))}
                     </div>
-                    
+
                     <button
                       className="page-btn"
                       onClick={goToNextPage}

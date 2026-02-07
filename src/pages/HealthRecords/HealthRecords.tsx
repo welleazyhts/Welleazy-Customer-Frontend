@@ -135,11 +135,11 @@ const HealthRecords: React.FC = () => {
   const [loadingRelationships, setLoadingRelationships] = useState(false);
   const [loadingRelationshipPersons, setLoadingRelationshipPersons] = useState(false);
 
-  // State for filters
+  // State for filters and search
   const [filters, setFilters] = useState({
     date: '',
     caseForOption: '',
-    doctorName: ''
+    search: ''
   });
   const [filterLoading, setFilterLoading] = useState(false);
 
@@ -1093,6 +1093,167 @@ const HealthRecords: React.FC = () => {
     }
   };
 
+  // ==================== FILTER AND SEARCH FUNCTIONS ====================
+
+  // Filter and search for prescription records
+  const filterPrescriptionRecords = (recordsList: HealthRecord[]) => {
+    let filtered = [...recordsList];
+
+    // Apply search term (Generic)
+    if (filters.search.trim()) {
+      const search = filters.search.toLowerCase();
+      filtered = filtered.filter(record =>
+        record.doctor?.toLowerCase().includes(search) ||
+        record.recordName?.toLowerCase().includes(search) ||
+        record.specialization?.toLowerCase().includes(search) ||
+        record.notes?.toLowerCase().includes(search)
+      );
+    }
+
+    // Apply date filter
+    if (filters.date) {
+      filtered = filtered.filter(record => {
+        const recordDate = formatDisplayDate(record.recordDate);
+        return recordDate === filters.date || record.recordDate === filters.date;
+      });
+    }
+
+    // Apply case for filter (Self/Dependant)
+    if (filters.caseForOption) {
+      filtered = filtered.filter(record =>
+        record.relation?.toString() === filters.caseForOption
+      );
+    }
+
+    return filtered;
+  };
+
+  // Filter and search for hospitalization records
+  const filterHospitalizationRecords = (recordsList: any[]) => {
+    let filtered = [...recordsList];
+
+    // Apply search term (Generic)
+    if (filters.search.trim()) {
+      const search = filters.search.toLowerCase();
+      filtered = filtered.filter(record =>
+        record.doctor_name?.toLowerCase().includes(search) ||
+        record.hospital_name?.toLowerCase().includes(search) ||
+        record.record_name?.toLowerCase().includes(search) ||
+        record.type_of_record?.toLowerCase().includes(search)
+      );
+    }
+
+    // Apply date filter
+    if (filters.date) {
+      filtered = filtered.filter(record => {
+        const admittedDate = formatDisplayDate(record.admitted_date);
+        const dischargedDate = formatDisplayDate(record.discharged_date);
+        return admittedDate === filters.date || dischargedDate === filters.date;
+      });
+    }
+
+    // Apply case for filter
+    if (filters.caseForOption) {
+      filtered = filtered.filter(record =>
+        record.case_for?.toString() === filters.caseForOption
+      );
+    }
+
+    return filtered;
+  };
+
+  // Filter and search for medical bill records
+  const filterMedicalBillRecords = (recordsList: any[]) => {
+    let filtered = [...recordsList];
+
+    // Apply search term
+    if (filters.search.trim()) {
+      const search = filters.search.toLowerCase();
+      filtered = filtered.filter(record =>
+        record.hospital_name?.toLowerCase().includes(search) ||
+        record.record_name?.toLowerCase().includes(search) ||
+        record.bill_number?.toLowerCase().includes(search)
+      );
+    }
+
+    // Apply date filter
+    if (filters.date) {
+      filtered = filtered.filter(record => {
+        const recordDate = formatDisplayDate(record.record_date);
+        return recordDate === filters.date;
+      });
+    }
+
+    // Apply case for filter
+    if (filters.caseForOption) {
+      filtered = filtered.filter(record =>
+        record.case_for?.toString() === filters.caseForOption
+      );
+    }
+
+    return filtered;
+  };
+
+  // Filter and search for vaccination records
+  const filterVaccinationRecords = (recordsList: any[]) => {
+    let filtered = [...recordsList];
+
+    // Apply search term
+    if (filters.search.trim()) {
+      const search = filters.search.toLowerCase();
+      filtered = filtered.filter(record =>
+        record.vaccination_name?.toLowerCase().includes(search) ||
+        record.vaccination_center?.toLowerCase().includes(search) ||
+        record.vaccination_dose?.toLowerCase().includes(search)
+      );
+    }
+
+    // Apply date filter
+    if (filters.date) {
+      filtered = filtered.filter(record => {
+        const vaccinationDate = formatDisplayDate(record.vaccination_date);
+        return vaccinationDate === filters.date;
+      });
+    }
+
+    // Apply case for filter
+    if (filters.caseForOption) {
+      filtered = filtered.filter(record =>
+        record.case_for?.toString() === filters.caseForOption
+      );
+    }
+
+    return filtered;
+  };
+
+  // Apply search and filters when they change
+  useEffect(() => {
+    if (filters.search || filters.date || filters.caseForOption) {
+      // Apply local filtering
+      switch (activeTab) {
+        case "Prescription & Lab Tests":
+          setRecords(filterPrescriptionRecords(allRecords));
+          break;
+        case "Hospitalizations":
+          setHospitalizationRecords(filterHospitalizationRecords(allHospitalizationRecords));
+          break;
+        case "Medical Bills":
+          setMedicalBillRecords(filterMedicalBillRecords(allMedicalBillRecords));
+          break;
+        case "Vaccinations Certificates":
+          setVaccinationRecords(filterVaccinationRecords(allVaccinationRecords));
+          break;
+      }
+    } else {
+      // Reset to all records when no filters
+      setRecords(allRecords);
+      setHospitalizationRecords(allHospitalizationRecords);
+      setMedicalBillRecords(allMedicalBillRecords);
+      setVaccinationRecords(allVaccinationRecords);
+    }
+  }, [filters, allRecords, allHospitalizationRecords, allMedicalBillRecords, allVaccinationRecords, activeTab]);
+
+
   // Fetch dependants (Removed as it was using mock data and relationships API is used instead)
   /* 
   const fetchDependants = async () => {
@@ -1201,12 +1362,12 @@ const HealthRecords: React.FC = () => {
         FromDate: filterValues.date,
         ToDate: filterValues.date,
         CaseForOption: filterValues.caseForOption,
-        SearchKeyword: filterValues.doctorName,
+        SearchKeyword: filterValues.search,
         EmployeeRefid: employeeRefId
       };
 
       // If all filters are empty, just reset to show all records
-      if (!filterValues.date && !filterValues.caseForOption && !filterValues.doctorName) {
+      if (!filterValues.date && !filterValues.caseForOption && !filterValues.search) {
         switch (activeTab) {
           case "Prescription & Lab Tests":
             setRecords(allRecords);
@@ -1435,8 +1596,8 @@ const HealthRecords: React.FC = () => {
   const applyClientSideFiltersWithValues = (filterValues: typeof filters) => {
     const filterRecords = (records: any[]) => {
       return records.filter(record => {
-        if (filterValues.doctorName) {
-          const searchTerm = filterValues.doctorName.toLowerCase();
+        if (filterValues.search) {
+          const searchTerm = filterValues.search.toLowerCase();
           const doctorName = (record.doctor || record.recordDoctorName || record.doctor_name || '').toString().toLowerCase();
           const recordName = (record.recordName || record.RecordName || record.vaccinationName || '').toString().toLowerCase();
           const hospitalName = (record.hospital || record.hospital_name || record.Record_Hospital_Name || record.vaccinationCenter || '').toString().toLowerCase();
@@ -1982,7 +2143,7 @@ const HealthRecords: React.FC = () => {
     setFilters({
       date: '',
       caseForOption: '',
-      doctorName: ''
+      search: ''
     });
   };
 
@@ -1997,7 +2158,7 @@ const HealthRecords: React.FC = () => {
         FromDate: filters.date,
         ToDate: filters.date,
         CaseForOption: filters.caseForOption,
-        SearchKeyword: filters.doctorName,
+        SearchKeyword: filters.search,
         EmployeeRefid: employeeRefId
       };
 
@@ -2212,8 +2373,8 @@ const HealthRecords: React.FC = () => {
   const filterRecordsClientSide = (records: any[]) => {
     return records.filter(record => {
       // 1. Search Filter (checks multiple fields)
-      if (filters.doctorName) {
-        const searchTerm = filters.doctorName.toLowerCase();
+      if (filters.search) {
+        const searchTerm = filters.search.toLowerCase();
         const doctorName = (record.doctor || record.recordDoctorName || record.doctor_name || '').toString().toLowerCase();
         const recordName = (record.recordName || record.RecordName || record.vaccinationName || '').toString().toLowerCase();
         const hospitalName = (record.hospital || record.hospital_name || record.Record_Hospital_Name || record.vaccinationCenter || '').toString().toLowerCase();
@@ -4282,8 +4443,8 @@ const HealthRecords: React.FC = () => {
           type="text"
           placeholder="Search records (Doctor, Record Name...)"
           className="filter-input search-filter"
-          value={filters.doctorName}
-          onChange={(e) => handleFilterChange('doctorName', e.target.value)}
+          value={filters.search}
+          onChange={(e) => handleFilterChange('search', e.target.value)}
         />
         <div className="date-input-wrapper">
           <Input
