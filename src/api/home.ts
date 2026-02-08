@@ -1,4 +1,4 @@
-const API_URL = process.env.REACT_APP_API_URL || "http://3.110.32.224:8000";
+const API_URL = process.env.REACT_APP_API_URL || "http://3.110.32.224";
 
 export const homeAPI = {
   // Main API for all health basic details

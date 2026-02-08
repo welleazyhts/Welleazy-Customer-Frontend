@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { 
-  faChevronLeft, 
-  faChevronRight, 
+import {
+  faChevronLeft,
+  faChevronRight,
   faTimes,
   faUpload,
   faFileAlt,
@@ -19,7 +19,9 @@ import {
   faPaperclip,
   faTrash,
   faEye,
-  faExternalLinkAlt
+  faExternalLinkAlt,
+  faFileImage,
+  faFilePdf
 } from "@fortawesome/free-solid-svg-icons";
 import { Container } from "react-bootstrap";
 import "./InsuranceRecord.css";
@@ -42,7 +44,7 @@ const locationData = [
 ];
 
 // Define a union type for combined documents
-type CombinedDocument = 
+type CombinedDocument =
   | { isExisting: true; InsuranceRecordDocumentId: number; InsuranceRecordId: number; DocumentName: string; DocumentPath: string; }
   | { isExisting: false; file: File; preview: string; id: string; };
 
@@ -112,7 +114,7 @@ const InsuranceRecord: React.FC = () => {
   const handlePolicyTypeChange = (type: string) => {
     setPolicyType(type);
     setSelectedDependent("");
-    
+
     if (!isEditMode) {
       if (type === "Self" || type === "Company Policy") {
         setFormData(prev => ({
@@ -135,7 +137,7 @@ const InsuranceRecord: React.FC = () => {
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
     const insuranceId = urlParams.get('insuranceId');
-    
+
     if (insuranceId) {
       setIsEditMode(true);
       setInsuranceRecordId(parseInt(insuranceId));
@@ -148,27 +150,35 @@ const InsuranceRecord: React.FC = () => {
     try {
       const response = await insuranceRecordAPI.CRMGetCustomerInsuranceRecordDetailsById(id);
       const recordDetails = response?.["Insurance Records Details"]?.[0];
-      const documents = response?.["Insurance Records Documnets"] || [];
-      
+      let documents = response?.["Insurance Records Documents"] || response?.["Insurance Records Documnets"] || [];
+
+      // Fallback: Check if documents are inside recordDetails or response root
+      if (documents.length === 0 && recordDetails?.documents) documents = recordDetails.documents;
+      if (documents.length === 0 && recordDetails?.insurance_documents) documents = recordDetails.insurance_documents;
+      if (documents.length === 0 && recordDetails?.DocumentFiles) documents = recordDetails.DocumentFiles;
+
+      console.log("Fetched Record Details:", recordDetails);
+      console.log("Fetched Documents:", documents);
+
       if (recordDetails) {
         // Populate form with existing data
         setFormData({
-          policyHolderName: recordDetails.PolicyHolderName || "",
-          policyFrom: recordDetails.PolicyFrom ? formatDateForInput(recordDetails.PolicyFrom) : "",
-          policyTo: recordDetails.PolicyTo ? formatDateForInput(recordDetails.PolicyTo) : "",
-          insuranceType: recordDetails.TypeOfInsurance?.toString() || "",
-          insuranceCompany: recordDetails.InsuranceCompany?.toString() || "",
-          policyNumber: recordDetails.PolicyNumber || "",
-          policyName: recordDetails.PolicyName || "",
-          sumAssured: recordDetails.SumAssured || "",
-          premiumAmount: recordDetails.PremiumAmount || "",
-          nominee: recordDetails.Nominee || recordDetails.NomineeName || "",
-          tpa: recordDetails.TPA || "",
-          additionalNotes: recordDetails.AdditionalNotes || "",
-          isFloater: recordDetails.IsFloater ?? false,
-          maturityDate: recordDetails.MaturityDate ? formatDateForInput(recordDetails.MaturityDate) : "",
-          maturityAmount: recordDetails.MaturityAmount || "",
-          surrenderDate: recordDetails.SurrenderDate ? formatDateForInput(recordDetails.SurrenderDate) : "",
+          policyHolderName: recordDetails.PolicyHolderName || recordDetails.policyHolderName || "",
+          policyFrom: (recordDetails.PolicyFrom || recordDetails.policyFrom) ? formatDateForInput(recordDetails.PolicyFrom || recordDetails.policyFrom) : "",
+          policyTo: (recordDetails.PolicyTo || recordDetails.policyTo) ? formatDateForInput(recordDetails.PolicyTo || recordDetails.policyTo) : "",
+          insuranceType: (recordDetails.TypeOfInsurance || recordDetails.typeOfInsurance || recordDetails.InsuranceType)?.toString() || "",
+          insuranceCompany: (recordDetails.InsuranceCompanyName || recordDetails.InsuranceCompany || recordDetails.insuranceCompany)?.toString() || "",
+          policyNumber: recordDetails.PolicyNumber || recordDetails.policyNumber || recordDetails.PolicyNo || recordDetails.policyNo || "",
+          policyName: recordDetails.PolicyName || recordDetails.policyName || recordDetails.InsurancePolicyName || "",
+          sumAssured: recordDetails.SumAssured || recordDetails.sumAssured || "",
+          premiumAmount: recordDetails.PremiumAmount || recordDetails.premiumAmount || "",
+          nominee: recordDetails.Nominee || recordDetails.NomineeName || recordDetails.nominee || "",
+          tpa: recordDetails.TPA || recordDetails.tpa || "",
+          additionalNotes: recordDetails.AdditionalNotes || recordDetails.additionalNotes || "",
+          isFloater: recordDetails.IsFloater ?? recordDetails.isFloater ?? false,
+          maturityDate: (recordDetails.MaturityDate || recordDetails.Maturitydate || recordDetails.maturityDate) ? formatDateForInput(recordDetails.MaturityDate || recordDetails.Maturitydate || recordDetails.maturityDate) : "",
+          maturityAmount: recordDetails.MaturityAmount || recordDetails.maturityAmount || "",
+          surrenderDate: (recordDetails.SurrenderDate || recordDetails.surrenderDate) ? formatDateForInput(recordDetails.SurrenderDate || recordDetails.surrenderDate) : "",
         });
 
         // Set existing documents
@@ -193,8 +203,20 @@ const InsuranceRecord: React.FC = () => {
   };
 
   const formatDateForInput = (dateStr: string): string => {
-    if(!dateStr) return "";
-    return dateStr.split("T")[0];
+    if (!dateStr) return "";
+    // Handle YYYY-MM-DDTHH:mm:ss format
+    if (dateStr.includes("T")) {
+      return dateStr.split("T")[0];
+    }
+    // Handle DD-MM-YYYY format
+    const parts = dateStr.split("-");
+    if (parts.length === 3) {
+      if (parts[0].length === 2 && parts[2].length === 4) {
+        // DD-MM-YYYY to YYYY-MM-DD
+        return `${parts[2]}-${parts[1]}-${parts[0]}`;
+      }
+    }
+    return dateStr;
   };
 
   useEffect(() => {
@@ -255,16 +277,14 @@ const InsuranceRecord: React.FC = () => {
           return;
         }
 
-        const companies = await insuranceRecordAPI.CRMGetInsuranceCompanyDetails(selectedType.InsuranceTypeId);
+        const companies = await insuranceRecordAPI.CRMGetInsuranceCompanyDetails();
         if (companies && Array.isArray(companies)) {
           setInsuranceCompanies(companies);
         } else {
-          toast.error("No companies found for this insurance type");
           setInsuranceCompanies([]);
         }
       } catch (error) {
         console.error("Error fetching insurance companies:", error);
-        toast.error("Error loading insurance companies");
         setInsuranceCompanies([]);
       }
     };
@@ -282,18 +302,18 @@ const InsuranceRecord: React.FC = () => {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value, type } = e.target;
-    
+
     // If insurance type changes, reset insurance company
     if (name === "insuranceType") {
-      setFormData(prev => ({ 
-        ...prev, 
+      setFormData(prev => ({
+        ...prev,
         [name]: value,
         insuranceCompany: "" // Reset insurance company when type changes
       }));
     } else {
-      setFormData(prev => ({ 
-        ...prev, 
-        [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value 
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
       }));
     }
   };
@@ -303,7 +323,7 @@ const InsuranceRecord: React.FC = () => {
     if (!files) return;
 
     const newFiles: UploadedFile[] = [];
-    
+
     Array.from(files).forEach(file => {
       // Validate file type
       const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
@@ -319,7 +339,7 @@ const InsuranceRecord: React.FC = () => {
       }
 
       const fileId = Math.random().toString(36).substring(2, 9);
-      
+
       if (file.type.startsWith('image/')) {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -347,7 +367,7 @@ const InsuranceRecord: React.FC = () => {
       console.log("Deleting document with ID:", documentId);
       setIsLoading(true);
       const response = await insuranceRecordAPI.DeleteInsuranceRecordDocument(documentId);
-      
+
       if (response?.message || response?.Message) {
         toast.success("Document deleted successfully");
         // Remove from existing documents
@@ -387,7 +407,7 @@ const InsuranceRecord: React.FC = () => {
 
     const requiredFields = [
       'policyFrom',
-      'policyTo', 
+      'policyTo',
       'insuranceType',
       'insuranceCompany',
       'policyNumber',
@@ -444,6 +464,7 @@ const InsuranceRecord: React.FC = () => {
 
       // InsuranceRecordId = 0 for create, actual ID for edit
       formDataToSend.append("InsuranceRecordId", isEditMode ? insuranceRecordId.toString() : "0");
+      formDataToSend.append("id", isEditMode ? insuranceRecordId.toString() : "0");
       formDataToSend.append("EmployeeRefId", employeeRefId);
       formDataToSend.append(
         "PolicyHolderName",
@@ -458,10 +479,11 @@ const InsuranceRecord: React.FC = () => {
       formDataToSend.append("PolicyFrom", formatDateForAPI(formData.policyFrom));
       formDataToSend.append("PolicyTo", formatDateForAPI(formData.policyTo));
       formDataToSend.append("MemberId", memberId);
-      formDataToSend.append("AdditionalNotes", formData.additionalNotes);
+      formDataToSend.append("notes", formData.additionalNotes);
       formDataToSend.append("PolicyStatus", "1");
       formDataToSend.append("PolicyType", policyType);
       formDataToSend.append("IsActive", "1");
+      formDataToSend.append("isFloater", formData.isFloater ? "true" : "false");
       formDataToSend.append("CreatedBy", loginRefId);
       formDataToSend.append("SumAssured", formData.sumAssured);
       formDataToSend.append("PremiumAmount", formData.premiumAmount);
@@ -496,30 +518,30 @@ const InsuranceRecord: React.FC = () => {
       formDataToSend.append("InsuranceScheduledDate", JSON.stringify(insuranceScheduledData));
 
       if (isEditMode) {
-        const documentMetadata: Array<{DocumentName: string, DocumentPath: string}> = [];
+        const documentMetadata: Array<{ DocumentName: string, DocumentPath: string }> = [];
         existingDocuments.forEach(doc => {
           documentMetadata.push({
             DocumentName: doc.DocumentName,
             DocumentPath: doc.DocumentPath
           });
         });
-        
+
         uploadedFiles.forEach(fileObj => {
           const originalName = fileObj.file.name;
           const timestamp = Date.now();
           const randomStr = Math.random().toString(36).substring(2, 10);
-          const uniqueFileName = `${timestamp}_${randomStr}_${originalName}`;        
+          const uniqueFileName = `${timestamp}_${randomStr}_${originalName}`;
           documentMetadata.push({
             DocumentName: originalName,
-            DocumentPath: '' 
+            DocumentPath: ''
           });
-          
-          formDataToSend.append("DocumentFiles", fileObj.file, uniqueFileName);
+
+          formDataToSend.append("document", fileObj.file, uniqueFileName);
         });
         if (documentMetadata.length > 0) {
-          formDataToSend.append("ExistingDocumentMetadata", JSON.stringify(documentMetadata));
+          formDataToSend.append("existing_documents", JSON.stringify(documentMetadata));
         }
-        
+
       } else {
         // For new records, just send uploaded files
         uploadedFiles.forEach(fileObj => {
@@ -527,7 +549,7 @@ const InsuranceRecord: React.FC = () => {
           const timestamp = Date.now();
           const randomStr = Math.random().toString(36).substring(2, 10);
           const uniqueFileName = `${timestamp}_${randomStr}_${originalName}`;
-          formDataToSend.append("DocumentFiles", fileObj.file, uniqueFileName);
+          formDataToSend.append("document", fileObj.file, uniqueFileName);
         });
       }
       const result = await insuranceRecordAPI.CRMSaveCustomerInsuranceRecordDetails(formDataToSend);
@@ -624,6 +646,7 @@ const InsuranceRecord: React.FC = () => {
 
   // Get file extension from filename
   const getFileExtension = (filename: string): string => {
+    if (!filename) return '';
     return filename.split('.').pop()?.toLowerCase() || '';
   };
 
@@ -641,14 +664,14 @@ const InsuranceRecord: React.FC = () => {
 
   // Combine existing and newly uploaded documents in one array with proper typing
   const allDocuments: CombinedDocument[] = [
-    ...existingDocuments.map(doc => ({ 
+    ...existingDocuments.map(doc => ({
       isExisting: true as const,
       InsuranceRecordDocumentId: doc.InsuranceRecordDocumentId,
       InsuranceRecordId: doc.InsuranceRecordId,
       DocumentName: doc.DocumentName,
       DocumentPath: doc.DocumentPath
     })),
-    ...uploadedFiles.map(fileObj => ({ 
+    ...uploadedFiles.map(fileObj => ({
       isExisting: false as const,
       file: fileObj.file,
       preview: fileObj.preview,
@@ -661,7 +684,7 @@ const InsuranceRecord: React.FC = () => {
       {/* Header Section */}
       <div className="ins-record-header">
         <div className="ins-record-header-content">
-          <button 
+          <button
             className="ins-back-btn"
             onClick={() => navigate("/insurance-record")}
             disabled={isLoading}
@@ -674,8 +697,8 @@ const InsuranceRecord: React.FC = () => {
               {isEditMode ? "Edit Insurance Record" : "Add New Insurance Record"}
             </h1>
             <p className="ins-subtitle">
-              {isEditMode 
-                ? "Update your existing insurance policy details" 
+              {isEditMode
+                ? "Update your existing insurance policy details"
                 : ""}
             </p>
           </div>
@@ -747,7 +770,7 @@ const InsuranceRecord: React.FC = () => {
                   </option>
                   {filteredDependents.map((dep) => (
                     <option key={dep.EmployeeDependentDetailsId} value={dep.EmployeeName}>
-                      {dep.EmployeeName} ({dep.Relation})
+                      {dep.EmployeeName}
                     </option>
                   ))}
                 </select>
@@ -835,26 +858,22 @@ const InsuranceRecord: React.FC = () => {
               Insurance Company
               <span className="ins-required"> *</span>
             </label>
-            <div className="ins-custom-select">
-              <select
+            <div className="ins-custom-search-input">
+              <input
                 name="insuranceCompany"
+                list="company-list"
                 value={formData.insuranceCompany}
                 onChange={handleInputChange}
+                placeholder="Type to search company..."
                 required
-                disabled={!formData.insuranceType || insuranceCompanies.length === 0 || isLoadingRecord}
-                className="ins-form-select"
-              >
-                <option value="">Select company</option>
+                disabled={!formData.insuranceType || isLoadingRecord}
+                className="ins-form-input"
+              />
+              <datalist id="company-list">
                 {insuranceCompanies.map((company) => (
-                  <option
-                    key={company.InsuranceCompanyId}
-                    value={company.InsuranceCompanyId}
-                  >
-                    {company.InsuranceCompanyName}
-                  </option>
+                  <option key={company.InsuranceCompanyId} value={company.InsuranceCompanyName} />
                 ))}
-              </select>
-              <div className="ins-select-arrow">▼</div>
+              </datalist>
             </div>
           </div>
 
@@ -1017,118 +1036,115 @@ const InsuranceRecord: React.FC = () => {
           </div>
         </div>
 
-        {/* Floater / Individual Toggle */}
-        <div className="">
-          <h3 className="ins-section-title">
-            <FontAwesomeIcon icon={faUser} className="ins-section-icon" />
-            Policy Coverage
-          </h3>
-          <div className="ins-floater-toggle">
-            <button
-              className={`ins-floater-option ${!formData.isFloater ? "active" : ""}`}
-              onClick={() => setFormData((prev) => ({ ...prev, isFloater: false }))}
-              type="button"
-              disabled={isLoadingRecord}
-            >
-              <span className="ins-floater-label">Individual</span>
-            </button>
-            <button
-              className={`ins-floater-option ${formData.isFloater ? "active" : ""}`}
-              onClick={() => setFormData((prev) => ({ ...prev, isFloater: true }))}
-              type="button"
-              disabled={isLoadingRecord}
-            >
-              <span className="ins-floater-label">Floater</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Document Upload Section */}
-        <div style={{marginLeft:'500px',marginTop:'-108px'}}>
-          <div className="ins-upload-container">
-            <label className="ins-upload-area">
-              <input 
-                type="file" 
-                style={{ display: "none" }} 
-                onChange={handleFileUpload}
-                multiple
-                accept=".jpg,.jpeg,.png,.pdf,.JPG,.JPEG,.PNG,.PDF"
+        {/* Final Row: Policy Coverage & Upload */}
+        <div className="ins-row-sections">
+          {/* Floater / Individual Toggle */}
+          <div className="ins-floater-section">
+            <h3 className="ins-section-title">
+              <FontAwesomeIcon icon={faUser} className="ins-section-icon" />
+              Policy Coverage
+            </h3>
+            <div className="ins-floater-toggle">
+              <button
+                className={`ins-floater-option ${!formData.isFloater ? "active" : ""}`}
+                onClick={() => setFormData((prev) => ({ ...prev, isFloater: false }))}
+                type="button"
                 disabled={isLoadingRecord}
-              />
-              <div className="ins-upload-content">
-                <FontAwesomeIcon icon={faUpload} size="2x" />
-                <div className="ins-upload-text">
-                  <p className="ins-upload-title">Click to upload or drag and drop</p>
-                  <p className="ins-upload-subtitle">JPG, PNG or PDF (Max 5MB per file)</p>
-                </div>
-              </div>
-            </label>
-
-           {allDocuments.length > 0 && (
-  <div className="ins-documents-section" style={{ marginTop:'-142px', marginLeft:'20px' }}>
-    <div className="ins-files-header">
-      <h4>Documents ({allDocuments.length})</h4>
-    </div>
-
-    <div className="ins-files-grid">
-      {allDocuments.map((doc, idx) => (
-        <div key={doc.isExisting ? doc.InsuranceRecordDocumentId : doc.id} className="ins-file-card">
-          <div className="ins-file-preview">
-            {doc.isExisting 
-              ? isImageFile(doc.DocumentName) 
-                ? <img 
-                    src={doc.DocumentPath} 
-                    alt={doc.DocumentName} 
-                    className="ins-preview-image" 
-                    onClick={() => viewDocument(doc.DocumentPath, doc.DocumentName)}
-                  />
-                : <div className="ins-pdf-preview" onClick={() => viewDocument(doc.DocumentPath, doc.DocumentName)}>
-                    <FontAwesomeIcon icon={faFileAlt} size="2x" />
-                  </div>
-              : doc.file.type.startsWith('image/')
-                ? <img src={doc.preview} alt={doc.file.name} className="ins-preview-image" />
-                : <div className="ins-pdf-preview">
-                    <FontAwesomeIcon icon={faFileAlt} size="2x" />
-                  </div>
-            }
-
-            <div className="ins-file-actions">
-              {doc.isExisting 
-                ? <>
-                    <button 
-                      className="ins-view-file-btn"
-                      onClick={() => viewDocument(doc.DocumentPath, doc.DocumentName)}
-                    >
-                      <FontAwesomeIcon icon={faEye} />
-                    </button>
-                    <button 
-                      className="ins-remove-file-btn"
-                      onClick={() => removeExistingDocument(doc.InsuranceRecordDocumentId)}
-                    >
-                      <FontAwesomeIcon icon={faTrash} />
-                    </button>
-                  </>
-                : <button 
-                    className="ins-remove-file-btn"
-                    onClick={() => removeFile(doc.id)}
-                  >
-                    <FontAwesomeIcon icon={faTrash} />
-                  </button>
-              }
+              >
+                <span className="ins-floater-label">Individual</span>
+              </button>
+              <button
+                className={`ins-floater-option ${formData.isFloater ? "active" : ""}`}
+                onClick={() => setFormData((prev) => ({ ...prev, isFloater: true }))}
+                type="button"
+                disabled={isLoadingRecord}
+              >
+                <span className="ins-floater-label">Floater</span>
+              </button>
             </div>
           </div>
 
-          <div className="ins-file-info">
-            <span className="ins-file-name clickable">
-              {doc.isExisting ? doc.DocumentName : doc.file.name}
-            </span>
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
+          {/* Document Upload Section */}
+          <div className="ins-upload-section">
+            <h3 className="ins-section-title">
+              <FontAwesomeIcon icon={faPaperclip} className="ins-section-icon" />
+              Upload Documents
+            </h3>
+            <div className="ins-upload-container">
+              <label className="ins-upload-area">
+                <input
+                  type="file"
+                  style={{ display: "none" }}
+                  onChange={handleFileUpload}
+                  multiple
+                  accept=".jpg,.jpeg,.png,.pdf,.JPG,.JPEG,.PNG,.PDF"
+                  disabled={isLoadingRecord}
+                />
+                <div className="ins-upload-content">
+                  <FontAwesomeIcon icon={faUpload} size="2x" />
+                  <div className="ins-upload-text">
+                    <p className="ins-upload-title">Click to upload or drag and drop</p>
+                    <p className="ins-upload-subtitle">JPG, PNG or PDF (Max 5MB per file)</p>
+                  </div>
+                </div>
+              </label>
 
+
+              {allDocuments.length > 0 && (
+                <div className="ins-documents-section">
+                  <div className="ins-files-header">
+                    <h4>Uploaded Documents ({allDocuments.length})</h4>
+                  </div>
+
+                  <div className="ins-files-list">
+                    {allDocuments.map((doc, idx) => {
+                      const fileName = doc.isExisting ? doc.DocumentName : doc.file.name;
+                      const isImg = isImageFile(fileName);
+
+                      return (
+                        <div key={doc.isExisting ? doc.InsuranceRecordDocumentId : doc.id} className="ins-file-row">
+                          <div className="ins-file-type-icon">
+                            <FontAwesomeIcon
+                              icon={isImg ? faFileImage : faFileAlt}
+                              className={isImg ? "text-primary" : "text-danger"}
+                            />
+                          </div>
+                          <div className="ins-file-details">
+                            <span className="ins-file-name" title={fileName}>
+                              {fileName}
+                            </span>
+                          </div>
+                          <div className="ins-file-actions">
+                            {doc.isExisting && (
+                              <button
+                                type="button"
+                                className="ins-file-action-btn view"
+                                onClick={() => viewDocument(doc.DocumentPath, doc.DocumentName)}
+                                title="View Document"
+                              >
+                                <FontAwesomeIcon icon={faEye} />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="ins-file-action-btn delete"
+                              onClick={() => doc.isExisting
+                                ? removeExistingDocument(doc.InsuranceRecordDocumentId)
+                                : removeFile(doc.id)
+                              }
+                              title="Remove Document"
+                            >
+                              <FontAwesomeIcon icon={faTrash} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+            </div>
           </div>
         </div>
 
@@ -1151,7 +1167,7 @@ const InsuranceRecord: React.FC = () => {
 
         {/* Action Buttons */}
         <div className="ins-action-buttons">
-          <button 
+          <button
             className="ins-save-btn"
             onClick={handleSave}
             disabled={isLoading || isLoadingRecord}
@@ -1208,7 +1224,7 @@ const InsuranceRecord: React.FC = () => {
           </div>
         </section>
       </Container>
-    </div>
+    </div >
   );
 };
 

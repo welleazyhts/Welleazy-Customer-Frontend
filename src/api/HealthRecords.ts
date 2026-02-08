@@ -11,7 +11,7 @@ import {
   DoctorSpecialization, TestReportParameterRecord
 } from "../types/HealthRecords";
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://3.110.32.224:8000";
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://3.110.32.224";
 
 const HealthRecordsAPI = {
   // GET Methods (existing)

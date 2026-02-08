@@ -1,15 +1,18 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://3.110.32.224:8000';
+const API_URL = process.env.REACT_APP_API_URL || "";
 
 export const api = axios.create({
-    baseURL: API_URL,
-    withCredentials: true, // Enable cookies for session management
+    baseURL: process.env.REACT_APP_API_URL || '',
+    withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-    },
+    }
 });
+
+// Ensure cookies are sent even if using the axios instance directly
+api.defaults.withCredentials = true;
 
 // Add request interceptor to include auth token
 api.interceptors.request.use(

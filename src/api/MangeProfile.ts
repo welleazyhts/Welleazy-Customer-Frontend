@@ -3,8 +3,9 @@ import {
     , CRMAddressByTypeResponse, CRMUpdateMangeProfileRequest, CRMUpdateMangeProfileAddressRequest, CRMFetchCustomerProfilePictureRequest,
     CustomerProfilePicture, SaveProfilePictureResponse
 } from '../types/MangeProfile';
+import { api } from '../services/api';
 
-const API_URL = process.env.REACT_APP_API_URL || "http://3.110.32.224:8000";
+const API_URL = process.env.REACT_APP_API_URL || "http://3.110.32.224";
 
 export const MangeProfileApi = {
 
@@ -31,29 +32,78 @@ export const MangeProfileApi = {
     },
     CRMLoadCustomerProfileDetails: async (employeeRefId: number): Promise<CustomerProfile> => {
         try {
-            const response = await fetch(`${API_URL}/CRMLoadCustomerProfileDetails/${employeeRefId}`);
+            const response = await api.get(`/api/accounts/profile/`);
+            const data = response.data as any;
 
-            if (!response.ok) {
-                throw new Error("Network response was not ok");
-            }
-            const data: CustomerProfile = await response.json();
-            localStorage.setItem("employeeName", data.EmployeeName || "");
-            localStorage.setItem("email", data.Emailid || "");
-            localStorage.setItem("mobile", data.MobileNo || "");
-            localStorage.setItem("Gender", data.Gender || "");
-            localStorage.setItem("DOB", data.Employee_DOB || "");
-            localStorage.setItem("StateId", data.StateId?.toString() || "");
-            localStorage.setItem("CityId", data.CityId?.toString() || "");
-            localStorage.setItem("address", data.Address || "");
-            localStorage.setItem("pincode", data.Pincode || "");
-            localStorage.setItem("CorporateName", data.CorporateName || "");
-            localStorage.setItem("Branch", data.Branch || "");
-            localStorage.setItem("BloodGroup", data.BloodGroup || "");
-            localStorage.setItem("MemberId", data.MemberId || "");
-            localStorage.setItem("PackageId", data.PackageId || "");
-            localStorage.setItem("Services", data.Services || "");
-            localStorage.setItem("ProductId", data.ProductId || "");
-            return data;
+            const profile: CustomerProfile = {
+                EmployeeRefId: data.id || employeeRefId,
+                EmployeeId: data.employee_id || "",
+                EmployeeName: data.name || data.EmployeeName || "",
+                Address: data.address || "",
+                Emailid: data.email || data.Emailid || "",
+                MobileNo: data.mobile_number || data.MobileNo || "",
+                MaskedMobileNo: data.mobile_number || "",
+                GenderDescription: data.gender || "",
+                Gender: data.gender || "",
+                DOB: data.dob || "",
+                Employee_DOB: data.dob || "",
+                State: data.state || 0,
+                StateId: data.state || 0,
+                City: data.city || 0,
+                CityId: data.city || 0,
+                Area: data.area || null,
+                StateName: data.state_name || "",
+                DistrictName: data.city_name || "",
+                AddressLineOne: data.address || "",
+                AddressLineTwo: "",
+                Landmark: data.landmark || "",
+                Pincode: data.pincode || "",
+                longitude: "",
+                latitude: "",
+                GeoLocation: "",
+                CorporateId: data.corporate || 0,
+                CorporateName: data.corporate_name || "",
+                BranchId: data.branch || 0,
+                Branch: data.branch_name || "",
+                ProductId: data.product || "",
+                Services: data.services || "",
+                AccountActivationURL: "",
+                CreatedBy: 0,
+                CreatedOn: "",
+                ModifiedBy: 0,
+                ModifiedOn: "",
+                LastActiveDate: "",
+                LastInactiveDate: "",
+                InActiveReason: "",
+                IsActive: true,
+                PersonalEmailid: data.email || "",
+                MemberId: data.member_id || "",
+                AddressType: data.address_type || "",
+                MaritalStatus: data.marital_status || 0,
+                EmployeeAddressDetailsId: 0,
+                PackageId: data.package || "",
+                BloodGroup: data.blood_group || "",
+                EmployeeDependentDetailsId: 0,
+                TwoFAEnabled: ""
+            };
+
+            localStorage.setItem("employeeName", profile.EmployeeName || "");
+            localStorage.setItem("email", profile.Emailid || "");
+            localStorage.setItem("mobile", profile.MobileNo || "");
+            localStorage.setItem("Gender", profile.Gender || "");
+            localStorage.setItem("DOB", profile.Employee_DOB || "");
+            localStorage.setItem("StateId", profile.StateId?.toString() || "");
+            localStorage.setItem("CityId", profile.CityId?.toString() || "");
+            localStorage.setItem("address", profile.Address || "");
+            localStorage.setItem("pincode", profile.Pincode || "");
+            localStorage.setItem("CorporateName", profile.CorporateName || "");
+            localStorage.setItem("Branch", profile.Branch || "");
+            localStorage.setItem("BloodGroup", profile.BloodGroup || "");
+            localStorage.setItem("MemberId", profile.MemberId || "");
+            localStorage.setItem("PackageId", profile.PackageId || "");
+            localStorage.setItem("Services", profile.Services || "");
+            localStorage.setItem("ProductId", profile.ProductId || "");
+            return profile;
         } catch (error) {
             console.error("Error fetching customer profile:", error);
             throw error;
@@ -61,19 +111,13 @@ export const MangeProfileApi = {
     },
     CRMStateList: async (): Promise<CRMStateListResponse[]> => {
         try {
-            const response = await fetch(`${API_URL}/CRMStateList`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data: CRMStateListResponse[] = await response.json();
-            return data;
+            const response = await api.get('/api/location/states/');
+            const data = (response.data as any)?.results || response.data || [];
+            return (data as any[]).map((item: any) => ({
+                StateId: item.id || item.StateId,
+                StateName: item.name || item.StateName,
+                IsActive: "true"
+            })) as CRMStateListResponse[];
 
         } catch (error) {
             console.error('Error fetching State list:', error);
@@ -82,32 +126,12 @@ export const MangeProfileApi = {
     },
     CRMCityList: async (stateId: number): Promise<CRMCityListResponse[]> => {
         try {
-            const response = await fetch(`${API_URL}/CRMCityList`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    StateId: stateId
-                })
+            const response = await api.get('/api/location/cities/by-state/', {
+                params: { state_id: stateId }
             });
+            const data = (response.data as any)?.results || response.data || [];
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const responseData = await response.json();
-
-            let rawData: any[] = [];
-            if (Array.isArray(responseData)) {
-                rawData = responseData;
-            } else if (responseData && Array.isArray((responseData as any).data)) {
-                rawData = (responseData as any).data;
-            } else if (responseData && Array.isArray((responseData as any).results)) {
-                rawData = (responseData as any).results;
-            }
-
-            return rawData.map((item: any, index: number) => ({
+            return (data as any[]).map((item: any, index: number) => ({
                 DistrictId: item.id || item.DistrictId || index,
                 DistrictName: item.name || item.DistrictName || (typeof item === 'string' ? item : ""),
                 StateId: item.state || item.StateId || stateId,

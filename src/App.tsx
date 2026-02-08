@@ -119,7 +119,7 @@ const AppContent: React.FC = () => {
           <Route path="/pharmacy/product" element={<ProductDetails />} />
 
           <Route path="/diagnostic-centers" element={< DiagnosticCenters />} />
-          <Route path="/diagnostic-cart" element={< DiagnosticCart />} />
+          <Route path="/diagnostic-cart" element={<Navigate to="/CommonCartDcAndConsultation" replace />} />
           <Route path="/diagnostic-checkout" element={<ProtectedRoute><DiagnosticCheckout /></ProtectedRoute>} />
           <Route path="/MangeProfile" element={< ManageProfile />} />
           <Route path="/dependants" element={<Dependants />} />
@@ -155,13 +155,15 @@ const App: React.FC = () => {
       <Router>
         <AppContent />
         <ToastContainer
-
-          autoClose={2000}
+          position="top-right"
+          autoClose={3000}
           hideProgressBar={false}
-          newestOnTop={false}
+          newestOnTop={true}
           closeOnClick
           pauseOnHover
           draggable
+          limit={3}
+          theme="colored"
         />
       </Router>
     </AppProviders>

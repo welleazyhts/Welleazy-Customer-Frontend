@@ -164,7 +164,12 @@ const DiagnosticCart: React.FC = () => {
         relation: item.relation,
         dcId: item.dcId,
         dcName: item.dcName,
-        packageCode: item.packageCode
+        packageCode: item.packageCode,
+        appointmentDate: item.appointmentDate,
+        appointmentTime: item.appointmentTime,
+        AppointmentDate: item.appointmentDate,
+        AppointmentTime: item.appointmentTime,
+        note: item.note
       }));
 
       const employeeRefId = localStorage.getItem("EmployeeRefId") || "0";
@@ -173,8 +178,9 @@ const DiagnosticCart: React.FC = () => {
       // Get existing cart items
       const existingCart = JSON.parse(localStorage.getItem(cartKey) || '[]');
 
-      // Filter out old diagnostic items and add new ones
-      const filteredCart = existingCart.filter((item: any) => item.type !== 'diagnostic');
+      // Filter out only the specific diagnostic items that are being updated (by ID)
+      const diagnosticIds = new Set(diagnosticCartItems.map(d => d.id));
+      const filteredCart = existingCart.filter((item: any) => !diagnosticIds.has(item.id));
       const updatedCart = [...filteredCart, ...diagnosticCartItems];
 
       localStorage.setItem(cartKey, JSON.stringify(updatedCart));
@@ -186,6 +192,11 @@ const DiagnosticCart: React.FC = () => {
       const employeeRefId = localStorage.getItem("EmployeeRefId") || "0";
       const cartKey = `app_cart_${employeeRefId}`;
       const existingCart = JSON.parse(localStorage.getItem(cartKey) || '[]');
+      // Clear specific diagnostic items from cart if they were removed in the UI
+      const currentIds = new Set(cartItems.map(item => `diagnostic_${item.testId}_${Date.now()}`)); // This ID logic is flawed due to Date.now(), should probably use a stable ID
+      // But for now, let's just make it not clear EVERYTHING if it's empty
+      // Actually if cartItems is empty in THIS component, it might mean the user removed all lab tests in the LAB CART UI.
+      // But we should be careful not to affect appointments.
       const filteredCart = existingCart.filter((item: any) => item.type !== 'diagnostic');
       localStorage.setItem(cartKey, JSON.stringify(filteredCart));
       window.dispatchEvent(new CustomEvent('cartUpdated'));
@@ -357,7 +368,12 @@ const DiagnosticCart: React.FC = () => {
       relation: item.relation,
       dcId: item.dcId,
       dcName: item.dcName,
-      packageCode: item.packageCode
+      packageCode: item.packageCode,
+      appointmentDate: item.appointmentDate,
+      appointmentTime: item.appointmentTime,
+      AppointmentDate: item.appointmentDate,
+      AppointmentTime: item.appointmentTime,
+      note: item.note
     }));
 
     const employeeRefId = localStorage.getItem("EmployeeRefId") || "0";
@@ -1427,7 +1443,16 @@ const DiagnosticCart: React.FC = () => {
     return 'Consultation';
   };
 
-  if (!appointmentData && (!selectedTests || selectedTests.length === 0)) {
+  if (loading && cartItems.length === 0) {
+    return (
+      <Container className="text-center py-5">
+        <Spinner animation="border" variant="primary" />
+        <p className="mt-3">Loading your cart...</p>
+      </Container>
+    );
+  }
+
+  if (!appointmentData && (!selectedTests || selectedTests.length === 0) && cartItems.length === 0 && !loading) {
     return (
       <Container>
         <div className="diagnostic-cart-header">

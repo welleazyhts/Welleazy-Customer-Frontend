@@ -66,6 +66,8 @@ export interface CRMFetchTestDetailsBasedUponCommonTestNameRequest {
 export interface CRMFetchTestDetailsBasedUponCommonTestNameResponse {
   TestId: number,
   TestName: string,
+  CorporatePrice?: number;
+  NormalPrice?: number;
 }
 
 export interface CRMLoadDCDetailsRequest {
@@ -74,6 +76,7 @@ export interface CRMLoadDCDetailsRequest {
   CityId: number;
   TestId: string;
   PinCode: string;
+  Area?: string;
   CommonTestName: string;
 }
 export interface CRMLoadDCDetailsResponse {

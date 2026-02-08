@@ -113,6 +113,7 @@ export interface BookAppointmentRequest {
   SponsoredStatus: string;
   DoctorId: string;
   Symptoms: string;
+  Specialization?: string;
   CreatedBy: string;
   EmployeeDependentDetailsId: string;
   EmployeeAddressDetailsId: string;

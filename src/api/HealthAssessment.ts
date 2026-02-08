@@ -4,7 +4,7 @@ import {
   , HRACustomerSmokingHabitsSave, HRACustomerHeriditaryQuestionsSave, HRACustomerBowelBladderHabitsSave, HRACustomerFitnessDetailsSave, HRACustomerMentalWellnessSave, HRACustomerWellnessSave, HRAOutputDetailsRequest, SaveDocumentResponse, HealthAssessmentRecordDetailsById
 } from '../types/HealthAssessment';
 
-const API_URL = process.env.REACT_APP_API_URL || "http://3.110.32.224:8000";
+const API_URL = process.env.REACT_APP_API_URL || "http://3.110.32.224";
 
 export const HealthAssessmentAPI = {
   CRMLoadHealthAssessmentRecordDetails: async (): Promise<HealthAssessmentRecordDetails[]> => {

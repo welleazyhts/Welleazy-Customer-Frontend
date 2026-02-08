@@ -1,7 +1,6 @@
-
-import { promises } from "dns";
 import { GymPackage, CustomerProfile, State, District, GymCenter, Relationship, RelationshipPerson } from "../types/GymServices";
-const API_URL = process.env.REACT_APP_API_URL || "http://3.110.32.224:8000";
+import { api } from "../services/api";
+const API_URL = process.env.REACT_APP_API_URL || "http://3.110.32.224";
 
 export const gymServiceAPI = {
 
@@ -24,34 +23,50 @@ export const gymServiceAPI = {
   },
   CRMLoadCustomerProfileDetails: async (employeeRefId: number): Promise<CustomerProfile> => {
     try {
-      const response = await fetch(`${API_URL}/CRMLoadCustomerProfileDetails/${employeeRefId}`);
+      const response = await api.get(`/api/accounts/profile/`);
+      const data = response.data as any;
 
-      if (!response.ok) {
-        throw new Error("Network response was not ok");
-      }
-
-      const data: CustomerProfile = await response.json();
-
+      const profile: CustomerProfile = {
+        EmployeeRefId: data.id || employeeRefId,
+        EmployeeId: data.employee_id || "",
+        EmployeeName: data.name || data.EmployeeName || "",
+        Emailid: data.email || data.Emailid || "",
+        MobileNo: data.mobile_number || data.MobileNo || "",
+        Gender: data.gender || "",
+        Employee_DOB: data.dob || "",
+        StateId: data.state || 0,
+        CityId: data.city || 0,
+        Address: data.address || "",
+        Pincode: data.pincode || "",
+        CorporateName: data.corporate_name || "",
+        Branch: data.branch || "",
+        BloodGroup: data.blood_group || "",
+        MemberId: data.member_id || "",
+        PackageId: data.package || "",
+        Services: data.services || "",
+        ProductId: data.product || "",
+        ...data
+      };
 
       // Save to localStorage
-      localStorage.setItem("employeeName", data.EmployeeName || "");
-      localStorage.setItem("email", data.Emailid || "");
-      localStorage.setItem("mobile", data.MobileNo || "");
-      localStorage.setItem("Gender", data.Gender || "");
-      localStorage.setItem("DOB", data.Employee_DOB || "");
-      localStorage.setItem("StateId", data.StateId?.toString() || "");
-      localStorage.setItem("CityId", data.CityId?.toString() || "");
-      localStorage.setItem("address", data.Address || "");
-      localStorage.setItem("pincode", data.Pincode || "");
+      localStorage.setItem("employeeName", profile.EmployeeName || "");
+      localStorage.setItem("email", profile.Emailid || "");
+      localStorage.setItem("mobile", profile.MobileNo || "");
+      localStorage.setItem("Gender", profile.Gender || "");
+      localStorage.setItem("DOB", profile.Employee_DOB || "");
+      localStorage.setItem("StateId", profile.StateId?.toString() || "");
+      localStorage.setItem("CityId", profile.CityId?.toString() || "");
+      localStorage.setItem("address", profile.Address || "");
+      localStorage.setItem("pincode", profile.Pincode || "");
 
-      localStorage.setItem("CorporateName", data.CorporateName || "");
-      localStorage.setItem("Branch", data.Branch || "");
-      localStorage.setItem("BloodGroup", data.BloodGroup || "");
-      localStorage.setItem("MemberId", data.MemberId || "");
-      localStorage.setItem("PackageId", data.PackageId || "");
-      localStorage.setItem("Services", data.Services || "");
-      localStorage.setItem("ProductId", data.ProductId || "");
-      return data;
+      localStorage.setItem("CorporateName", profile.CorporateName || "");
+      localStorage.setItem("Branch", profile.Branch || "");
+      localStorage.setItem("BloodGroup", profile.BloodGroup || "");
+      localStorage.setItem("MemberId", profile.MemberId || "");
+      localStorage.setItem("PackageId", profile.PackageId || "");
+      localStorage.setItem("Services", profile.Services || "");
+      localStorage.setItem("ProductId", profile.ProductId || "");
+      return profile;
     } catch (error) {
       console.error("Error fetching customer profile:", error);
       throw error;
@@ -59,12 +74,12 @@ export const gymServiceAPI = {
   },
   CRMStateList: async (): Promise<State[]> => {
     try {
-      const response = await fetch(`${API_URL}/CRMStateList`);
-      if (!response.ok) {
-        throw new Error("Network response was not ok");
-      }
-      const data: State[] = await response.json();
-      return data;
+      const response = await api.get(`/api/location/states/`);
+      const data = (response.data as any)?.results || response.data || [];
+      return (data as any[]).map((item: any) => ({
+        StateId: item.id || item.StateId,
+        StateName: item.name || item.StateName
+      }));
     } catch (error) {
       console.error("Error fetching state list:", error);
       throw error;
@@ -73,30 +88,11 @@ export const gymServiceAPI = {
 
   CRMDistrictList: async (stateId: number): Promise<District[]> => {
     try {
-      const response = await fetch(`${API_URL}/CRMCityList`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ StateId: stateId })
+      const response = await api.get(`/api/location/cities/by-state/`, {
+        params: { state_id: stateId }
       });
-
-      if (!response.ok) {
-        throw new Error("Network response was not ok");
-      }
-
-      const responseData = await response.json();
-
-      let rawData: any[] = [];
-      if (Array.isArray(responseData)) {
-        rawData = responseData;
-      } else if (responseData && Array.isArray((responseData as any).data)) {
-        rawData = (responseData as any).data;
-      } else if (responseData && Array.isArray((responseData as any).results)) {
-        rawData = (responseData as any).results;
-      }
-
-      return rawData.map((item: any, index: number) => ({
+      const data = (response.data as any)?.results || response.data || [];
+      return (data as any[]).map((item: any, index: number) => ({
         DistrictId: item.id || item.DistrictId || index,
         DistrictName: item.name || item.DistrictName || (typeof item === 'string' ? item : ""),
       })) as District[];

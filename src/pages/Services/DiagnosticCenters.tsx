@@ -167,7 +167,7 @@ const DiagnosticCenters: React.FC = () => {
 
   useEffect(() => {
     if (selectedTests.length > 0) {
-      fetchTestDetails(selectedTests[0]);
+      loadAllSelectedTests();
     } else {
       fetchAllCenters();
     }
@@ -241,8 +241,13 @@ const DiagnosticCenters: React.FC = () => {
       console.log("Test details response:", response);
 
       if (response && response.length > 0) {
-        setTestDetails(response);
-        const testIds = response.map(test => test.TestId).join(',');
+        // Filter to only include tests that match the search name to avoid showing unrelated tests
+        const filteredResponse = response.filter(test =>
+          test.TestName.toLowerCase().includes(testName.toLowerCase())
+        );
+
+        setTestDetails(filteredResponse);
+        const testIds = filteredResponse.map(test => test.TestId).join(',');
         setSelectedTestIds(testIds);
         await fetchDCDetails(testIds, testName);
       } else {
@@ -257,18 +262,22 @@ const DiagnosticCenters: React.FC = () => {
     }
   };
 
-  const fetchDCDetails = async (testIds: string, testName: string) => {
+  const fetchDCDetails = async (testIds: string, testName: string, overridePincode?: string, overrideArea?: string) => {
     if (!testIds) return;
 
     setIsLoadingDC(true);
 
     try {
+      const currentPincode = overridePincode !== undefined ? overridePincode : pincode;
+      const currentArea = overrideArea !== undefined ? overrideArea : area;
+
       const request: CRMLoadDCDetailsRequest = {
         CorporateId: corporateId,
         EmployeeRefId: employeeRefId,
         CityId: cityId,
         TestId: testIds,
-        PinCode: pincode,
+        PinCode: currentPincode,
+        Area: currentArea,
         CommonTestName: testName
       };
 
@@ -296,42 +305,7 @@ const DiagnosticCenters: React.FC = () => {
     }
   };
 
-  const fetchDCTestPrices = async (dcId: number, testIds: string) => {
-    if (!dcId || !testIds) return;
 
-    setIsLoadingPrices(true);
-
-    try {
-      const request: CRMLoadDCDetailsRequest = {
-        CorporateId: corporateId,
-        EmployeeRefId: employeeRefId,
-        CityId: cityId,
-        TestId: testIds,
-        PinCode: pincode,
-        CommonTestName: selectedTest
-      };
-
-      const response = await labTestsAPI.DCTestPrice(request);
-      console.log("DC Test Prices response:", response);
-
-      if (response && response.length > 0) {
-        const filteredPrices = response
-          .filter(price => price.dc_id === dcId)
-          .map(price => ({
-            ...price,
-            selected: true
-          }));
-
-        setDcTestPrices(filteredPrices);
-      } else {
-        setDcTestPrices([]);
-      }
-    } catch (error) {
-      setDcTestPrices([]);
-    } finally {
-      setIsLoadingPrices(false);
-    }
-  };
 
   const handleTestChange = (testName: string) => {
     fetchTestDetails(testName);
@@ -342,9 +316,9 @@ const DiagnosticCenters: React.FC = () => {
     if (!/^\d*$/.test(newPincode)) return;
     setPincode(newPincode);
     if (newPincode.length === 6 && selectedTestIds) {
-      fetchDCDetails(selectedTestIds, selectedTest);
+      fetchDCDetails(selectedTestIds, selectedTest, newPincode);
     } else if (newPincode.length === 0 && selectedTestIds) {
-      fetchDCDetails(selectedTestIds, selectedTest);
+      fetchDCDetails(selectedTestIds, selectedTest, '');
     }
   };
 
@@ -357,20 +331,12 @@ const DiagnosticCenters: React.FC = () => {
   };
 
   const applyFilters = () => {
-    fetchDCDetails(selectedTestIds, selectedTest);
+    fetchDCDetails(selectedTestIds, selectedTest, pincode, area);
   }
 
   const handleSelectDC = async (dc: CRMLoadDCDetailsResponse) => {
     setSelectedDC(dc.dc_id);
     setSelectedDCDetails(dc);
-    // Removed fetchDCTestPrices as the API is deprecated/unsupported
-    // await fetchDCTestPrices(dc.dc_id, selectedTestIds); 
-
-    // Instead, prepare empty price list or just proceed
-    // Ideally we would set dcTestPrices here with dummy data or just rely on the test list
-    // For now, we set it to empty but we will modify the Modal to display "Price calculated at checkout"
-
-    setDcTestPrices([]); // Clear previous prices if any
 
     setFormData({
       serviceFor: 'self',
@@ -389,6 +355,59 @@ const DiagnosticCenters: React.FC = () => {
     setBookingVisitType(defaultVisitType);
 
     setShowPricesModal(true);
+  };
+
+  const loadAllSelectedTests = async () => {
+    if (selectedTests.length === 0) {
+      fetchAllCenters();
+      return;
+    }
+
+    setIsLoading(true);
+    let allTestDetails: CRMFetchTestDetailsBasedUponCommonTestNameResponse[] = [];
+    let allTestIds: number[] = [];
+
+    try {
+      // Fetch details for all selected tests in parallel
+      const fetchPromises = selectedTests.map(testName =>
+        labTestsAPI.CRMFetchTestDetailsBasedUponCommonTestName({
+          CorporateId: corporateId,
+          EmployeeRefId: employeeRefId,
+          CityId: cityId,
+          CommonTestName: testName
+        })
+      );
+
+      const responses = await Promise.all(fetchPromises);
+
+      responses.forEach((response, index) => {
+        if (response && response.length > 0) {
+          const testName = selectedTests[index];
+          // Filter to match the requested test name
+          const filtered = response.filter(test =>
+            test.TestName.toLowerCase().includes(testName.toLowerCase())
+          );
+
+          allTestDetails = [...allTestDetails, ...filtered];
+          allTestIds = [...allTestIds, ...filtered.map(t => t.TestId)];
+        }
+      });
+
+      setTestDetails(allTestDetails);
+      const testIdsStr = Array.from(new Set(allTestIds)).join(',');
+      setSelectedTestIds(testIdsStr);
+
+      // Update selected test display
+      setSelectedTest(selectedTests.join(' + '));
+
+      // Load centers for all tests
+      await fetchDCDetails(testIdsStr, selectedTests.join(', '));
+    } catch (error) {
+      console.error("Failed to load all selected tests:", error);
+      toast.error("Failed to load test details. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const loadRelationships = async () => {
@@ -505,8 +524,45 @@ const DiagnosticCenters: React.FC = () => {
   };
 
   const filteredDCs = dcDetails.filter(dc => {
-    if (!filterVisitType) return true;
-    return dc.VisitType.toLowerCase().includes(filterVisitType.toString().toLowerCase());
+    // 1. Visit Type filter
+    const matchesVisitType = !filterVisitType || dc.VisitType.toLowerCase().includes(filterVisitType.toString().toLowerCase());
+
+    // 2. Strict Pincode Filter - only apply if pincode is 6 digits
+    let matchesPincode = true;
+    if (pincode && pincode.length === 6) {
+      const currentPincode = pincode.trim();
+      // Check if center's own pincode matches OR if it covers it in service_pincode
+      const servicePincodes = dc.service_pincode ? dc.service_pincode.split(',').map(p => p.trim()) : [];
+      matchesPincode = servicePincodes.includes(currentPincode) ||
+        !!(dc.address && dc.address.includes(currentPincode)) ||
+        !!(dc.service_pincode && dc.service_pincode.includes(currentPincode));
+    }
+
+    // 3. Strict Area Filter
+    let matchesArea = true;
+    if (area && area.trim().length > 2) {
+      const searchArea = area.toLowerCase().trim();
+      const dcArea = (dc.area || '').toLowerCase();
+      const dcLocality = (dc.Locality || '').toLowerCase();
+      const dcAddress = (dc.address || '').toLowerCase();
+
+      matchesArea = dcArea.includes(searchArea) ||
+        dcLocality.includes(searchArea) ||
+        dcAddress.includes(searchArea);
+    }
+
+    // 4. Test Availability Filter
+    let matchesTests = true;
+    if (selectedTestIds) {
+      const requestedIds = selectedTestIds.split(',').map(Number).filter(id => !isNaN(id));
+      const dcSupportedTests = (dc.tests || []).map(Number);
+      if (requestedIds.length > 0) {
+        // Only show centers that support ALL selected tests for accuracy
+        matchesTests = requestedIds.every(id => dcSupportedTests.includes(id));
+      }
+    }
+
+    return matchesVisitType && matchesPincode && matchesArea && matchesTests;
   });
 
   const sortedDCs = [...filteredDCs].sort((a, b) => {
@@ -529,18 +585,26 @@ const DiagnosticCenters: React.FC = () => {
   });
 
   const calculateTotalSelectedPrice = () => {
-    return dcTestPrices
-      .filter(price => price.selected)
-      .reduce((total, price) => {
-        const testPrice = price.CorporatePrice || price.NormalPrice || 0;
-        return total + testPrice;
-      }, 0);
+    if (dcTestPrices.length > 0) {
+      return dcTestPrices
+        .filter(price => price.selected)
+        .reduce((total, price) => {
+          const testPrice = price.CorporatePrice || price.NormalPrice || 0;
+          return total + Number(testPrice);
+        }, 0);
+    }
+
+    // Fallback to testDetails if dcTestPrices is empty
+    return testDetails.reduce((total, test) => {
+      const testPrice = (test as any).CorporatePrice || (test as any).NormalPrice || 0;
+      return total + Number(testPrice);
+    }, 0);
   };
 
   const calculateTotalPrice = () => {
     return dcTestPrices.reduce((total, price) => {
       const testPrice = price.CorporatePrice || price.NormalPrice || 0;
-      return total + testPrice;
+      return total + Number(testPrice);
     }, 0);
   };
 
@@ -563,15 +627,23 @@ const DiagnosticCenters: React.FC = () => {
     setIsLoadingPrices(true);
     try {
       console.log('Proceeding to appointment booking');
-      const selectedTestsData = dcTestPrices.filter(p => p.selected);
+      let selectedTestsData = dcTestPrices.filter(p => p.selected);
 
-      // Map visit type name to ID correctly
-      let visitTypeId = 1; // Default to Home
-      if (typeof filterVisitType === 'string') {
-        if (filterVisitType.toLowerCase().includes('center') || filterVisitType.toLowerCase().includes('clinic')) {
-          visitTypeId = 2; // Center
-        }
+      // FALLBACK: If dcTestPrices is empty (fallback mode), use testDetails matching the selected test
+      if (selectedTestsData.length === 0 && testDetails.length > 0) {
+        selectedTestsData = testDetails.map(t => ({
+          TestId: t.TestId,
+          TestName: t.TestName,
+          CorporatePrice: t.CorporatePrice || t.NormalPrice || 0,
+          NormalPrice: t.NormalPrice || 0,
+          selected: true
+        })) as any;
       }
+
+      const totalAmount = selectedTestsData.reduce((sum, test) => {
+        const p = (test as any).CorporatePrice || (test as any).NormalPrice || 0;
+        return sum + Number(p);
+      }, 0);
 
       // Valid Test IDs parsing: ensure valid positive numbers
       let parsedTestIds = selectedTestIds
@@ -580,21 +652,6 @@ const DiagnosticCenters: React.FC = () => {
         .map(Number)
         .filter(id => !isNaN(id) && id > 0);
 
-      // Filter test_ids by what the specific Diagnostic Center actually supports/offers
-      // This handles the case where "Sugar Test" search returned IDs [1, 2, 3] but DC 2 only supports [1]
-      if (selectedDCDetails?.tests && selectedDCDetails.tests.length > 0) {
-        const dcSupportedTests = selectedDCDetails.tests;
-        // Intersect
-        const commonTests = parsedTestIds.filter(id => dcSupportedTests.includes(id));
-
-        if (commonTests.length > 0) {
-          parsedTestIds = commonTests;
-        } else {
-          console.warn("Selected tests do not match DC capabilities. Falling back to first available or user selection.");
-          // If intersection is empty, it might mean our detailed tests list is incomplete or mismatch.
-          // We'll stick to parsedTestIds but log a warning.
-        }
-      }
 
       if (parsedTestIds.length === 0) {
         toast.error("No valid tests selected.");
@@ -636,7 +693,7 @@ const DiagnosticCenters: React.FC = () => {
         const cartData = {
           selectedTests: selectedTestsData,
           selectedDC: selectedDCDetails,
-          totalAmount: calculateTotalSelectedPrice(),
+          totalAmount: totalAmount,
           serviceFor: formData,
           selectedVisitType: bookingVisitType === 1 ? 'Home Visit' : 'Center Visit',
           selectedAddress: selectedAddressObj,
@@ -644,10 +701,43 @@ const DiagnosticCenters: React.FC = () => {
         };
         window.dispatchEvent(new CustomEvent('cartUpdated'));
 
-        navigate('/diagnostic-cart', {
-          state: cartData
-        });
-        setShowPricesModal(false);
+        // Create cart item for the common cart
+        const commonCartItem = {
+          id: `diagnostic_${parsedTestIds.join('_')}_${Date.now()}`,
+          type: 'diagnostic',
+          testName: selectedTestsData.map(t => t.TestName).join(', '), // For Cart page
+          ItemName: selectedTestsData.map(t => t.TestName).join(', '), // For Checkout page
+          price: totalAmount,
+          ItemAmount: totalAmount,
+          Quantity: 1,
+          testId: parsedTestIds.join(','),
+          dcId: selectedDCDetails?.dc_id,
+          center_name: selectedDCDetails?.center_name,
+          PersonName: formData.serviceFor === 'dependent' ? formData.name : (localStorage.getItem("DisplayName") || 'Self'),
+          Relationship: formData.serviceFor === 'dependent' ? (relationships.find(r => r.RelationshipId.toString() === formData.relationshipId)?.Relationship || 'Dependent') : 'Self',
+          appointmentTime: "", // Empty until selected in cart
+          AppointmentTime: "", // Empty until selected in cart
+          AppointmentDate: "", // Empty until selected in cart
+          MobileNo: formData.phone || localStorage.getItem("MobileNo") || '+91 9876543210',
+          Emailid: formData.email || localStorage.getItem("Emailid") || '',
+          DCSelection: selectedDCDetails?.dc_id.toString(),
+          DCAddress: selectedDCDetails?.address
+        };
+
+        const currentLocalCart = JSON.parse(localStorage.getItem(`app_cart_${localStorage.getItem("EmployeeRefId")}`) || '[]');
+        const updatedLocalCart = [...currentLocalCart.filter((i: any) => i.id !== commonCartItem.id), commonCartItem];
+        localStorage.setItem(`app_cart_${localStorage.getItem("EmployeeRefId")}`, JSON.stringify(updatedLocalCart));
+
+        // Delay navigation slightly to ensure toast is visible and data is synced
+        setTimeout(() => {
+          navigate('/CommonCartDcAndConsultation', {
+            state: {
+              cartItems: [commonCartItem],
+              cartUniqueId: cartResponse.cart_unique_id || cartResponse.CartUniqueId
+            }
+          });
+          setShowPricesModal(false);
+        }, 800);
       } else {
         toast.error("Failed to add to cart. Please try again.");
       }
@@ -658,6 +748,7 @@ const DiagnosticCenters: React.FC = () => {
       setIsLoadingPrices(false);
     }
   };
+
 
   const validateDependentForm = () => {
     if (formData.serviceFor === 'dependent') {
@@ -883,10 +974,12 @@ const DiagnosticCenters: React.FC = () => {
                             address={dc.address || dc.Locality || dc.area || 'Address not available'}
                           />
 
-                          <div className="detail-item">
-                            <FontAwesomeIcon icon={faCar} className="me-2" />
-                            <span>{dc.DC_Distance || 'Distance not available'}</span>
-                          </div>
+                          {dc.DC_Distance && dc.DC_Distance !== 'N/A' && (
+                            <div className="detail-item">
+                              <FontAwesomeIcon icon={faCar} className="me-2" />
+                              <span>{dc.DC_Distance}</span>
+                            </div>
+                          )}
 
                           {dc.ISO_Type && dc.ISO_Type !== 'NA' && (
                             <div className="detail-item">
@@ -899,7 +992,12 @@ const DiagnosticCenters: React.FC = () => {
 
                         <div className="service-area">
                           <small>
-                            <strong>Service Area:</strong> {dc.service_pincode?.split(',').length || 0} pincodes
+                            <strong>Service Area:</strong> {
+                              !dc.service_pincode ? 'Not specified' :
+                                dc.service_pincode.split(',').length === 1
+                                  ? dc.service_pincode
+                                  : `${dc.service_pincode.split(',').length} pincodes`
+                            }
                           </small>
                         </div>
 
@@ -977,7 +1075,7 @@ const DiagnosticCenters: React.FC = () => {
               <div className="test-variants">
                 {testDetails.map((test, index) => (
                   <div key={index} className="test-variant">
-                    <span className="test-id">{test.TestId}</span>
+                    <span className="test-id">{index + 1}</span>
                     <span className="test-name">{test.TestName}</span>
                   </div>
                 ))}

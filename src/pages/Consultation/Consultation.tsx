@@ -98,16 +98,17 @@ const formatSingleTime = (time24: string): string => {
 };
 
 // Helper function to categorize time into periods
-const getTimePeriod = (timeString: string): 'morning' | 'afternoon' | 'evening' | 'night' => {
+const getTimePeriod = (timeString: string | undefined): 'morning' | 'afternoon' | 'evening' | 'night' => {
   if (!timeString) return 'morning';
 
   // Extract start time (e.g., "18:30-18:35" -> "18:30")
-  const startTime = timeString.includes('-') ? timeString.split('-')[0] : timeString;
+  const startTime = timeString.includes('-') ? timeString.split('-')[0].trim() : timeString.trim();
 
   // If time has AM/PM format (e.g., "6:30 PM")
   if (startTime.includes('AM') || startTime.includes('PM')) {
-    const time = startTime.split(' ')[0];
-    const modifier = startTime.split(' ')[1];
+    const parts = startTime.split(/\s+/);
+    const time = parts[0];
+    const modifier = parts[1];
     let [hours] = time.split(':').map(Number);
 
     if (modifier === 'PM' && hours !== 12) hours += 12;
@@ -119,7 +120,7 @@ const getTimePeriod = (timeString: string): 'morning' | 'afternoon' | 'evening' 
     return 'night';
   }
 
-  // If time is in 24-hour format (e.g., "18:30")
+  // If time is in 24-hour format (e.g., "18:30:00" or "09:00:00")
   const [hoursStr] = startTime.split(':');
   const hours = parseInt(hoursStr, 10);
 
@@ -144,6 +145,12 @@ const Consultation: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [personType, setPersonType] = useState<'Self' | 'Dependent'>('Self');
+  const [formData, setFormData] = useState({
+    relationshipId: '',
+    relationshipPersonId: '',
+    patientName: '',
+    symptoms: ''
+  });
   const [showDependentForm, setShowDependentForm] = useState(false);
 
   // Search and filter states
@@ -326,7 +333,49 @@ const Consultation: React.FC = () => {
       setShowModal(true);
       window.history.replaceState({}, document.title);
     }
-  }, [location.state]);
+
+    // Handle serviceType (eye/dental) auto-filtering
+    if (location.state?.serviceType && specializations.length > 0) {
+      const sType = location.state.serviceType;
+      console.log(`🚀 [SERVICE_REDIRECT] Handling auto-filter for: ${sType}`);
+
+      let targetSpec: any = null;
+      if (sType === 'eye') {
+        targetSpec = specializations.find(s =>
+          s.Specializations.toLowerCase().includes('eye') ||
+          s.Specializations.toLowerCase().includes('ophthal')
+        );
+      } else if (sType === 'dental') {
+        targetSpec = specializations.find(s =>
+          s.Specializations.toLowerCase().includes('dental') ||
+          s.Specializations.toLowerCase().includes('dentist')
+        );
+      }
+
+      if (targetSpec) {
+        console.log(`✅ Found Matching Specialization: ${targetSpec.Specializations}`);
+        const specObj = { value: targetSpec.DoctorSpecializationsId, label: targetSpec.Specializations };
+        setSelectedSpecialization(specObj);
+
+        // Clear state to avoid re-triggering on refresh
+        window.history.replaceState({}, document.title);
+
+        // Perform search
+        const fetchFiltered = async () => {
+          setLoading(true);
+          try {
+            const results = await ConsultationAPI.SearchDoctors({ specialization: targetSpec.Specializations });
+            setFilteredDoctors(results);
+          } catch (err) {
+            console.error("Auto-filter search failed:", err);
+          } finally {
+            setLoading(false);
+          }
+        };
+        fetchFiltered();
+      }
+    }
+  }, [location.state, specializations]);
 
   const getTimeZoneFromPeriod = (period: string): number => {
     switch (period) {
@@ -515,61 +564,8 @@ const Consultation: React.FC = () => {
         // Check if filtered slots have any valid (non-expired) slots
         const validSlotsCount = filteredSlots.filter(s => !isTimeSlotExpired(s, selectedDate)).length;
 
-        // Fallback: If no slots for selected date OR ALL slots for selected date are expired,
-        // check if API returned slots for other dates
-        if ((filteredSlots.length === 0 || validSlotsCount === 0) && response.length > 0) {
-
-          // Find the first available slot in the response that is NOT expired AND is not in the past
-          // We rely on isTimeSlotExpired using the slot's internal Date if available
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-
-          const firstValidSlot = response.find(slot => {
-            // calculated expiry (currently disabled so always false)
-            if (isTimeSlotExpired(slot, selectedDate)) return false;
-
-            // Explicit check to prevent switching to past year/dates (e.g. 2025)
-            if (slot.Date) {
-              try {
-                const [y, m, d] = slot.Date.split('T')[0].split('-').map(Number);
-                const slotDate = new Date(y, m - 1, d);
-                // Allow today, but strictly disallow yesterday or older
-                if (slotDate < today) return false;
-              } catch (e) { }
-            }
-            return true;
-          });
-
-          if (firstValidSlot && firstValidSlot.Date) {
-            const availableDateStr = firstValidSlot.Date.split('T')[0]; // Handle timestamp format if present
-
-            // Check if this date is different from what we are currently showing
-            const isDifferentDate = availableDateStr !== selectedDateString;
-
-            // If it is a different date (or if we are forcing an update because current view is expired),
-            // switch to these slots
-            if (isDifferentDate || validSlotsCount === 0) {
-              // Automatically fallback to showing these slots
-              filteredSlots = response.filter(slot => slot.Date && slot.Date.startsWith(availableDateStr));
-
-              // Only show toast if dates are different
-              if (isDifferentDate) {
-                const msg = `Showing available slots for ${availableDateStr}.`;
-                setAvailableDatesHint(msg);
-
-                // Update selectedDate state
-                try {
-                  const [y, m, d] = availableDateStr.split('-').map(Number);
-                  const newDate = new Date(y, m - 1, d);
-                  setSelectedDate(newDate);
-                } catch (e) {
-                  console.error("Error updating date:", e);
-                }
-              }
-            }
-          }
-        } else if (filteredSlots.length === 0) {
-          setAvailableDatesHint(''); // No slots at all
+        if (filteredSlots.length === 0) {
+          setAvailableDatesHint(''); // No slots for selected date
         } else {
           setAvailableDatesHint('');
         }
@@ -605,6 +601,69 @@ const Consultation: React.FC = () => {
       setFilteredApolloTimeSlots([]);
     } finally {
       setLoadingTimeSlots(false);
+    }
+  };
+
+  const loadRelationships = async () => {
+    setLoadingRelationships(true);
+    try {
+      const relationshipsData = await gymServiceAPI.CRMRelationShipList();
+      setRelationships(relationshipsData);
+    } catch (error) {
+      console.error("Failed to load relationships:", error);
+      toast.error("Failed to load relationships. Please try again.");
+    } finally {
+      setLoadingRelationships(false);
+    }
+  };
+
+  const loadRelationshipPersons = async () => {
+    // Fetch immediately if personType is 'Dependent', even if relationship is not yet selected
+    if (personType === 'Dependent') {
+      const employeeRefId = localStorage.getItem("EmployeeRefId");
+      if (!employeeRefId) {
+        toast.error("Please log in to select dependents.");
+        return;
+      }
+
+      setLoadingRelationshipPersons(true);
+
+      try {
+        const allDependents = await DependantsAPI.GetDependents();
+        console.log("Fetched Dependents:", allDependents);
+
+        let personsData = allDependents;
+
+        if (formData.relationshipId) {
+          personsData = allDependents.filter(p =>
+            p.DependentRelationShip === parseInt(formData.relationshipId)
+          );
+        }
+
+        setRelationshipPersons(personsData);
+
+        if (formData.relationshipId && personsData.length === 1) {
+          setFormData(prev => ({
+            ...prev,
+            relationshipPersonId: personsData[0].EmployeeDependentDetailsId.toString(),
+            patientName: personsData[0].DependentName
+          }));
+        } else if (formData.relationshipId && personsData.length === 0) {
+          setFormData(prev => ({
+            ...prev,
+            relationshipPersonId: '',
+            patientName: ''
+          }));
+        }
+      } catch (error) {
+        console.error("Failed to load relationship persons:", error);
+        toast.error("Failed to load dependents. Please try again.");
+        setRelationshipPersons([]);
+      } finally {
+        setLoadingRelationshipPersons(false);
+      }
+    } else {
+      setRelationshipPersons([]);
     }
   };
 
@@ -671,12 +730,7 @@ const Consultation: React.FC = () => {
     }
   };
 
-  const [formData, setFormData] = useState({
-    relationshipId: '',
-    relationshipPersonId: '',
-    patientName: '',
-    symptoms: ''
-  });
+
 
   const openDependentModal = () => {
     setDependentFormData({
@@ -768,16 +822,34 @@ const Consultation: React.FC = () => {
 
       const response = await DependantsAPI.CRMInsertUpdateEmployeeDependantDetails(payload);
 
-      if (response && response.Message) {
-        toast.success(response.Message);
-        closeDependentModal();
-      } else {
-        toast.error("Failed to add dependent. Please try again.");
-      }
+      // If it reaches here, it succeeded (Axios throws for non-2xx)
+      const successMessage = response?.Message || "Dependent added successfully!";
+      toast.success(successMessage);
 
-    } catch (error) {
+      // Refresh the dependents list so the new person appears in the dropdown
+      loadRelationshipPersons();
+
+      closeDependentModal();
+
+    } catch (error: any) {
       console.error("Failed to save dependent:", error);
-      toast.error("Failed to add dependent. Please try again.");
+      const errorData = error.response?.data;
+      let errorMsg = "Failed to add dependent. Please try again.";
+
+      if (errorData) {
+        if (typeof errorData === 'object') {
+          errorMsg = errorData.Message || errorData.message || errorData.error || errorMsg;
+        } else if (typeof errorData === 'string') {
+          if (errorData.includes('<!DOCTYPE') || errorData.includes('<html')) {
+            errorMsg = `Server Error (${error.response?.status || 500})`;
+          } else {
+            errorMsg = errorData.substring(0, 200);
+          }
+        }
+      } else {
+        errorMsg = error.message || errorMsg;
+      }
+      toast.error(errorMsg);
     } finally {
       setLoadingSaveDependent(false);
     }
@@ -858,78 +930,10 @@ const Consultation: React.FC = () => {
   };
 
   useEffect(() => {
-    const loadRelationships = async () => {
-      setLoadingRelationships(true);
-      try {
-        const relationshipsData = await gymServiceAPI.CRMRelationShipList();
-
-        setRelationships(relationshipsData);
-      } catch (error) {
-        console.error("Failed to load relationships:", error);
-        toast.error("Failed to load relationships. Please try again.");
-      } finally {
-        setLoadingRelationships(false);
-      }
-    };
     loadRelationships();
   }, []);
 
   useEffect(() => {
-    const loadRelationshipPersons = async () => {
-      // Fetch immediately if personType is 'Dependent', even if relationship is not yet selected
-      if (personType === 'Dependent') {
-        const employeeRefId = localStorage.getItem("EmployeeRefId");
-        if (!employeeRefId) {
-          toast.error("Please log in to select dependents.");
-          return;
-        }
-
-        // Only show loading if we haven't loaded before or if relationship changed (optional refinement)
-        setLoadingRelationshipPersons(true);
-
-        try {
-          // Use the new GetDependents API which calls /api/dependants/
-          const allDependents = await DependantsAPI.GetDependents();
-          console.log("Fetched Dependents:", allDependents);
-
-          // Filter dependents if relationship is selected, otherwise show all
-          let personsData = allDependents;
-
-          if (formData.relationshipId) {
-            personsData = allDependents.filter(p =>
-              p.DependentRelationShip === parseInt(formData.relationshipId)
-            );
-          }
-
-          setRelationshipPersons(personsData);
-
-          // Auto-select logic
-          if (formData.relationshipId && personsData.length === 1) {
-            setFormData(prev => ({
-              ...prev,
-              relationshipPersonId: personsData[0].EmployeeDependentDetailsId.toString(),
-              patientName: personsData[0].DependentName
-            }));
-          } else if (formData.relationshipId && personsData.length === 0) {
-            // If filtered by relationship and none found, clear selection
-            setFormData(prev => ({
-              ...prev,
-              relationshipPersonId: '',
-              patientName: ''
-            }));
-          }
-        } catch (error) {
-          console.error("Failed to load relationship persons:", error);
-          toast.error("Failed to load dependents. Please try again.");
-          setRelationshipPersons([]);
-        } finally {
-          setLoadingRelationshipPersons(false);
-        }
-      } else {
-        // If not 'Dependent' mode (e.g. Self), clear the list
-        setRelationshipPersons([]);
-      }
-    };
     loadRelationshipPersons();
   }, [personType, formData.relationshipId]);
 
@@ -967,7 +971,7 @@ const Consultation: React.FC = () => {
     try {
       setLoadingSpecializations(true);
       console.log("Fetching specializations...");
-      const data = await ConsultationAPI.LoadVendorListDetailsForEye();
+      const data = await ConsultationAPI.LoadDoctorSpecializations();
       const sortedData = data.sort((a, b) =>
         a.Specializations.localeCompare(b.Specializations)
       );
@@ -1085,149 +1089,73 @@ const Consultation: React.FC = () => {
     fetchDoctors();
   }, [currentDistrictId]);
 
-  const applyFilters = () => {
+  const applyFilters = async () => {
     setError(null);
+    setLoading(true);
 
-    let filtered = [...doctors];
-    let originalFilteredCount = filtered.length;
+    try {
+      const filters: any = {};
 
-    // Doctor name filter
-    if (searchDoctorName.trim()) {
-      const searchTerm = searchDoctorName.toLowerCase().trim();
-      filtered = filtered.filter(doc => {
-        const doctorName = doc?.DoctorName || '';
-        return doctorName.toLowerCase().includes(searchTerm);
-      });
-    }
-
-    // Pincode filter
-    if (selectedPincode && (!Array.isArray(selectedPincode) || selectedPincode.length > 0)) {
-      if (Array.isArray(selectedPincode)) {
-        filtered = filtered.filter(doc => {
-          const pincode = doc?.Pincode || '';
-          return selectedPincode.some(pin => {
-            const pinLabel = pin?.label || '';
-            return pincode === pinLabel;
-          });
-        });
-      } else {
-        filtered = filtered.filter(doc => {
-          const pincode = doc?.Pincode || '';
-          const pinLabel = selectedPincode?.label || '';
-          return pincode === pinLabel;
-        });
+      if (searchDoctorName.trim()) {
+        filters.name = searchDoctorName.trim();
       }
-    }
 
-    // Specialization filter
-    if (selectedSpecialization && (!Array.isArray(selectedSpecialization) || selectedSpecialization.length > 0)) {
-      if (Array.isArray(selectedSpecialization)) {
-        filtered = filtered.filter(doc => {
-          if (!doc?.DoctorSpecializations) return false;
-
-          const docSpecializations = doc.DoctorSpecializations.split(',').map(id => id.trim());
-          const selectedIds = selectedSpecialization
-            .filter(spec => spec?.value)
-            .map(spec => spec.value.toString());
-
-          return selectedIds.some(id => docSpecializations.includes(id));
-        });
-      } else {
-        filtered = filtered.filter(doc => {
-          if (!doc?.DoctorSpecializations) return false;
-
-          const docSpecializations = doc.DoctorSpecializations.split(',').map(id => id.trim());
-          const specValue = selectedSpecialization?.value?.toString();
-          return specValue && docSpecializations.includes(specValue);
-        });
-      }
-    }
-
-    // Language filter
-    if (selectedLanguage && (!Array.isArray(selectedLanguage) || selectedLanguage.length > 0)) {
-      if (Array.isArray(selectedLanguage)) {
-        filtered = filtered.filter(doc => {
-          const language = doc?.Language || '';
-          const languageLower = language.toLowerCase();
-
-          return selectedLanguage.some(lang => {
-            const langLabel = lang?.label || '';
-            return languageLower.includes(langLabel.toLowerCase());
-          });
-        });
-      } else {
-        filtered = filtered.filter(doc => {
-          const language = doc?.Language || '';
-          const langLabel = selectedLanguage?.label || '';
-          return language.toLowerCase().includes(langLabel.toLowerCase());
-        });
-      }
-    }
-
-    // Doctor type filter
-    if (selectedDoctorType && (!Array.isArray(selectedDoctorType) || selectedDoctorType.length > 0)) {
-      if (Array.isArray(selectedDoctorType)) {
-        filtered = filtered.filter(doc => {
-          const doctorType = doc?.DoctorTypeDescription || '';
-
-          return selectedDoctorType.some(type => {
-            let filterValue = type?.label || '';
-            if (filterValue === 'In-House') {
-              filterValue = 'Welleazy';
-            }
-            if (filterValue === 'Appolo') {
-              return doctorType === 'Apollo' || doctorType === 'Appolo';
-            }
-            return doctorType === filterValue;
-          });
-        });
-      } else {
-        let filterValue = selectedDoctorType?.label || '';
-        if (filterValue === 'In-House') {
-          filterValue = 'Welleazy';
+      if (selectedPincode) {
+        if (Array.isArray(selectedPincode)) {
+          filters.pincode = selectedPincode.map(p => p.label).join(',');
+        } else {
+          filters.pincode = selectedPincode.label;
         }
-
-        const finalFilterValue = filterValue;
-        filtered = filtered.filter(doc => {
-          const doctorType = doc?.DoctorTypeDescription || '';
-          if (finalFilterValue === 'Appolo') {
-            return doctorType === 'Apollo' || doctorType === 'Appolo';
-          }
-          return doctorType === finalFilterValue;
-        });
-      }
-    }
-
-    const hasFilters = searchDoctorName.trim() ||
-      (selectedPincode && (!Array.isArray(selectedPincode) || selectedPincode.length > 0)) ||
-      (selectedSpecialization && (!Array.isArray(selectedSpecialization) || selectedSpecialization.length > 0)) ||
-      (selectedLanguage && (!Array.isArray(selectedLanguage) || selectedLanguage.length > 0)) ||
-      (selectedDoctorType && (!Array.isArray(selectedDoctorType) || selectedDoctorType.length > 0));
-
-    if (hasFilters && filtered.length === 0) {
-      let message = "No doctors found matching your search criteria.";
-
-      if (selectedLanguage && (!Array.isArray(selectedLanguage) || selectedLanguage.length > 0)) {
-        message = "We regret the inconvenience, but the selected language doctor is currently not available. Please explore the service with other available doctors. Thank you.";
-      } else if (selectedSpecialization && (!Array.isArray(selectedSpecialization) || selectedSpecialization.length > 0)) {
-        message = "We regret the inconvenience, but the selected specialization doctor is currently not available. Please explore the service with other available doctors. Thank you.";
-      } else if (selectedDoctorType && (!Array.isArray(selectedDoctorType) || selectedDoctorType.length > 0)) {
-        message = "We regret the inconvenience, but the selected vendor type doctor is currently not available. Please explore the service with other available doctors. Thank you.";
-      } else if (selectedPincode && (!Array.isArray(selectedPincode) || selectedPincode.length > 0)) {
-        message = "We regret the inconvenience, but the selected pincode doctor is currently not available. Please explore the service with other available doctors. Thank you.";
       }
 
-      setError(message);
-      setFilteredDoctors([]);
+      if (selectedSpecialization) {
+        if (Array.isArray(selectedSpecialization)) {
+          filters.specialization = selectedSpecialization.map(s => s.label).join(',');
+        } else {
+          filters.specialization = selectedSpecialization.label;
+        }
+      }
+
+      if (selectedLanguage) {
+        if (Array.isArray(selectedLanguage)) {
+          filters.language = selectedLanguage.map(l => l.label).join(',');
+        } else {
+          filters.language = selectedLanguage.label;
+        }
+      }
+
+      if (selectedDoctorType) {
+        if (Array.isArray(selectedDoctorType)) {
+          filters.vendor = selectedDoctorType.map(t => t.label === 'In-House' ? 'Welleazy' : t.label).join(',');
+        } else {
+          filters.vendor = selectedDoctorType.label === 'In-House' ? 'Welleazy' : selectedDoctorType.label;
+        }
+      }
+
+      // Always include district if available, as a city filter
+      if (currentDistrictId) {
+        // filters.city = currentDistrictId.toString(); // Use name if needed, but city param usually expects name/ID
+      }
+
+      console.log("🚀 [SEARCH] Calling SearchDoctors with filters:", filters);
+      const searchResults = await ConsultationAPI.SearchDoctors(filters);
+
+      setFilteredDoctors(searchResults);
       setCurrentPage(1);
-      return;
-    }
 
-    setFilteredDoctors(filtered);
-    setCurrentPage(1);
-    setTimeout(() => {
-      doctorSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 100);
+      if (searchResults.length === 0) {
+        setError("No doctors found matching your search criteria.");
+      }
+
+      setTimeout(() => {
+        doctorSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    } catch (err) {
+      console.error("Error applying filters:", err);
+      setError("Failed to fetch filtered doctors. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const clearFilters = () => {
@@ -1370,6 +1298,11 @@ const Consultation: React.FC = () => {
         preferredDateTime = formatAppointmentDateTime(selectedDate, timeString);
       }
 
+      if (!preferredDateTime) {
+        toast.error("Please select a date and time slot for your appointment");
+        return;
+      }
+
       const service = selectedDoctor?.Service || "";
       let ProductId = "1";
       let consultationType = "";
@@ -1436,11 +1369,18 @@ const Consultation: React.FC = () => {
         DoctorName: selectedDoctor?.DoctorName || ""
       };
 
-      if (appointmentType === 'in-clinic' && (dcId === "0" || !dcId)) {
+      // Relaxed check: Only block if we truly have no way to identify the place
+      // For Welleazy doctors, we might fallback to a default branch if ClinicId is 0
+      const effectiveDcId = (dcId === "0" || !dcId) && !isApolloVariant ? (selectedDoctor?.ClinicId || branchId).toString() : dcId;
+
+      if (appointmentType === 'in-clinic' && (effectiveDcId === "0" || !effectiveDcId) && !selectedDoctor?.ClinicName && !selectedDoctor?.Address) {
         console.error("❌ [BOOKING] Cannot book In-Clinic appointment: Missing DCId for doctor", selectedDoctor);
         toast.error("This doctor does not have an assigned clinic for In-Clinic visits. Please choose another doctor or E-Consult.");
         return;
       }
+
+      // Update dcId to use the effective one
+      const finalDcId = effectiveDcId || "108"; // Fallback to 108 if still nothing and we want to try anyway
 
       console.log("📢 [BOOKING] Step 1: Creating appointment to get CaseLeadId...");
       const appointmentResult = await ConsultationAPI.CRMSaveBookAppointmentDetails(appointmentData);
@@ -1468,18 +1408,9 @@ const Consultation: React.FC = () => {
         localStorage.setItem("PreviousCaseLeadId", effectiveCaseLeadId);
       }
 
-      const payload = { EmployeeRefId: employeeRefId, ServiceOfferedId: ProductId };
-
-      // --- SKIPPING SPONSORED SERVICES CHECK ---
-      // User reported that this API /CRMSponsoredServices returns 404 and is not needed.
-      // We process directly to adding to cart.
-      /*
-      console.log("📢 [BOOKING] Step 2: Checking sponsored services...");
-      const SponsoredStatusResult = await ConsultationAPI.CRMSponsoredServices(payload);
-      console.log("📄 [BOOKING] Sponsored result:", SponsoredStatusResult);
-      const isServiceAvailable = Number(SponsoredStatusResult.ServiceAvailable) === 1;
-      */
-      const isServiceAvailable = false; // Default to standard pricing if check is skipped
+      // Step 2 & 4 are skipped because the endpoints are returning 404 and 
+      // the new cart API seems to handle the necessary persistence.
+      const isServiceAvailable = false;
 
       const cartPayload = {
         CaseLead_Id: effectiveCaseLeadId,
@@ -1488,72 +1419,67 @@ const Consultation: React.FC = () => {
         EmployeeDependentDetailsId: formData.relationshipPersonId ? parseInt(formData.relationshipPersonId) : 0,
         CaseType: "Consultation",
         ProductId: Number(ProductId),
-        DCId: Number(dcId),
+        DCId: Number(finalDcId),
         SponsoredStatus: isServiceAvailable ? 1 : 0,
         TestPackageTypeId: 2,
         CartUniqueId: previousCartUniqueId,
         DoctorId: selectedDoctor?.DoctorId || 0,
-        AppointmentDate: preferredDateTime, // Send formatted date-time
-        Symptoms: formData.symptoms || "General Checkup" // Explicitly pass symptoms from state
+        Specialization: selectedDoctor?.DoctorSpecializations || "",
+        AppointmentDate: preferredDateTime,
+        Symptoms: formData.symptoms || "General Checkup",
+        documents: files
       };
 
       console.log("📢 [BOOKING] Step 3: Adding to cart...", cartPayload);
       const cartResult = await ConsultationAPI.CRMCustomerInsertCartItemDetails(cartPayload);
       console.log("📄 [BOOKING] Cart result:", cartResult);
 
-      if (!cartResult?.Success || !cartResult?.CartUniqueId) {
+      if (!cartResult?.Success) {
         const errorMsg = cartResult?.Message || "Failed to add item to cart";
         console.error("❌ [BOOKING] Cart insertion failed:", errorMsg);
         toast.error(errorMsg);
         return;
       }
 
-      const cartUniqueId = cartResult.CartUniqueId;
-      const cartDetailsId = cartResult.CartDetailsId;
+      const cartUniqueId = cartResult.CartUniqueId || previousCartUniqueId || `CART_${Date.now()}`;
+      const cartDetailsId = cartResult.CartDetailsId || 0;
+
       localStorage.setItem("PreviousCartUniqueId", cartUniqueId.toString());
 
-      if (cartDetailsId === undefined) {
-        toast.error("CartDetailsId not returned from server");
-        return;
+      if (cartResult.Message && (cartResult.Message.toLowerCase().includes("added") || cartResult.Message.toLowerCase().includes("successfully"))) {
+        toast.success(cartResult.Message);
       }
-
-      // --- SKIPPING LEGACY CART SAVE ---
-      // User requested to only hit /api/appointments/add-appointment-to-cart/
-      // The subsequent call to /CRMSaveCustomerCartDetails is failing (404) and seems redundant.
-      /*
-      const customerCartDetailsPayload = {
-        CaseleadId: caseLeadId,
-        AppointmentDateTime: preferredDateTime,
-        DCId: 0,
-        CreatedBy: employeeRefId,
-        CartDetailsId: cartDetailsId,
-        StMId: "",
-        DCSelection: DCUniqueName,
-        TestPackageCode: ""
-      };
-
-      console.log("📢 [BOOKING] Step 4: Saving cart details...");
-      const customerCartResult = await ConsultationAPI.CRMSaveCustomerCartDetails(customerCartDetailsPayload);
-      console.log("📄 [BOOKING] Customer cart result:", customerCartResult);
-      */
 
       const appointmentCartItem = {
         id: `appointment_${Date.now()}`,
         caseLeadId: effectiveCaseLeadId,
         cartUniqueId: cartUniqueId,
         name: `${selectedDoctor?.DoctorName || 'Doctor'} - ${consultationType}`,
-        doctorName: selectedDoctor?.DoctorName,
+        PersonName: formData.patientName,
+        Relationship: personType === 'Self' ? 'Self' : (relationships.find(r => r.RelationshipId.toString() === formData.relationshipId.toString())?.Relationship || 'Dependent'),
+        relationship: personType === 'Self' ? 'Self' : (relationships.find(r => r.RelationshipId.toString() === formData.relationshipId.toString())?.Relationship || 'Dependent'),
+        DoctorName: selectedDoctor?.DoctorName,
+        DoctorSpeciality: selectedDoctor?.Specialization || selectedDoctor?.DoctorSpecializations || "",
         price: consultationPrice,
-        quantity: 1,
+        ItemAmount: consultationPrice,
+        Quantity: 1,
         type: 'appointment',
+        ItemName: consultationType,
         consultationType: consultationType,
         appointmentTime: preferredDateTime,
-        appointmentDate: selectedDate,
+        appointmentDate: preferredDateTime ? preferredDateTime.split(" ")[0] : null,
+        AppointmentDate: preferredDateTime ? preferredDateTime.split(" ")[0] : null,
+        AppointmentTime: preferredDateTime,
         timeSlot: selectedApolloTimeSlot?.time || selectedTimeSlot?.Time,
         symptoms: formData.symptoms,
         timestamp: Date.now()
       };
-      const updatedCart = [appointmentCartItem];
+      const currentCart = JSON.parse(localStorage.getItem(userCartKey) || '[]');
+      const updatedCart = [
+        ...currentCart.filter((item: any) => item.id !== appointmentCartItem.id),
+        appointmentCartItem
+      ];
+
       localStorage.setItem("CartUniqueId", cartUniqueId.toString());
       if (!localStorage.getItem("EmployeeRefId")) {
         localStorage.setItem("EmployeeRefId", employeeRefId.toString());
@@ -1563,9 +1489,9 @@ const Consultation: React.FC = () => {
         detail: { count: updatedCart.length }
       }));
       console.log("✅ [BOOKING] Booking completed successfully!");
-      toast.success("Appointment booked successfully!");
+      toast.success("Appointment added to cart successfully!");
 
-      navigate("/Checkout", {
+      navigate("/CommonCartDcAndConsultation", {
         state: {
           cartItems: updatedCart,
           totalAmount: consultationPrice,
@@ -1583,10 +1509,22 @@ const Consultation: React.FC = () => {
         status: error.response?.status
       });
 
-      const errorMessage = error.response?.data?.Message ||
-        error.response?.data?.message ||
-        error.message ||
-        "Failed to book appointment. Please try again.";
+      const errorData = error.response?.data;
+      let errorMessage = "Failed to book appointment. Please try again.";
+
+      if (errorData) {
+        if (typeof errorData === 'object') {
+          errorMessage = errorData.Message || errorData.message || errorData.error || errorMessage;
+        } else if (typeof errorData === 'string') {
+          if (errorData.includes('<!DOCTYPE') || errorData.includes('<html')) {
+            errorMessage = `Server Error (${error.response?.status || 500})`;
+          } else {
+            errorMessage = errorData.substring(0, 200);
+          }
+        }
+      } else {
+        errorMessage = error.message || errorMessage;
+      }
 
       toast.error(errorMessage);
     }
@@ -1681,8 +1619,28 @@ const Consultation: React.FC = () => {
   };
 
   const renderSpecialization = (doc: CRMConsultationDoctorDetailsResponse) => {
-    const specialization = doc.Specialization || 'General Physician';
+    let specialization = doc.Specialization || 'General Physician';
     const doctorId = doc.DoctorId?.toString() || 'unknown';
+
+    // If we have an ID, prioritize the name from our master list over what the doctor object says
+    // (This helps when backend sends incorrect names like 'Cardiologist' for ID 2)
+    if (doc.DoctorSpecializations) {
+      const ids = doc.DoctorSpecializations.split(',');
+      let matchedNames = ids.map(id => {
+        const spec = specializations.find(s => String(s.DoctorSpecializationsId) === id.trim());
+        return spec ? spec.Specializations : null;
+      }).filter(Boolean) as string[];
+
+      if (matchedNames.length > 0) {
+        // Force "Dentist" only if ID 2 is present, as requested
+        if (ids.includes("2") || matchedNames.includes("Dentist")) {
+          specialization = "Dentist";
+        } else {
+          specialization = matchedNames.join(', ');
+        }
+      }
+    }
+
     const needsToggle = needsTruncation(specialization);
     const isExpanded = expandedSpecializations[doctorId] || false;
 

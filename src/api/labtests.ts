@@ -9,7 +9,7 @@ import {
 } from "../types/labtests";
 import { api } from "../services/api";
 
-const API_URL = process.env.REACT_APP_API_URL || "http://3.110.32.224:8000";
+const API_URL = process.env.REACT_APP_API_URL || "";
 
 /**
  * Helper to extract an array from potentially nested or paginated API responses.
@@ -183,7 +183,9 @@ export const labTestsAPI = {
             // Map to legacy format { TestId, TestName }
             return tests.map(test => ({
                 TestId: test.id || test.TestId,
-                TestName: test.name || test.TestName
+                TestName: test.name || test.TestName,
+                CorporatePrice: test.price || test.CorporatePrice || test.mrp || 0,
+                NormalPrice: test.mrp || test.NormalPrice || test.price || 0
             }));
         } catch (error) {
             console.error("CRMFetchTestDetailsBasedUponCommonTestName failed:", error);
@@ -198,12 +200,27 @@ export const labTestsAPI = {
                 city_id: request.CityId,
                 test_ids: request.TestId.split(',').map(Number).filter(id => !isNaN(id)),
                 pincode: request.PinCode,
+                area: request.Area,
                 // name: request.CommonTestName, // REMOVED: This filters by DC name, not Test Name
             };
 
             const newData = await labTestsAPI.searchDiagnosticCenters(searchRequest);
             if (newData && newData.length > 0) {
                 return newData.map(mapDCToLegacy);
+            }
+
+            // FALLBACK: If search returns nothing, try fetching all centers
+            const allCenters = await labTestsAPI.fetchDiagnosticCenters();
+            if (allCenters && allCenters.length > 0) {
+                const requestedTestIds = searchRequest.test_ids || [];
+                const filtered = allCenters.filter(dc => {
+                    const dcTests = (dc.tests || []).map(Number);
+                    return requestedTestIds.length === 0 || requestedTestIds.some(id => dcTests.includes(id));
+                });
+
+                if (filtered.length > 0) {
+                    return filtered.map(mapDCToLegacy);
+                }
             }
 
             return [];
@@ -213,15 +230,7 @@ export const labTestsAPI = {
         }
     },
 
-    DCTestPrice: async (request: CRMLoadDCDetailsRequest): Promise<CrmDcTestPricesResponse[] | null> => {
-        try {
-            const response = await api.post('/DCTestPrice', request);
-            return extractArray<CrmDcTestPricesResponse>(response.data);
-        } catch (error) {
-            console.error("DCTestPrice failed:", error);
-            return null;
-        }
-    },
+
 
     ThyrocareLogin: async (request: ThyrocareLoginRequest): Promise<ThyrocareLoginResponse | null> => {
         try {
