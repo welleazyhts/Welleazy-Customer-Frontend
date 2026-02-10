@@ -1,0 +1,38 @@
+name: Frontend Auto Deploy
+
+on:
+  push:
+    branches:
+      - newBranch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+
+            cd /var/www/Welleazy-Customer-Frontend
+
+            git checkout newBranch
+            git pull origin newBranch
+
+            sudo rm -rf build
+
+            npm ci || npm install
+            npm run build
+
+            sudo chown -R nginx:nginx build
+            sudo chmod -R 755 build
+
+            sudo systemctl restart nginx
