@@ -36,7 +36,16 @@ export interface CartItemDetails {
   AppointmentDateTime: string | null;
   TestPackageCode: string | null;
   VendorId: number;
-  Message:string;
+  Message: string;
+  type?: string;
+  relationship?: string;
+  id?: string;
+  testName?: string;
+  dcName?: string;
+  dcId?: string;
+  testId?: string;
+  AppointmentDateObj?: Date;
+  note?: string;
 }
 
 

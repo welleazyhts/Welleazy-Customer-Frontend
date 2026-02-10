@@ -61,6 +61,7 @@ export interface CRMConsultationDoctorDetailsResponse {
   ClinicId: number;
   ClinicName: string;
   Fee: string;
+  ConsultationFees: number;
   VendorImageUrl: string;
   DoctorImageUrl: string;
   DCUniqueName: string;
@@ -82,11 +83,13 @@ export interface TimeSlotRequest {
   DCUniqueName: string;
   TimeZone: number;
   doctorId?: number | undefined;
+  Date: string;
 }
 export interface TimeSlotResponse {
   TimeId: number;
   Time: string;
   TimeZone: boolean;
+  Date: string;
 }
 
 export interface BookAppointmentRequest {
@@ -110,6 +113,7 @@ export interface BookAppointmentRequest {
   SponsoredStatus: string;
   DoctorId: string;
   Symptoms: string;
+  Specialization?: string;
   CreatedBy: string;
   EmployeeDependentDetailsId: string;
   EmployeeAddressDetailsId: string;

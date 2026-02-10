@@ -9,12 +9,12 @@ export interface InsuranceRecord {
   TypeOfInsurance: number;
   InsuranceCompany: number;
   InsuranceCompanyName: string;
-  PolicyFrom: string; 
+  PolicyFrom: string;
   PolicyTo: string;
   MemberId: string;
   AdditionalNotes: string;
-  PolicyStatusValue: string; 
-  IsActive: number; 
+  PolicyStatusValue: string;
+  IsActive: number;
   CreatedOn: string | null;
   CreatedBy: string | null;
   UpdatedOn: string | null;
@@ -44,12 +44,12 @@ export interface SaveInsuranceRecord {
   AdditionalNotes: string;
   PolicyStatus: string;
   PolicyType: string;
-    Createdby: number;
-    isActive: number;
-    sumAssured: string;
-    premiumAmount: string;
-    tpa: string;
-    nominee: string;
+  Createdby: number;
+  isActive: number;
+  sumAssured: string;
+  premiumAmount: string;
+  tpa: string;
+  nominee: string;
 }
 
 
@@ -65,7 +65,8 @@ export interface RecordType {
   expanded?: boolean;
   details?: any | null;
   insuranceType?: string;
-   documents?: DocumentType[];
+  policyType?: string;
+  documents?: DocumentType[];
 }
 export interface DocumentType {
   InsuranceRecordDocumentId: number;
@@ -80,7 +81,8 @@ export interface MemberType {
   dob: string;
   age: number;
   gender: number;
-  isActive?: boolean; // For tracking selected state
+  relationId?: string;
+  isActive?: boolean;
 }
 
 

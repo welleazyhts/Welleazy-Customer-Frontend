@@ -41,8 +41,8 @@ Availability & Connectivity: Consultations are subject to clinician availability
 
   // Use the consultationId from API response as appointment ID
   // If available, use the ConsultationCaseAppointmentDetailsId from API
-  const displayAppointmentId = data.consultationId 
-    ? `#${data.consultationId}` 
+  const displayAppointmentId = data.consultationId
+    ? `#${data.consultationId}`
     : data.appointmentId;
 
   // Use districtName from API response, fallback to city, then doctorCity
@@ -58,6 +58,13 @@ Availability & Connectivity: Consultations are subject to clinician availability
 
   const handleDownload = () => {
     alert("Download functionality to be implemented");
+  };
+
+  const renderSafeValue = (value: any): string => {
+    if (!value) return "";
+    if (value instanceof Date) return value.toLocaleDateString();
+    if (typeof value === 'object') return JSON.stringify(value);
+    return String(value);
   };
 
   return (
@@ -79,73 +86,95 @@ Availability & Connectivity: Consultations are subject to clinician availability
           </Card.Header>
           <Card.Body>
             <Row className="appointment-voucher-details">
-              <Col md={6}>
+              <Col md={12}>
+                <div className="appointment-voucher-detail-row mb-4">
+                  <span className="appointment-voucher-detail-label">Patient Name:</span>
+                  <span className="appointment-voucher-detail-value" style={{ fontWeight: 'bold' }}>{data.patientName}</span>
+                </div>
                 <div className="appointment-voucher-detail-row">
                   <span className="appointment-voucher-detail-label">Appointment ID :</span>
                   <span className="appointment-voucher-detail-value" style={{ fontWeight: 'bold', color: '#2c3e50' }}>
                     {displayAppointmentId}
                   </span>
                 </div>
-                <div className="appointment-voucher-detail-row">
-                  <span className="appointment-voucher-detail-label">Name:</span>
-                  <span className="appointment-voucher-detail-value">{data.patientName}</span>
-                </div>
-                <div className="appointment-voucher-detail-row">
-                  <span className="appointment-voucher-detail-label">Consultation Type:</span>
-                  <span className="appointment-voucher-detail-value">{data.consultationType}</span>
-                </div>
-                <div className="appointment-voucher-detail-row">
-                  <span className="appointment-voucher-detail-label">Doctor Name:</span>
-                  <span className="appointment-voucher-detail-value">{data.doctorName}</span>
-                </div>
-              </Col>
-              
-              <Col md={6}>
-                <div className="appointment-voucher-detail-row">
-                  <span className="appointment-voucher-detail-label">Doctor Speciality:</span>
-                  <span className="appointment-voucher-detail-value">{data.doctorSpeciality}</span>
-                </div>
-                <div className="appointment-voucher-detail-row">
-                  <span className="appointment-voucher-detail-label">Doctor City:</span>
-                  <span className="appointment-voucher-detail-value">{displayCity}</span>
-                </div>
-                <div className="appointment-voucher-detail-row">
-                  <span className="appointment-voucher-detail-label">Appointment Date:</span>
-                  <span className="appointment-voucher-detail-value">{data.appointmentDate}</span>
-                </div>
-                <div className="appointment-voucher-detail-row">
-                  <span className="appointment-voucher-detail-label">Appointment Time:</span>
-                  <span className="appointment-voucher-detail-value">{data.appointmentTime}</span>
-                </div>
+
+                <hr />
+                <h5 className="mb-3 mt-4">Booking Details</h5>
+
+                {data.items && data.items.length > 0 ? (
+                  data.items.map((item: any, idx: number) => (
+                    <div key={idx} className="mb-4 p-3" style={{ border: '1px solid #eee', borderRadius: '8px', backgroundColor: '#f9f9f9' }}>
+                      <Row>
+                        <Col md={6}>
+                          <div className="appointment-voucher-detail-row">
+                            <span className="appointment-voucher-detail-label">Service:</span>
+                            <span className="appointment-voucher-detail-value">{item.name}</span>
+                          </div>
+                          <div className="appointment-voucher-detail-row">
+                            <span className="appointment-voucher-detail-label">Practitioner/Lab:</span>
+                            <span className="appointment-voucher-detail-value">{item.doctorName || item.center_name || 'N/A'}</span>
+                          </div>
+                        </Col>
+                        <Col md={6}>
+                          <div className="appointment-info-item mb-1">
+                            <span className="appointment-voucher-detail-label">Date & Time:</span>
+                            <span className="appointment-voucher-detail-value">
+                              {renderSafeValue(item.appointmentDate)} {renderSafeValue(item.appointmentTime)}
+                            </span>
+                          </div>
+                        </Col>
+                      </Row>
+                    </div>
+                  ))
+                ) : (
+                  <Row>
+                    <Col md={6}>
+                      <div className="appointment-voucher-detail-row">
+                        <span className="appointment-voucher-detail-label">Consultation Type:</span>
+                        <span className="appointment-voucher-detail-value">{data.consultationType}</span>
+                      </div>
+                      <div className="appointment-voucher-detail-row">
+                        <span className="appointment-voucher-detail-label">Doctor Name:</span>
+                        <span className="appointment-voucher-detail-value">{data.doctorName}</span>
+                      </div>
+                    </Col>
+                    <Col md={6}>
+                      <div className="appointment-voucher-detail-row">
+                        <span className="appointment-voucher-detail-label">Date & Time:</span>
+                        <span className="appointment-voucher-detail-value">{renderSafeValue(data.appointmentDate)} {renderSafeValue(data.appointmentTime)}</span>
+                      </div>
+                    </Col>
+                  </Row>
+                )}
               </Col>
             </Row>
 
             <div className="">
               <div style={{ textAlign: 'center', margin: '20px ' }}>
                 <button
-  type="button"
-  title="MY APPOINTMENT"
-  className="appointment-voucher-my-appointment-btn"
-  style={{
-    display: 'inline-block',
-    backgroundColor: '#3498db',
-    color: 'white',
-    border: 'none',
-    padding: '12px 30px',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    transition: 'all 0.3s ease'
-  }}
-  onClick={() => navigate('/my-bookings')}
->
-  MY APPOINTMENT
-</button>
+                  type="button"
+                  title="MY APPOINTMENT"
+                  className="appointment-voucher-my-appointment-btn"
+                  style={{
+                    display: 'inline-block',
+                    backgroundColor: '#3498db',
+                    color: 'white',
+                    border: 'none',
+                    padding: '12px 30px',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onClick={() => navigate('/my-bookings')}
+                >
+                  MY APPOINTMENT
+                </button>
 
               </div>
-              
-              <p className="appointment-voucher-disclaimer-text" style={{textAlign:'center'}}>
+
+              <p className="appointment-voucher-disclaimer-text" style={{ textAlign: 'center' }}>
                 *{data.disclaimer}
               </p>
             </div>
@@ -161,7 +190,7 @@ Availability & Connectivity: Consultations are subject to clinician availability
               </div>
             </div>
 
-            
+
           </Card.Body>
         </Card>
       </Container>

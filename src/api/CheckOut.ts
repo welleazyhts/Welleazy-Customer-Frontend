@@ -1,7 +1,7 @@
 import { api } from '../services/api';
 import { CartItemDetails, CartStatusResponse } from '../types/CheckOut';
 
-const API_URL = '';
+const API_URL = process.env.REACT_APP_API_URL || "";
 
 export const CheckOutAPI = {
 
@@ -33,45 +33,45 @@ export const CheckOutAPI = {
 
       // Map backend items to frontend CartItemDetails interface
       return items.map((item: any) => ({
-        CartDetailsId: item.id || 0,
-        CartItemDetailsId: item.id || 0,
-        PersonName: item.dependant_name || item.PersonName || "Patient", // Fallback if name missing
-        Relationship: item.relationship || item.Relationship || "Self",
-        ItemName: item.note || item.ItemName || item.item_type || "Consultation",
-        ItemId: item.health_package || item.tests?.[0] || 0,
-        TestPackageType: item.visit_type || 0,
-        ItemAmount: parseFloat(item.final_price || item.price || "0"),
-        Quantity: 1, // Default to 1 as API doesn't seem to have qty
-        AppointmentDate: item.appointment_date || item.AppointmentDate || null,
-        AppointmentTime: item.appointment_time || item.AppointmentTime || null,
+        CartDetailsId: item.id || item.CartDetailsId || 0,
+        CartItemDetailsId: item.id || item.CartItemDetailsId || 0,
+        PersonName: item.PersonName || item.patient_name || item.dependant_name || item.dependant?.name || item.beneficiary_name || "Patient",
+        Relationship: item.Relationship || item.relationship || item.dependant?.relationship || "Self",
+        ItemName: item.ItemName || item.item_type || item.note || "Consultation",
+        ItemId: item.ItemId || item.health_package || item.tests?.[0] || 0,
+        TestPackageType: item.visit_type || item.TestPackageType || 0,
+        ItemAmount: parseFloat(item.final_price || item.price || item.ItemAmount || "0"),
+        Quantity: item.Quantity || 1,
+        AppointmentDate: item.AppointmentDate || item.appointment_date || null,
+        AppointmentTime: item.AppointmentTime || item.appointment_time || null,
         DeliveryDateTime: null,
-        TotalAmount: parseFloat(item.final_price || item.price || "0"),
-        DCId: item.diagnostic_center || item.DCId || 0,
-        CaseRefId: item.id || 0, // Using ID as ref if missing
-        AppointmentId: null,
-        center_name: item.center_name || null,
-        city: item.doctor?.city || item.DoctorCity || null,
-        DistrictName: item.doctor?.city || item.DistrictName || null,
-        DistrictId: 0,
-        DoctorCity: item.doctor?.city || item.DoctorCity || null,
-        SponsoredStatus: item.sponsored_package ? 1 : 0,
-        MobileNo: item.mobile_no || item.MobileNo || "",
-        Emailid: item.email || item.Emailid || "",
+        TotalAmount: parseFloat(item.final_price || item.price || item.TotalAmount || "0"),
+        DCId: item.DCId || item.diagnostic_center || 0,
+        CaseRefId: item.CaseRefId || item.id || 0,
+        AppointmentId: item.AppointmentId || null,
+        center_name: item.center_name || item.center?.name || null,
+        city: item.city || item.doctor?.city || item.DoctorCity || null,
+        DistrictName: item.DistrictName || item.doctor?.city || null,
+        DistrictId: item.DistrictId || 0,
+        DoctorCity: item.DoctorCity || item.doctor?.city || null,
+        SponsoredStatus: item.SponsoredStatus || (item.sponsored_package ? 1 : 0),
+        MobileNo: item.MobileNo || item.mobile_no || item.patient_mobile || "",
+        Emailid: item.Emailid || item.email || item.patient_email || "",
         CartUniqueId: cartUniqueId,
-        DoctorId: item.doctor?.id || item.DoctorId || 0,
-        DoctorName: item.doctor?.full_name || item.doctor?.name || item.DoctorName || "Doctor",
-        DCAddress: item.address || item.DCAddress || null,
-        DRAddress: item.address || item.DRAddress || null,
-        DoctorSpeciality: item.doctor?.specialization || item.DoctorSpeciality || "",
-        ClinicName: item.clinic_name || item.ClinicName || "",
-        VisitType: item.visit_type?.toString() || "1",
-        StMId: null,
+        DoctorId: item.DoctorId || item.doctor?.id || 0,
+        DoctorName: item.DoctorName || item.doctor_name || item.doctor?.full_name || item.doctor?.name || "Doctor",
+        DCAddress: item.DCAddress || item.address || item.center?.address || null,
+        DRAddress: item.DRAddress || item.address || null,
+        DoctorSpeciality: item.DoctorSpeciality || item.specialization || item.doctor_specialization || item.doctor?.specialization || item.speciality_name || "",
+        ClinicName: item.ClinicName || item.clinic_name || item.doctor?.clinic_name || "",
+        VisitType: item.VisitType?.toString() || item.visit_type?.toString() || "1",
+        StMId: item.StMId || null,
         DCSelection: item.DCSelection || null,
-        AppointmentDateTime: item.appointment_date && item.appointment_time ? `${item.appointment_date}T${item.appointment_time}` : null,
-        TestPackageCode: null,
-        VendorId: 0,
-        Message: "",
-        ...item // Spread original item to keep any other props
+        AppointmentDateTime: item.AppointmentDateTime || (item.appointment_date && item.appointment_time ? `${item.appointment_date}T${item.appointment_time}` : null),
+        TestPackageCode: item.TestPackageCode || null,
+        VendorId: item.VendorId || 0,
+        Message: item.Message || "",
+        ...item
       })) as CartItemDetails[];
     } catch (error) {
       console.error('Error fetching cart details:', error);

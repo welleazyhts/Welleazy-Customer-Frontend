@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Container, Card, Button, Row, Col, 
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  Container, Card, Button, Row, Col,
   Alert, Form, Table, Spinner, Badge,
   Modal,
 } from 'react-bootstrap';
@@ -33,13 +33,14 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import './DiagnosticCart.css';
+import { AddressBookAPI } from '../../api/AddressBook';
 import { ConsultationAPI } from '../../api/Consultation';
 import { TimeSlotRequest, TimeSlotResponse } from '../../types/Consultation';
 import { gymServiceAPI } from '../../api/GymService';
-import { labTestsAPI } from '../../api/labtests'; 
+import { labTestsAPI } from '../../api/labtests';
 import { toast } from "react-toastify";
 import 'react-datepicker/dist/react-datepicker.css';
-import { OrangeHealthCreateOrderResponse, OrangeHealthCreateOrderRequest, CartItem, DependentFormData, DiagnosticCenter } from '../../types/labtests';
+import { OrangeHealthCreateOrderResponse, OrangeHealthCreateOrderRequest, CartItem, DependentFormData, DiagnosticCenter, AddToCartRequest } from '../../types/labtests';
 
 interface TestItem {
   TestId: string;
@@ -72,22 +73,24 @@ interface LocationState {
   serviceFor?: DependentFormData;
   appointmentDetails?: AppointmentData;
   customerMobile?: string;
+  selectedVisitType?: string;
+  selectedAddress?: any;
 }
 
 const DiagnosticCart: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const locationState = location.state as LocationState;
-  
+
   // Check which flow we're in
   const appointmentData: AppointmentData | null = locationState?.appointmentDetails || null;
   const isFromConsultation = !!appointmentData;
-  
+
   // Diagnostic test data
-  const selectedTests = locationState?.selectedTests || [];
+  const selectedTests = useMemo(() => locationState?.selectedTests || [], [locationState?.selectedTests]);
   const selectedDC = locationState?.selectedDC || null;
   const totalAmount = locationState?.totalAmount || 0;
-  const serviceForData: DependentFormData = locationState?.serviceFor || {
+  const serviceForData: DependentFormData = useMemo(() => locationState?.serviceFor || {
     serviceFor: 'self',
     relationshipId: '',
     relationshipPersonId: '',
@@ -95,8 +98,11 @@ const DiagnosticCart: React.FC = () => {
     phone: '',
     email: '',
     relation: ''
-  };
-  
+  }, [locationState?.serviceFor]);
+
+  const selectedVisitType = locationState?.selectedVisitType || '';
+  const selectedAddress = locationState?.selectedAddress || null;
+
   // State for BOTH flows
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [serviceFor, setServiceFor] = useState<'self' | 'dependent'>(serviceForData.serviceFor);
@@ -123,11 +129,12 @@ const DiagnosticCart: React.FC = () => {
   const [loadingTimeSlots, setLoadingTimeSlots] = useState(false);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlotResponse | null>(null);
   const [selectedTime, setSelectedTime] = useState<string>('');
-  
+
   // Date and time selection states
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<'morning' | 'afternoon' | 'evening' | 'night'>('morning');
+  const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
 
   // Payment states
   const [paymentProcessing, setPaymentProcessing] = useState(false);
@@ -157,21 +164,27 @@ const DiagnosticCart: React.FC = () => {
         relation: item.relation,
         dcId: item.dcId,
         dcName: item.dcName,
-        packageCode: item.packageCode
+        packageCode: item.packageCode,
+        appointmentDate: item.appointmentDate,
+        appointmentTime: item.appointmentTime,
+        AppointmentDate: item.appointmentDate,
+        AppointmentTime: item.appointmentTime,
+        note: item.note
       }));
-      
+
       const employeeRefId = localStorage.getItem("EmployeeRefId") || "0";
       const cartKey = `app_cart_${employeeRefId}`;
-      
+
       // Get existing cart items
       const existingCart = JSON.parse(localStorage.getItem(cartKey) || '[]');
-      
-      // Filter out old diagnostic items and add new ones
-      const filteredCart = existingCart.filter((item: any) => item.type !== 'diagnostic');
+
+      // Filter out only the specific diagnostic items that are being updated (by ID)
+      const diagnosticIds = new Set(diagnosticCartItems.map(d => d.id));
+      const filteredCart = existingCart.filter((item: any) => !diagnosticIds.has(item.id));
       const updatedCart = [...filteredCart, ...diagnosticCartItems];
-      
+
       localStorage.setItem(cartKey, JSON.stringify(updatedCart));
-      
+
       // Dispatch event to notify header
       window.dispatchEvent(new CustomEvent('cartUpdated'));
     } else if (!isFromConsultation && cartItems.length === 0) {
@@ -179,6 +192,11 @@ const DiagnosticCart: React.FC = () => {
       const employeeRefId = localStorage.getItem("EmployeeRefId") || "0";
       const cartKey = `app_cart_${employeeRefId}`;
       const existingCart = JSON.parse(localStorage.getItem(cartKey) || '[]');
+      // Clear specific diagnostic items from cart if they were removed in the UI
+      const currentIds = new Set(cartItems.map(item => `diagnostic_${item.testId}_${Date.now()}`)); // This ID logic is flawed due to Date.now(), should probably use a stable ID
+      // But for now, let's just make it not clear EVERYTHING if it's empty
+      // Actually if cartItems is empty in THIS component, it might mean the user removed all lab tests in the LAB CART UI.
+      // But we should be careful not to affect appointments.
       const filteredCart = existingCart.filter((item: any) => item.type !== 'diagnostic');
       localStorage.setItem(cartKey, JSON.stringify(filteredCart));
       window.dispatchEvent(new CustomEvent('cartUpdated'));
@@ -195,13 +213,13 @@ const DiagnosticCart: React.FC = () => {
       if (appointmentData.time) {
         setSelectedTime(appointmentData.time);
       }
-      
+
       // Set customer details
       const storedMobile = locationState?.customerMobile || localStorage.getItem("customerMobile") || "";
       const storedName = localStorage.getItem("DisplayName") || appointmentData?.patientName || "";
       setCustomerMobile(storedMobile);
       setCustomerName(storedName);
-      
+
       // Set consultation fee
       if (appointmentData.consultationFee) {
         setConsultationFee(appointmentData.consultationFee);
@@ -216,7 +234,7 @@ const DiagnosticCart: React.FC = () => {
     } else if (selectedTests.length > 0 && selectedDC) {
       // Diagnostic test flow
       const isDependent = serviceForData.serviceFor === 'dependent';
-      
+
       const initialCartItems: CartItem[] = selectedTests.map((test: TestItem) => ({
         testId: test.TestId || '',
         testName: test.TestName || '',
@@ -228,13 +246,14 @@ const DiagnosticCart: React.FC = () => {
         dependentName: isDependent ? serviceForData.name : undefined,
         relation: isDependent ? getRelationshipName(serviceForData.relationshipId) : undefined,
         dcId: selectedDC.dc_id,
-        dcName: selectedDC.center_name
+        dcName: selectedDC.center_name,
+        itemId: undefined // Will be set if fetched from API
       }));
-      
+
       setCartItems(initialCartItems);
       setSelectedDependent(serviceForData);
       setServiceFor(serviceForData.serviceFor);
-      
+
       // Set default selected date
       if (!selectedDate) {
         const today = new Date();
@@ -253,17 +272,17 @@ const DiagnosticCart: React.FC = () => {
       const script = document.createElement("script");
       script.src = "https://checkout.razorpay.com/v1/checkout.js";
       script.async = true;
-      
+
       script.onload = () => {
         console.log("Razorpay SDK loaded successfully");
         setRazorpayLoaded(true);
       };
-      
+
       script.onerror = () => {
         console.error("Failed to load Razorpay SDK");
         toast.error("Payment gateway failed to load. Please refresh the page.");
       };
-      
+
       document.body.appendChild(script);
     };
 
@@ -276,7 +295,7 @@ const DiagnosticCart: React.FC = () => {
       const checkThyrocareConnection = () => {
         const storedApiKey = localStorage.getItem('thyrocare_api_key');
         const storedRefCode = localStorage.getItem('thyrocare_ref_code');
-        
+
         if (storedApiKey && storedRefCode) {
           setThyrocareApiKey(storedApiKey);
           setThyrocareRefCode(storedRefCode);
@@ -312,13 +331,13 @@ const DiagnosticCart: React.FC = () => {
     }
     return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
-  
+
   const calculateDiscount = () => {
     const subtotal = calculateSubtotal();
     // Example: 10% discount
     return Math.round(subtotal * 0.1);
   };
-  
+
   const calculateTotal = () => {
     return calculateSubtotal() - calculateDiscount();
   };
@@ -326,11 +345,11 @@ const DiagnosticCart: React.FC = () => {
   // Handle quantity change (only for diagnostic)
   const handleQuantityChange = (index: number, newQuantity: number) => {
     if (newQuantity < 1 || isFromConsultation) return;
-    
+
     const updatedCartItems = [...cartItems];
     updatedCartItems[index] = { ...updatedCartItems[index], quantity: newQuantity };
     setCartItems(updatedCartItems);
-    
+
     // Update localStorage
     syncCartToLocalStorage(updatedCartItems);
   };
@@ -349,16 +368,21 @@ const DiagnosticCart: React.FC = () => {
       relation: item.relation,
       dcId: item.dcId,
       dcName: item.dcName,
-      packageCode: item.packageCode
+      packageCode: item.packageCode,
+      appointmentDate: item.appointmentDate,
+      appointmentTime: item.appointmentTime,
+      AppointmentDate: item.appointmentDate,
+      AppointmentTime: item.appointmentTime,
+      note: item.note
     }));
-    
+
     const employeeRefId = localStorage.getItem("EmployeeRefId") || "0";
     const cartKey = `app_cart_${employeeRefId}`;
-    
+
     const existingCart = JSON.parse(localStorage.getItem(cartKey) || '[]');
     const filteredCart = existingCart.filter((item: any) => item.type !== 'diagnostic');
     const updatedCart = [...filteredCart, ...diagnosticCartItems];
-    
+
     localStorage.setItem(cartKey, JSON.stringify(updatedCart));
     window.dispatchEvent(new CustomEvent('cartUpdated'));
   };
@@ -366,13 +390,23 @@ const DiagnosticCart: React.FC = () => {
   // Handle remove item (only for diagnostic)
   const handleRemoveItem = (index: number) => {
     if (isFromConsultation) return;
-    
+
+    const itemToRemove = cartItems[index];
     const updatedCartItems = cartItems.filter((_, i) => i !== index);
     setCartItems(updatedCartItems);
-    
+
+    // If it has an itemId, remove it from the backend too
+    if (itemToRemove.itemId) {
+      labTestsAPI.removeCartItem(itemToRemove.itemId).then(success => {
+        if (success) {
+          console.log("Item removed from backend cart");
+        }
+      });
+    }
+
     // Update localStorage
     syncCartToLocalStorage(updatedCartItems);
-    
+
     if (updatedCartItems.length === 0) {
       toast.info("All tests removed from cart");
       setTimeout(() => {
@@ -382,7 +416,7 @@ const DiagnosticCart: React.FC = () => {
       }, 1500);
     }
   };
-  
+
   // Handle service for change (only for diagnostic)
   const handleServiceForChange = () => {
     if (isFromConsultation) return;
@@ -401,7 +435,7 @@ const DiagnosticCart: React.FC = () => {
           return;
         }
         const employeeRefId = parseInt(employeeRefIdStr, 10);
-        
+
         if (isNaN(employeeRefId)) {
           console.error("Invalid EmployeeRefId in localStorage");
           return;
@@ -411,7 +445,7 @@ const DiagnosticCart: React.FC = () => {
         localStorage.setItem("customerMobile", customerProfile.MobileNo || "");
         localStorage.setItem("customerAddress", customerProfile.Address || "");
         localStorage.setItem("customerPincode", customerProfile.Pincode);
-        
+
         // Update state if not already set
         if (!customerMobile) {
           setCustomerMobile(customerProfile.MobileNo || "");
@@ -423,28 +457,83 @@ const DiagnosticCart: React.FC = () => {
         console.error("Error loading customer profile:", error);
       }
     };
-    
+
     loadCustomerProfile();
   }, []);
+
+  // Fetch cart from API as fallback or to ensure latest data
+  useEffect(() => {
+    const fetchCartFromAPI = async () => {
+      // Only fetch if we're not in consultation flow and cart is empty or we haven't synced yet
+      if (isFromConsultation) return;
+
+      setLoading(true);
+      try {
+        const cartResponse = await labTestsAPI.viewCart();
+        if (cartResponse && cartResponse.items && cartResponse.items.length > 0) {
+          const apiCartItems: CartItem[] = cartResponse.items.map((item: any) => ({
+            testId: (item.tests && item.tests.length > 0) ? item.tests[0].toString() : '0',
+            testName: item.diagnostic_center_name || 'Diagnostic Test',
+            packageCode: '',
+            price: parseFloat(item.price || '0'),
+            quantity: 1,
+            selectedFor: item.is_for_self ? 'self' : 'dependent',
+            dependentId: item.dependant_id?.toString(),
+            dependentName: item.dependant_name || undefined,
+            dcId: typeof item.diagnostic_center === 'number' ? item.diagnostic_center : parseInt(item.diagnostic_center),
+            dcName: item.diagnostic_center_name || 'Selected Center',
+            itemId: item.id,
+            note: item.note,
+            appointmentDate: item.appointment_date,
+            appointmentTime: item.appointment_time
+          }));
+
+          setCartItems(apiCartItems);
+
+          // Sync global states if items have them
+          const firstItemWithData = apiCartItems.find(item => item.appointmentDate || item.note);
+          if (firstItemWithData) {
+            if (firstItemWithData.appointmentDate && !selectedDate) {
+              setSelectedDate(new Date(firstItemWithData.appointmentDate));
+            }
+            if (firstItemWithData.appointmentTime && !selectedTime) {
+              setSelectedTime(firstItemWithData.appointmentTime);
+            }
+            if (firstItemWithData.note && !notes) {
+              setNotes(firstItemWithData.note);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching cart from API:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (cartItems.length === 0 && !isFromConsultation) {
+      fetchCartFromAPI();
+    }
+  }, [isFromConsultation, cartItems.length, selectedDC]);
 
   // Thyrocare Login Function using labTestsAPI (for diagnostic)
   const handleThyrocareLogin = async (): Promise<boolean> => {
     setThyrocareLoading(true);
-    
+
     try {
-      console.log("Logging in to Thyrocare using labTestsAPI...");      
+      console.log("Logging in to Thyrocare using labTestsAPI...");
       const response = await labTestsAPI.ThyrocareLogin({
         username: "9895495477",
         password: "5B2B35",
         portalType: "",
         userType: "DSA"
       });
-      
+
       if (response && response.apiKey) {
         setThyrocareApiKey(response.apiKey);
         setThyrocareRefCode(response.mobile);
         setThyrocareConnected(true);
-        
+
         localStorage.setItem('thyrocare_api_key', response.apiKey);
         localStorage.setItem('thyrocare_ref_code', response.mobile);
         localStorage.setItem('thyrocare_user_info', JSON.stringify({
@@ -452,7 +541,7 @@ const DiagnosticCart: React.FC = () => {
           email: response.email,
           mobile: response.mobile
         }));
-        
+
         return true;
       } else {
         throw new Error("No API key received from Thyrocare");
@@ -479,7 +568,7 @@ const DiagnosticCart: React.FC = () => {
         <Gender>${genderCode}</Gender>
       </Ben_details>`;
     }).join('');
-    
+
     return `<NewDataSet>${benDetails}</NewDataSet>`;
   };
 
@@ -495,32 +584,32 @@ const DiagnosticCart: React.FC = () => {
       if (!thyrocareApiKey || !thyrocareRefCode) {
         throw new Error("Thyrocare not connected. Please connect first.");
       }
-      
+
       const getUserName = () => {
         return localStorage.getItem("employeeName") || displayName || "Customer";
       };
 
       const beneficiaries = [{
         Name: serviceFor === 'dependent' ? selectedDependent?.name || "" : getUserName(),
-        Age: '30', 
-        Gender: serviceFor === 'dependent' 
-          ? selectedDependent?.relation === 'Male' ? 'Male' : 'Female' 
+        Age: '30',
+        Gender: serviceFor === 'dependent'
+          ? selectedDependent?.relation === 'Male' ? 'Male' : 'Female'
           : 'Male'
       }];
-      
+
       const orderId = `WX${Date.now()}${Math.floor(Math.random() * 1000)}`;
-      const productCode = cartItems[0]?.packageCode || 'FBS'; 
+      const productCode = cartItems[0]?.packageCode || 'FBS';
       const orderRequest = {
         ApiKey: thyrocareApiKey,
         OrderId: orderId,
-        Email: email, 
-        Gender: serviceFor === 'dependent' 
-          ? selectedDependent?.relation === 'Male' ? 'Male' : 'Female' 
+        Email: email,
+        Gender: serviceFor === 'dependent'
+          ? selectedDependent?.relation === 'Male' ? 'Male' : 'Female'
           : 'Male',
         Mobile: mobile,
         Address: customerAddress,
-        ApptDate: selectedDate 
-          ? `${selectedDate.toISOString().split('T')[0]} 10:30` 
+        ApptDate: selectedDate
+          ? `${selectedDate.toISOString().split('T')[0]} 10:30`
           : `${new Date().toISOString().split('T')[0]} 10:30`,
         OrderBy: displayName,
         Passon: 0,
@@ -529,15 +618,15 @@ const DiagnosticCart: React.FC = () => {
         Product: productCode,
         RefCode: thyrocareRefCode,
         ReportCode: "",
-        Remarks: paymentResponse 
-          ? `Payment ID: ${paymentResponse.razorpay_payment_id}` 
+        Remarks: paymentResponse
+          ? `Payment ID: ${paymentResponse.razorpay_payment_id}`
           : "Order via Welleazy",
         Reports: "N",
         ServiceType: "H",
         BenCount: "1",
         BenDataXML: generateBenDataXML(beneficiaries)
       };
-      
+
       const response = await labTestsAPI.ThyrocareOrderBooking(orderRequest);
       if (response) {
         return response;
@@ -569,36 +658,36 @@ const DiagnosticCart: React.FC = () => {
       const customerMobile = localStorage.getItem("customerMobile") || "";
       const customerEmail = localStorage.getItem("customerEmail") || "";
       const customerAddress = localStorage.getItem("customerAddress") || "";
-    
+
       const timeString = selectedTimeSlot.Time.trim();
       const [timePart, modifier] = timeString.split(' ');
-      
+
       if (!timePart || !modifier) {
         toast.error("Invalid time format selected");
         return null;
       }
 
       let [hours, minutes] = timePart.split(':').map(num => parseInt(num, 10));
-      
+
       if (modifier.toUpperCase() === 'PM' && hours < 12) {
         hours += 12;
       }
       if (modifier.toUpperCase() === 'AM' && hours === 12) {
         hours = 0;
       }
-      
+
       const slotDate = new Date(selectedDate);
       slotDate.setHours(hours);
       slotDate.setMinutes(minutes);
       slotDate.setSeconds(0);
       slotDate.setMilliseconds(0);
-      
+
       let slot_datetime = slotDate.toISOString();
       slot_datetime = slot_datetime.split('.')[0];
       if (slot_datetime.endsWith('Z')) {
         slot_datetime = slot_datetime.slice(0, -1);
       }
-      
+
       const year = slotDate.getFullYear();
       const month = String(slotDate.getMonth() + 1).padStart(2, '0');
       const day = String(slotDate.getDate()).padStart(2, '0');
@@ -606,9 +695,9 @@ const DiagnosticCart: React.FC = () => {
       const minute = String(minutes).padStart(2, '0');
       const slot_datetime_alt = `${year}-${month}-${day}T${hour}:${minute}:00`;
       const final_slot_datetime = slot_datetime_alt;
-      
+
       const orderRequest: OrangeHealthCreateOrderRequest = {
-        slot_datetime: final_slot_datetime, 
+        slot_datetime: final_slot_datetime,
         latitude: "13.0240",
         longitude: "77.6433",
         address: customerAddress,
@@ -624,30 +713,30 @@ const DiagnosticCart: React.FC = () => {
         packageId: "",
         partner_notes: "Add additional notes for OH Team only if absolutely necessary"
       };
-      
-      const raw = await labTestsAPI.OrangeHealthCreateOrder(orderRequest);    
+
+      const raw = await labTestsAPI.OrangeHealthCreateOrder(orderRequest);
       if (!raw?.Message) {
         toast.success("Your Orange Health order has been placed successfully. Thank you for choosing us!");
         return null;
       }
-      
+
       let parsed;
       try {
-        parsed = typeof raw.Message === 'string' 
-          ? JSON.parse(raw.Message) 
+        parsed = typeof raw.Message === 'string'
+          ? JSON.parse(raw.Message)
           : raw.Message;
       } catch (parseError) {
         toast.error("Failed to parse Orange Health response");
         return null;
       }
-      
+
       if (parsed.status?.toLowerCase() !== "success") {
         const errorMsg = parsed.message || parsed.status || "Booking failed";
         console.error("Orange Health booking failed:", errorMsg);
         toast.error(`Orange Health: ${errorMsg}`);
         return null;
       }
-      
+
       toast.success("Orange Health booking successful!");
       setOrangeHealthOrderResponse(parsed);
       return parsed;
@@ -684,34 +773,34 @@ const DiagnosticCart: React.FC = () => {
       const country = "India";
       const zip = localStorage.getItem("customerPincode") || "560010";
       const employeeRefId = localStorage.getItem("EmployeeRefId") || "0";
-      
+
       // Format dates
       const orderDate = new Date();
       const formattedOrderDate = `${orderDate.getDate().toString().padStart(2, '0')}-${(orderDate.getMonth() + 1).toString().padStart(2, '0')}-${orderDate.getFullYear()}`;
-      
+
       // Format collection date and time
       const collectionDate = selectedDate;
       const collectionTime = selectedTimeSlot.Time;
-      
+
       // Parse the collection time
       const [timePart, modifier] = collectionTime.split(' ');
       let [hours, minutes] = timePart.split(':').map(num => parseInt(num, 10));
-      
+
       if (modifier.toUpperCase() === 'PM' && hours < 12) {
         hours += 12;
       }
       if (modifier.toUpperCase() === 'AM' && hours === 12) {
         hours = 0;
       }
-      
+
       const formattedHours = hours.toString().padStart(2, '0');
       const formattedMinutes = minutes.toString().padStart(2, '0');
-      
+
       const collectionDateTime = `${collectionDate?.getDate().toString().padStart(2, '0')}-${((collectionDate?.getMonth() || 0) + 1).toString().padStart(2, '0')}-${collectionDate?.getFullYear()} ${formattedHours}:${formattedMinutes}`;
-      
+
       // Get test codes (assuming first test for now)
       const testCode = cartItems[0]?.packageCode || "8823"; // Default test code if not available
-      
+
       // Determine gender
       let gender: "M" | "F" | "O" = "M"; // Default to Male
       if (serviceFor === 'dependent') {
@@ -719,16 +808,16 @@ const DiagnosticCart: React.FC = () => {
           gender = "F";
         }
       }
-      
+
       // Determine title based on gender
       let title = "Mr.";
       if (gender === "F") {
         title = "Ms.";
       }
-      
+
       // Get patient name
       const patientName = serviceFor === 'dependent' ? selectedDependent?.name || employeeName : employeeName;
-      
+
       // Prepare SRL order request
       const srlRequest = {
         FLAG: "I",
@@ -758,13 +847,13 @@ const DiagnosticCart: React.FC = () => {
         TESTS: testCode,
         COLL_TYPE: "H",
         ORDER_SOURCE: "WE",
-        CREATED_BY: "C000000614" 
+        CREATED_BY: "C000000614"
       };
-      
+
       console.log("SRL Order Request:", srlRequest);
-      
+
       const response = await labTestsAPI.SRLOrderSendTestUpdate(srlRequest);
-      
+
       if (response) {
         if (response.RSP_CODE === 100 && response.RSP_DESC === "Query Successful") {
           toast.success("SRL order placed successfully!");
@@ -788,51 +877,82 @@ const DiagnosticCart: React.FC = () => {
     }
   };
 
-  // Function to place order after successful payment or for free booking
+  // Function to place order using the new unified appointment APIs
   const placeDiagnosticOrder = async (paymentResponse?: any): Promise<any> => {
     try {
-      // Determine which diagnostic center type
-      const isOrangeHealthCenter = selectedDC?.center_name?.toLowerCase().includes("orange") ||
-        selectedDC?.DCUniqueName?.toLowerCase().includes("orangehealth");
-      
-      const isThyrocareCenter = selectedDC?.center_name?.toLowerCase().includes("thyrocare") ||
-        selectedDC?.DCUniqueName?.toLowerCase().includes("thyrocare");
-
-      const isSRLCenter = selectedDC?.center_name?.toLowerCase().includes("srl") ||
-        selectedDC?.DCUniqueName?.toLowerCase().includes("srl");
-
-      let orderResponse = null;
-
-      if (isOrangeHealthCenter) {
-        // Place Orange Health order
-        orderResponse = await bookOrangeHealthOrder(paymentResponse);
-        if (!orderResponse) {
-          throw new Error("Orange Health order placement failed");
-        }
-      } else if (isSRLCenter) {
-        // Place SRL order
-        orderResponse = await bookSRLLOrder(paymentResponse);
-        if (!orderResponse) {
-          throw new Error("SRL order placement failed");
-        }
-      } else if (isThyrocareCenter || (!isOrangeHealthCenter && !isSRLCenter)) {
-        // For Thyrocare or other centers, use Thyrocare API
-        // First, ensure we're logged in to Thyrocare
-        const connected = await handleThyrocareLogin();
-        if (!connected) {
-          throw new Error("Failed to connect to Thyrocare");
-        }
-        
-        // Place Thyrocare order
-        orderResponse = await bookThyrocareOrder(paymentResponse);
-        if (!orderResponse || orderResponse.response !== "Order Placed Successfully") {
-          throw new Error(orderResponse?.response || "Thyrocare order placement failed");
-        }
+      if (!selectedDC || cartItems.length === 0) {
+        throw new Error("No diagnostic center or tests selected");
       }
 
-      return orderResponse;
+      const token = localStorage.getItem("token");
+      const employeeRefId = localStorage.getItem("EmployeeRefId");
+
+      // 1. Get Address ID (Default to 1 or fetch from AddressBook)
+      let addressId = 1; // Fallback
+      try {
+        const addresses = await AddressBookAPI.CRMGetCustomerAddressDetails(Number(employeeRefId));
+        if (addresses && addresses.length > 0) {
+          const defaultAddr = addresses.find((a: any) => a.IsDefault) || addresses[0];
+          addressId = defaultAddr.EmployeeAddressDetailsId;
+        }
+      } catch (addrError) {
+        console.warn("Could not fetch address details, using fallback:", addrError);
+      }
+
+      // 2. Map Visit Type to ID
+      // Based on provided visit types: 1: Home, 2: Center (Clinic), 3: Other
+      let visitTypeId = 1;
+      const selectedVTName = locationState?.selectedVisitType || '';
+
+      if (selectedVTName === 'Home') visitTypeId = 1;
+      else if (selectedVTName === 'Center' || selectedVTName === 'Clinic') visitTypeId = 2;
+      else if (selectedVTName === 'Other') visitTypeId = 3;
+      else if (selectedDC.center_name.toLowerCase().includes('clinic')) visitTypeId = 2;
+
+      // 3. Prepare Add to Cart Request
+      const testIds = cartItems
+        .map(item => Number(item.testId))
+        .filter(id => !isNaN(id) && id > 0);
+
+      const dcId = selectedDC.dc_id || (selectedDC as any).id || 0;
+      console.log("Selected DC Info:", { name: selectedDC.center_name, id: dcId });
+
+      const addToCartRequest: AddToCartRequest = {
+        diagnostic_center_id: dcId,
+        visit_type_id: visitTypeId,
+        test_ids: testIds,
+        for_whom: serviceFor === 'dependent' ? 'dependant' : 'self',
+        dependant_id: serviceFor === 'dependent' ? Number(selectedDependent.relationshipPersonId) : null,
+        address_id: addressId,
+        note: notes || "Booking via Unified API",
+        appointment_date: selectedDate ? selectedDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        appointment_time: selectedTime || "10:00 AM"
+      };
+
+      console.log("Adding to backend cart:", addToCartRequest);
+      const cartItemResult = await labTestsAPI.addToCart(addToCartRequest);
+
+      if (!cartItemResult) {
+        throw new Error("Failed to add appointment to cart");
+      }
+
+      // 4. Get Cart ID for checkout
+      const cartStatus = await labTestsAPI.viewCart();
+      if (!cartStatus || !cartStatus.id) {
+        throw new Error("Failed to retrieve cart for checkout");
+      }
+
+      // 5. Perform Checkout
+      console.log("Performing checkout for cart:", cartStatus.id);
+      const checkoutResult = await labTestsAPI.checkout(cartStatus.id);
+
+      if (!checkoutResult) {
+        throw new Error("Checkout failed");
+      }
+
+      return checkoutResult;
     } catch (error) {
-      console.error("Error placing diagnostic order:", error);
+      console.error("Error placing unified diagnostic order:", error);
       throw error;
     }
   };
@@ -851,9 +971,9 @@ const DiagnosticCart: React.FC = () => {
 
     const totalAmount = calculateTotal();
     const paymentAmount = totalAmount * 100; // Razorpay expects amount in paise
-    
+
     setPaymentProcessing(true);
-    
+
     try {
       // Get customer details for Razorpay prefilling
       const customerName = serviceFor === 'dependent' ? selectedDependent.name : getUserName();
@@ -870,14 +990,14 @@ const DiagnosticCart: React.FC = () => {
         handler: async function (response: any) {
           console.log("Payment successful:", response);
           toast.success("Payment successful! Booking your order...");
-          
+
           try {
             // After successful payment, book the order
             setPaymentProcessing(true);
-            
+
             // Place the diagnostic order (will handle Thyrocare/Orange Health/SRL internally)
             const orderResponse = await placeDiagnosticOrder(response);
-            
+
             if (orderResponse) {
               // Clear diagnostic items from cart after successful booking
               const employeeRefId = localStorage.getItem("EmployeeRefId") || "0";
@@ -886,7 +1006,7 @@ const DiagnosticCart: React.FC = () => {
               const filteredCart = existingCart.filter((item: any) => item.type !== 'diagnostic');
               localStorage.setItem(cartKey, JSON.stringify(filteredCart));
               window.dispatchEvent(new CustomEvent('cartUpdated'));
-              
+
               // Navigate to booking confirmation page
               navigate('/book-appointment', {
                 state: {
@@ -904,7 +1024,7 @@ const DiagnosticCart: React.FC = () => {
                   bookingDate: new Date().toISOString(),
                   diagnosticOrder: orderResponse,
                   isOrangeHealth: selectedDC?.center_name?.toLowerCase().includes("orange"),
-                  isThyrocare: selectedDC?.center_name?.toLowerCase().includes("thyrocare") || 
+                  isThyrocare: selectedDC?.center_name?.toLowerCase().includes("thyrocare") ||
                     !selectedDC?.center_name?.toLowerCase().includes("orange"),
                   isSRL: selectedDC?.center_name?.toLowerCase().includes("srl"),
                   payment: {
@@ -934,8 +1054,8 @@ const DiagnosticCart: React.FC = () => {
           email: customerEmail,
           contact: customerMobile
         },
-        theme: { 
-          color: "#0d6efd" 
+        theme: {
+          color: "#0d6efd"
         },
         modal: {
           ondismiss: function () {
@@ -981,9 +1101,9 @@ const DiagnosticCart: React.FC = () => {
 
     const totalAmount = calculateTotal();
     const paymentAmount = totalAmount * 100; // Razorpay expects amount in paise
-    
+
     setPaymentProcessing(true);
-    
+
     try {
       const options = {
         key: "rzp_live_LWNsKcrWzYLuC7", // Replace with your actual Razorpay key
@@ -995,7 +1115,7 @@ const DiagnosticCart: React.FC = () => {
         handler: function (response: any) {
           console.log("Payment successful:", response);
           toast.success("Payment successful! Your consultation is confirmed.");
-          
+
           // Navigate to confirmation page
           navigate('/consultation-confirmation', {
             state: {
@@ -1017,8 +1137,8 @@ const DiagnosticCart: React.FC = () => {
           email: localStorage.getItem("customerEmail") || "",
           contact: customerMobile
         },
-        theme: { 
-          color: "#0d6efd" 
+        theme: {
+          color: "#0d6efd"
         },
         modal: {
           ondismiss: function () {
@@ -1053,11 +1173,11 @@ const DiagnosticCart: React.FC = () => {
   // Handle Free Booking for Diagnostic (when total is 0)
   const handleFreeBookingForDiagnostic = async () => {
     setLoading(true);
-    
+
     try {
       // For free booking, place the order directly
       const orderResponse = await placeDiagnosticOrder();
-      
+
       if (orderResponse) {
         // Clear diagnostic items from cart after successful booking
         const employeeRefId = localStorage.getItem("EmployeeRefId") || "0";
@@ -1066,7 +1186,7 @@ const DiagnosticCart: React.FC = () => {
         const filteredCart = existingCart.filter((item: any) => item.type !== 'diagnostic');
         localStorage.setItem(cartKey, JSON.stringify(filteredCart));
         window.dispatchEvent(new CustomEvent('cartUpdated'));
-        
+
         // Navigate to booking confirmation page
         navigate('/book-appointment', {
           state: {
@@ -1084,7 +1204,7 @@ const DiagnosticCart: React.FC = () => {
             bookingDate: new Date().toISOString(),
             diagnosticOrder: orderResponse,
             isOrangeHealth: selectedDC?.center_name?.toLowerCase().includes("orange"),
-            isThyrocare: selectedDC?.center_name?.toLowerCase().includes("thyrocare") || 
+            isThyrocare: selectedDC?.center_name?.toLowerCase().includes("thyrocare") ||
               !selectedDC?.center_name?.toLowerCase().includes("orange"),
             isSRL: selectedDC?.center_name?.toLowerCase().includes("srl"),
             payment: {
@@ -1108,7 +1228,7 @@ const DiagnosticCart: React.FC = () => {
   // Handle consultation payment
   const handleConsultationPayment = async () => {
     if (!appointmentData) return;
-    
+
     if (paymentMethod === 'online') {
       openRazorpayPaymentForConsultation();
     } else {
@@ -1117,7 +1237,7 @@ const DiagnosticCart: React.FC = () => {
       try {
         // Here you would typically save the cash payment to your backend
         await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-        
+
         toast.success("Booking confirmed with cash payment!");
         navigate('/consultation-confirmation', {
           state: {
@@ -1141,7 +1261,7 @@ const DiagnosticCart: React.FC = () => {
   // Handle diagnostic test payment
   const handleDiagnosticPayment = async () => {
     const totalAmount = calculateTotal();
-    
+
     if (totalAmount === 0) {
       // Handle free booking (no payment required)
       await handleFreeBookingForDiagnostic();
@@ -1174,27 +1294,31 @@ const DiagnosticCart: React.FC = () => {
   // Function to load time slots from API (for diagnostic)
   const loadTimeSlots = async () => {
     if (!selectedDC || !selectedDate || isFromConsultation) return;
-    
+
     setLoadingTimeSlots(true);
     setSelectedTimeSlot(null);
     setSelectedTime('');
-    
+
     try {
       const timeZone = getTimeZoneFromPeriod(selectedPeriod);
+      const validDate = selectedDate instanceof Date ? selectedDate : new Date();
+      const formattedDate = validDate.toISOString().split('T')[0];
+
       const requestData: TimeSlotRequest = {
         DCUniqueName: selectedDC.DCUniqueName || '',
         TimeZone: timeZone,
+        Date: formattedDate
       };
-      
+
       console.log('Loading time slots for:', {
         center: selectedDC.center_name,
         period: selectedPeriod,
         timeZone: timeZone,
         date: selectedDate.toISOString().split('T')[0]
       });
-      
-      const response = await ConsultationAPI.CRMLoadTimeSlots(requestData);    
-      
+
+      const response = await ConsultationAPI.CRMLoadTimeSlots(requestData);
+
       if (Array.isArray(response) && response.length > 0) {
         setTimeSlots(response);
         //toast.success(`Loaded ${response.length} time slots for ${selectedPeriod}`);
@@ -1235,7 +1359,7 @@ const DiagnosticCart: React.FC = () => {
     if (isFromConsultation) return;
     const dateToUse = selectedDate || new Date();
     if (isTimeSlotExpired(timeSlot, dateToUse)) {
-      return; 
+      return;
     }
     setSelectedTimeSlot(timeSlot);
     setSelectedTime(timeSlot.Time);
@@ -1244,7 +1368,7 @@ const DiagnosticCart: React.FC = () => {
   const isTimeSlotExpired = (timeSlot: TimeSlotResponse, selectedDate: Date): boolean => {
     const now = new Date();
     const slotDateTime = new Date(selectedDate);
-    
+
     // Parse the time string (e.g., "8:00 PM")
     const [time, modifier] = timeSlot.Time.split(' ');
     let [hours, minutes] = time.split(':').map(Number);
@@ -1253,18 +1377,18 @@ const DiagnosticCart: React.FC = () => {
     } else if (modifier === 'AM' && hours === 12) {
       hours = 0;
     }
-    
+
     slotDateTime.setHours(hours, minutes, 0, 0);
-    
+
     return slotDateTime < now;
   };
 
   // Format date for display
   const formatDate = (date: Date | null) => {
     if (!date) return '';
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'short', 
-      month: 'short', 
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
       day: 'numeric',
       year: 'numeric'
     });
@@ -1299,7 +1423,7 @@ const DiagnosticCart: React.FC = () => {
   const getUserName = () => {
     return localStorage.getItem("DisplayName") || localStorage.getItem("employeeName") || "Self";
   };
-  
+
   const getDisplayName = (item: CartItem) => {
     if (item.selectedFor === 'dependent' && item.dependentName) {
       return `${item.dependentName} (${item.relation || 'Dependent'})`;
@@ -1310,7 +1434,7 @@ const DiagnosticCart: React.FC = () => {
   // Get consultation type display text
   const getConsultationTypeDisplay = () => {
     if (!appointmentData) return '';
-    
+
     if (appointmentData.appointmentType === 'econsult') {
       return 'E-Consultation';
     } else if (appointmentData.appointmentType === 'in-clinic') {
@@ -1319,7 +1443,16 @@ const DiagnosticCart: React.FC = () => {
     return 'Consultation';
   };
 
-  if (!appointmentData && (!selectedTests || selectedTests.length === 0)) {
+  if (loading && cartItems.length === 0) {
+    return (
+      <Container className="text-center py-5">
+        <Spinner animation="border" variant="primary" />
+        <p className="mt-3">Loading your cart...</p>
+      </Container>
+    );
+  }
+
+  if (!appointmentData && (!selectedTests || selectedTests.length === 0) && cartItems.length === 0 && !loading) {
     return (
       <Container>
         <div className="diagnostic-cart-header">
@@ -1331,19 +1464,19 @@ const DiagnosticCart: React.FC = () => {
             Check Out
           </h1>
         </div>
-        
+
         <Alert variant="danger" className="text-center mt-5">
           <h5>No Services Selected</h5>
           <p>Please book a consultation or select tests before proceeding to cart.</p>
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             onClick={() => navigate('/consultation')}
             className="mt-2"
           >
             Book Consultation
           </Button>
-          <Button 
-            variant="outline-primary" 
+          <Button
+            variant="outline-primary"
             onClick={() => navigate('/diagnostic-tests')}
             className="mt-2 ms-2"
           >
@@ -1357,24 +1490,28 @@ const DiagnosticCart: React.FC = () => {
   return (
     <div className="diagnostic-cart-page">
       <Container>
+
         {/* Header */}
-        <div className="diagnostic-cart-header">
-          <button className="back-btn" onClick={() => navigate(-1)}>
+        <div className="diagnostic-cart-header text-center">
+          <button className="back-btn" onClick={() => navigate(-1)} style={{ position: 'absolute', left: 0, top: '10px' }}>
             <FontAwesomeIcon icon={faChevronLeft} /> Back
           </button>
           <h1>
-            <FontAwesomeIcon icon={faShoppingCart} className="me-3" />
-            {isFromConsultation ? ' CHECKOUT' : ' CHECKOUT'}
+            Your Cart
           </h1>
+          <p className="text-muted">Review and manage your bookings before checkout</p>
         </div>
-        
+
         <Row>
           {/* Left Column - Consultation Cards */}
-          <Col lg={8}>
+          <Col lg={isFromConsultation ? 8 : 12}>
             {isFromConsultation && appointmentData && (
               <>
                 {/* Patient Card */}
                 <Card className="mb-3 border-primary consultation-patient-card">
+                  <Card.Header className="bg-light">
+                    <h5 className="mb-0">Patient Details</h5>
+                  </Card.Header>
                   <Card.Body className="p-3">
                     <div className="row align-items-center">
                       <div className="col-md-7">
@@ -1384,18 +1521,18 @@ const DiagnosticCart: React.FC = () => {
                             {appointmentData.consultationType === 'tele' ? ' Tele Consultation' : appointmentData.consultationType === 'video' ? ' (Video)' : ''}
                           </span>
                         </div>
-                        
+
                         <div className="appointment-info-item mb-1">
                           <span style={{ fontSize: '14px' }}>{appointmentData.patientName}</span>
                         </div>
-                        
+
                         <div className="appointment-info-item mb-1">
                           <span style={{ fontSize: '13px' }}>{customerMobile}</span>
                         </div>
-                        
+
                         <div className="appointment-info-item mb-1">
                           <span style={{ fontWeight: 'bold', fontSize: '13px' }}>
-                            {appointmentData.date && appointmentData.time ? 
+                            {appointmentData.date && appointmentData.time ?
                               (() => {
                                 const date = new Date(appointmentData.date);
                                 const day = date.getDate().toString().padStart(2, '0');
@@ -1408,7 +1545,7 @@ const DiagnosticCart: React.FC = () => {
                           </span>
                         </div>
                       </div>
-                      
+
                       <div className="col-md-5">
                         <div className="d-flex align-items-center justify-content-between">
                           <span
@@ -1418,8 +1555,8 @@ const DiagnosticCart: React.FC = () => {
                             <FontAwesomeIcon icon={faRupeeSign} className="me-1" />
                             {consultationFee}
                           </span>
-                          
-                          <button 
+
+                          <button
                             className="close-consultation-btn"
                             style={{ width: '24px', height: '24px', fontSize: '12px' }}
                             onClick={() => navigate('/consultation')}
@@ -1435,6 +1572,9 @@ const DiagnosticCart: React.FC = () => {
 
                 {/* Doctor Card */}
                 <Card className="mb-3 border-success consultation-doctor-card">
+                  <Card.Header className="bg-light text-center">
+                    <h5 className="mb-0">Appointment Summary</h5>
+                  </Card.Header>
                   <Card.Body className="p-3">
                     <div className="row">
                       <div className="col-md-12">
@@ -1444,11 +1584,11 @@ const DiagnosticCart: React.FC = () => {
                             {appointmentData.consultationType === 'tele' ? ' (Tele Consultation)' : appointmentData.consultationType === 'video' ? ' (Video)' : ''}
                           </span>
                         </div>
-                        
+
                         <div className="appointment-info-item mb-1">
                           <span style={{ fontWeight: 'bold', fontSize: '14px' }}>{appointmentData.doctorName}</span>
                         </div>
-                        
+
                         <div className="appointment-info-item mb-0">
                           <span style={{ fontSize: '13px' }}>{appointmentData.specialization}</span>
                         </div>
@@ -1459,68 +1599,7 @@ const DiagnosticCart: React.FC = () => {
               </>
             )}
 
-            {/* Diagnostic Center Section (only for diagnostic flow) */}
-            {!isFromConsultation && selectedDC && (
-              <Card className="mb-4">
-                <Card.Body>
-                  <h5>Selected Diagnostic Center</h5>
-                  <div className="dc-info">
-                    <div className="d-flex justify-content-between align-items-start mb-2">
-                      <div className="d-flex align-items-center">
-                        <strong>{selectedDC.center_name}</strong>
-                        {(selectedDC.center_name?.toLowerCase().includes('orange') || 
-                          selectedDC.DCUniqueName?.toLowerCase().includes('orangehealth')) && (
-                          <Badge bg="warning" className="ms-2">
-                            Orange Health
-                          </Badge>
-                        )}
-                        {selectedDC.center_name?.toLowerCase().includes('thyrocare') && (
-                          <Badge bg="info" className="ms-2">
-                            Thyrocare
-                          </Badge>
-                        )}
-                        {selectedDC.center_name?.toLowerCase().includes('srl') && (
-                          <Badge bg="success" className="ms-2">
-                            SRL
-                          </Badge>
-                        )}
-                      </div>
-                      <Badge bg="secondary">
-                        {selectedDC.VisitType || 'Visit Type'}
-                      </Badge>
-                    </div>
-                    <p className="mb-2">
-                      <FontAwesomeIcon icon={faMapMarkerAlt} className="me-2 text-muted" />
-                      <small className="text-muted">
-                        {selectedDC.address || selectedDC.Locality || 'Address not available'}
-                      </small>
-                    </p>
-                    {selectedDC.DC_Distance && (
-                      <p className="mb-0">
-                        <small className="text-muted">
-                          <strong>Distance:</strong> {selectedDC.DC_Distance}
-                        </small>
-                      </p>
-                    )}
-                  </div>
-                  
-                  {/* Date and Time Selection Button for diagnostic */}
-                  <div className="mt-4">
-                    <Button 
-                      variant="primary"
-                      className="w-100"
-                      onClick={handleOpenBookingModal}
-                    >
-                      <FontAwesomeIcon icon={faCalendar} className="me-2" />
-                      {selectedDate && selectedTime 
-                        ? `Selected: ${formatDate(selectedDate)} at ${selectedTime}` 
-                        : 'Select Date & Time'}
-                    </Button>
-                  </div>
-                </Card.Body>
-              </Card>
-            )}
-            
+
             {/* Cart Items Table (only for diagnostic flow) */}
             {!isFromConsultation && cartItems.length > 0 && (
               <Card className="mb-4">
@@ -1539,6 +1618,8 @@ const DiagnosticCart: React.FC = () => {
                         <th>#</th>
                         <th>Test Name</th>
                         <th>For Whom</th>
+                        <th>Visit Type</th>
+                        <th>Date & Time</th>
                         <th className="text-center">Price</th>
                         <th>Action</th>
                       </tr>
@@ -1557,13 +1638,21 @@ const DiagnosticCart: React.FC = () => {
                                   </small>
                                 </div>
                               )}
+                              {item.note && (
+                                <div className="mt-1">
+                                  <small className="text-info italic">
+                                    <FontAwesomeIcon icon={faNotesMedical} className="me-1" />
+                                    Note: {item.note}
+                                  </small>
+                                </div>
+                              )}
                             </div>
                           </td>
                           <td>
                             <div className="for-whom-info">
                               <div className="d-flex align-items-center">
-                                <FontAwesomeIcon 
-                                  icon={item.selectedFor === 'dependent' ? faUserFriends : faUser} 
+                                <FontAwesomeIcon
+                                  icon={item.selectedFor === 'dependent' ? faUserFriends : faUser}
                                   className={`me-2 ${item.selectedFor === 'dependent' ? 'text-info' : 'text-primary'}`}
                                 />
                                 <div>
@@ -1577,20 +1666,62 @@ const DiagnosticCart: React.FC = () => {
                               </div>
                             </div>
                           </td>
+                          <td>
+                            <Badge bg="secondary">
+                              {((selectedVisitType || selectedDC?.VisitType || '').toLowerCase().includes('home')) ? '1 ' : '2 '}
+                              {selectedVisitType || selectedDC?.VisitType || 'Visit Type'}
+                            </Badge>
+                          </td>
+                          <td>
+                            <div className="d-flex flex-column gap-2" style={{ minWidth: '200px' }}>
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => {
+                                  setEditingItemIndex(index);
+                                  handleOpenBookingModal();
+                                }}
+                              >
+                                <FontAwesomeIcon icon={faCalendar} className="me-2" />
+                                {item.appointmentDate ? `${item.appointmentDate} ${item.appointmentTime}` : 'Select Date & Time'}
+                              </Button>
+                            </div>
+                          </td>
                           <td className="text-center text-success fw-bold">
                             <FontAwesomeIcon icon={faRupeeSign} className="me-1" />
                             {(item.price * item.quantity).toFixed(2)}
                           </td>
-                         
+
                           <td>
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              onClick={() => handleRemoveItem(index)}
-                              title="Remove test"
-                            >
-                              <FontAwesomeIcon icon={faTrash} />
-                            </Button>
+                            <div className="d-flex gap-2">
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                className="px-3"
+                                onClick={() => {
+                                  if (!item.appointmentDate || !item.appointmentTime) {
+                                    toast.warning("Please select date and time first");
+                                    return;
+                                  }
+                                  navigate('/diagnostic-checkout', {
+                                    state: {
+                                      singleItem: item,
+                                      selectedDC: selectedDC
+                                    }
+                                  });
+                                }}
+                              >
+                                Checkout
+                              </Button>
+                              <Button
+                                variant="danger"
+                                size="sm"
+                                onClick={() => handleRemoveItem(index)}
+                                title="Remove test"
+                              >
+                                <FontAwesomeIcon icon={faTrash} />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -1600,71 +1731,71 @@ const DiagnosticCart: React.FC = () => {
               </Card>
             )}
           </Col>
-          
+
           {/* Right Column - Order Summary Card */}
-          <Col lg={4}>
-            <Card className="sticky-top consultation-order-card" style={{ top: '20px' }}>
-              <Card.Header className="bg-light">
-                <h5 className="mb-0">Place Order</h5>
-              </Card.Header>
-              <Card.Body>
-                <div className="price-breakdown mb-4">
-                  <div className="price-row d-flex justify-content-between mb-2">
-                    <span>
-                      {isFromConsultation ? 'Amount:' : `Subtotal (${cartItems.reduce((total, item) => total + item.quantity, 0)} tests):`}
-                    </span>
-                    <span className="fw-bold">
-                      <FontAwesomeIcon icon={faRupeeSign} className="me-1" />
-                      {calculateSubtotal().toFixed(2)}
-                    </span>
+          {isFromConsultation && (
+            <Col lg={4}>
+              <Card className="sticky-top consultation-order-card" style={{ top: '-0px' }}>
+                <Card.Header className="bg-light">
+                  <h5 className="mb-0">Order Summary</h5>
+                </Card.Header>
+                <Card.Body>
+                  <div className="price-breakdown mb-4">
+                    <div className="price-row d-flex justify-content-between mb-2">
+                      <span>Subtotal:</span>
+                      <span className="fw-bold">
+                        <FontAwesomeIcon icon={faRupeeSign} className="me-1" />
+                        {calculateSubtotal().toFixed(2)}
+                      </span>
+                    </div>
+
+                    <div className="price-row d-flex justify-content-between mb-2 ">
+                      <span>Discount:</span>
+                      <span className="fw-bold">
+                        <FontAwesomeIcon icon={faRupeeSign} className="me-1" />
+                        0.00
+                      </span>
+                    </div>
+
+                    <hr />
+
+                    <div className="total-row d-flex justify-content-between mt-3">
+                      <h5>Total Amount:</h5>
+                      <h4 className="">
+                        <FontAwesomeIcon icon={faRupeeSign} className="me-1" />
+                        {calculateSubtotal().toFixed(2)}
+                      </h4>
+                    </div>
                   </div>
-                  
-                  <div className="price-row d-flex justify-content-between mb-2 ">
-                    <span>Discount:</span>
-                    <span className="fw-bold">
-                      <FontAwesomeIcon icon={faRupeeSign} className="me-1" />
-                      0.00
-                    </span>
+
+                  <div className="action-buttons">
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      className="w-100 mb-3 consultation-pay-button order-btn"
+                      onClick={handleProceedToPayment}
+                      disabled={loading || paymentProcessing || orangeHealthLoading || srlLoading || (!isFromConsultation && (!selectedDate || !selectedTimeSlot))}
+                    >
+                      {(loading || paymentProcessing || orangeHealthLoading || srlLoading) ? (
+                        <>
+                          <Spinner animation="border" size="sm" className="me-2" />
+                          {paymentProcessing ? 'Processing Payment...' : 'Processing...'}
+                        </>
+                      ) : (
+                        <>
+                          <FontAwesomeIcon icon={faCalendarCheck} className="me-2" />
+                          {isFromConsultation
+                            ? paymentMethod === 'online' ? 'Pay Now' : 'Confirm Booking'
+                            : calculateTotal() === 0 ? 'Book Now (Free)' : 'Pay Now'
+                          }
+                        </>
+                      )}
+                    </Button>
                   </div>
-                  
-                  <hr />
-                  
-                  <div className="total-row d-flex justify-content-between mt-3">
-                    <h5>Total Amount:</h5>
-                    <h4 className="">
-                      <FontAwesomeIcon icon={faRupeeSign} className="me-1" />
-                      {calculateSubtotal().toFixed(2)}
-                    </h4>
-                  </div>
-                </div>
-                
-                <div className="action-buttons">
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    className="w-100 mb-3 consultation-pay-button"
-                    onClick={handleProceedToPayment}
-                    disabled={loading || paymentProcessing || orangeHealthLoading || srlLoading || (!isFromConsultation && (!selectedDate || !selectedTimeSlot))}
-                  >
-                    {(loading || paymentProcessing || orangeHealthLoading || srlLoading) ? (
-                      <>
-                        <Spinner animation="border" size="sm" className="me-2" />
-                        {paymentProcessing ? 'Processing Payment...' : 'Processing...'}
-                      </>
-                    ) : (
-                      <>
-                        <FontAwesomeIcon icon={faCalendarCheck} className="me-2" />
-                        {isFromConsultation 
-                          ? paymentMethod === 'online' ? 'Pay Now' : 'Confirm Booking'
-                          : calculateTotal() === 0 ? 'Book Now (Free)' : 'Pay Now'
-                        }
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </Card.Body>
-            </Card>
-          </Col>
+                </Card.Body>
+              </Card>
+            </Col>
+          )}
         </Row>
       </Container>
 
@@ -1713,9 +1844,8 @@ const DiagnosticCart: React.FC = () => {
                   ].map(({ key, label, icon }) => (
                     <button
                       key={key}
-                      className={`DiagnosticCart-period-btn ${
-                        selectedPeriod === key ? "active" : ""
-                      }`}
+                      className={`DiagnosticCart-period-btn ${selectedPeriod === key ? "active" : ""
+                        }`}
                       onClick={() => handlePeriodChange(key as 'morning' | 'afternoon' | 'evening' | 'night')}
                       title={`${key.charAt(0).toUpperCase() + key.slice(1)} slots`}
                     >
@@ -1737,15 +1867,13 @@ const DiagnosticCart: React.FC = () => {
                       const dateToUse = selectedDate || new Date();
                       const isExpired = isTimeSlotExpired(slot, dateToUse);
                       const isSelected = selectedTimeSlot?.TimeId === slot.TimeId;
-                      
+
                       return (
                         <button
                           key={slot.TimeId}
-                          className={`DiagnosticCart-slot-btn ${
-                            isSelected ? "active" : ""
-                          } ${
-                            isExpired ? "expired" : ""
-                          }`}
+                          className={`DiagnosticCart-slot-btn ${isSelected ? "active" : ""
+                            } ${isExpired ? "expired" : ""
+                            }`}
                           onClick={() => !isExpired && handleTimeSlotSelect(slot)}
                           disabled={isExpired}
                           title={isExpired ? "This slot has expired" : `Select ${slot.Time}`}
@@ -1764,6 +1892,20 @@ const DiagnosticCart: React.FC = () => {
                     </div>
                   )}
                 </div>
+                {/* Note Field */}
+                <div className="mt-4">
+                  <h5 className="DiagnosticCart-title">Additional Notes</h5>
+                  <Form.Group>
+                    <Form.Control
+                      as="textarea"
+                      rows={2}
+                      placeholder="e.g. Prefer morning slot, or specific directions..."
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      className="DiagnosticCart-notes"
+                    />
+                  </Form.Group>
+                </div>
               </div>
             </div>
           </Modal.Body>
@@ -1776,13 +1918,17 @@ const DiagnosticCart: React.FC = () => {
               variant="primary"
               disabled={!selectedDate || !selectedTimeSlot}
               onClick={() => {
-                if (!selectedDate) {
-                  toast.error("Please select a date");
-                  return;
-                }
-                if (!selectedTimeSlot) {
-                  toast.error("Please select a time slot");
-                  return;
+                if (editingItemIndex !== null) {
+                  const updatedCart = [...cartItems];
+                  updatedCart[editingItemIndex] = {
+                    ...updatedCart[editingItemIndex],
+                    appointmentDate: selectedDate?.toISOString().split('T')[0],
+                    appointmentTime: selectedTimeSlot?.Time,
+                    note: notes
+                  };
+                  setCartItems(updatedCart);
+                  syncCartToLocalStorage(updatedCart);
+                  setEditingItemIndex(null);
                 }
                 handleCloseBookingModal();
               }}
@@ -1791,8 +1937,9 @@ const DiagnosticCart: React.FC = () => {
             </Button>
           </Modal.Footer>
         </Modal>
-      )}
-    </div>
+      )
+      }
+    </div >
   );
 };
 

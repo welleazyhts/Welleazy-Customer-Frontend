@@ -18,6 +18,7 @@ import LoadingSpinner from './components/LoadingSpinner/LoadingSpinner';
 
 // Pages
 import Login from './pages/login/login';
+
 import Register from './pages/Register/Register';
 import Home from './pages/Home/Home';
 import Services from './pages/Services/Services';

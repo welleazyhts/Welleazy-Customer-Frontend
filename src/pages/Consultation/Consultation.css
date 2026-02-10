@@ -74,11 +74,9 @@ section {
   width: 70px;
   height: 70px;
   border-radius: 50%;
-  background: linear-gradient(
-    135deg,
-    rgba(91, 134, 229, 0.1),
-    rgba(54, 209, 220, 0.1)
-  );
+  background: linear-gradient(135deg,
+      rgba(91, 134, 229, 0.1),
+      rgba(54, 209, 220, 0.1));
   display: flex;
   justify-content: center;
   align-items: center;
@@ -719,32 +717,32 @@ section {
     justify-content: center;
     padding: 0 10px;
   }
-  
+
   .pagination-info-consultation {
     text-align: center;
     margin-top: 10px;
     margin-left: 0;
   }
-  
+
   .pagination-number-consultation {
     min-width: 32px;
     height: 32px;
     font-size: 13px;
   }
-  
+
   .pagination-arrow-consultation {
     width: 32px;
     height: 32px;
   }
-  
+
   .doctor-cards-row {
     gap: 15px 0;
   }
-  
+
   .doctor-card-col {
     margin-bottom: 20px;
   }
-  
+
   .specialization-container {
     min-height: 50px;
   }
@@ -754,29 +752,29 @@ section {
   .pagination-numbers-consultation {
     gap: 3px;
   }
-  
+
   .pagination-number-consultation {
     min-width: 30px;
     height: 30px;
     padding: 0 6px;
     font-size: 12px;
   }
-  
+
   .pagination-arrow-consultation {
     width: 30px;
     height: 30px;
   }
-  
+
   .search-form-row {
     gap: 8px;
   }
-  
+
   .location-carousel.large-carousel {
     width: 100%;
     min-width: auto;
     gap: 20px;
   }
-  
+
   .read-more-less-btn {
     font-size: 0.75rem;
     padding: 1px 4px;
@@ -814,7 +812,8 @@ section {
   gap: 24px;
   scroll-behavior: smooth;
 }
-.welleazy-logo{
+
+.welleazy-logo {
   width: 19px;
 }
 
@@ -895,9 +894,11 @@ section {
   0% {
     transform: scale(1);
   }
+
   50% {
     transform: scale(1.05);
   }
+
   100% {
     transform: scale(1);
   }
@@ -908,9 +909,11 @@ section {
   0% {
     transform: scale(1);
   }
+
   50% {
     transform: scale(1.05);
   }
+
   100% {
     transform: scale(1);
   }
@@ -923,6 +926,7 @@ section {
   align-items: center;
   justify-content: flex-start;
 }
+
 .filter-buttons .apply-btn-consulation {
   background-color: #007bff;
   border-color: #007bff;
@@ -959,6 +963,7 @@ section {
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(108, 117, 125, 0.3);
 }
+
 /* Consultation Filter Buttons */
 .filter-buttons-consultation {
   display: flex;
@@ -1015,7 +1020,7 @@ section {
   align-items: flex-end;
 }
 
-.search-form-row > * {
+.search-form-row>* {
   flex: 1;
   min-width: 150px;
 }
@@ -1036,11 +1041,11 @@ section {
   .search-form-row {
     gap: 12px;
   }
-  
-  .search-form-row > * {
+
+  .search-form-row>* {
     min-width: 140px;
   }
-  
+
   .search-form-row .filter-buttons-consultation {
     min-width: 150px;
   }
@@ -1050,17 +1055,17 @@ section {
   .search-form-row {
     flex-direction: column;
   }
-  
-  .search-form-row > * {
+
+  .search-form-row>* {
     min-width: 100%;
     width: 100%;
   }
-  
+
   .search-form-row .filter-buttons-consultation {
     min-width: 100%;
     justify-content: center;
   }
-  
+
   .apply-btn-consultation,
   .clear-btn-consultation {
     flex: 1;
@@ -1072,7 +1077,7 @@ section {
     flex-direction: row;
     gap: 8px;
   }
-  
+
   .apply-btn-consultation,
   .clear-btn-consultation {
     padding: 10px 16px;
@@ -1104,8 +1109,10 @@ section {
   background: white;
   border-radius: 20px;
   width: 100%;
-  max-width: 900px; /* Increased from 700px */
-  height: 100vh; /* Increased height */
+  max-width: 900px;
+  /* Increased from 700px */
+  height: 100vh;
+  /* Increased height */
   max-height: 100vh;
   overflow-y: auto;
   box-shadow: 0 25px 70px rgba(0, 0, 0, 0.4);
@@ -1117,6 +1124,7 @@ section {
     opacity: 0;
     transform: translateY(-50px) scale(0.9);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -1231,11 +1239,11 @@ section {
   transition: opacity 0.3s ease;
 }
 
-.radio-input:checked + .radio-custom {
+.radio-input:checked+.radio-custom {
   border-color: #667eea;
 }
 
-.radio-input:checked + .radio-custom::after {
+.radio-input:checked+.radio-custom::after {
   opacity: 1;
 }
 
@@ -1305,7 +1313,7 @@ section {
 
 /* Patient Information Section - More Compact */
 .patient-info-section {
- margin-top: -47px;
+  margin-top: -47px;
 }
 
 .patient-info-section .row.g-3 {
@@ -1494,7 +1502,7 @@ section {
   margin-top: -29px;
 }
 
-.btn-video-consulation{
+.btn-video-consulation {
   background-color: #6c757d;
   border-color: #6c757d;
   color: white;
@@ -1507,6 +1515,7 @@ section {
   cursor: not-allowed;
   opacity: 0.7;
 }
+
 .btn-video-consulation:hover {
   background-color: #6c757d;
   border-color: #6c757d;
@@ -1515,7 +1524,7 @@ section {
   cursor: not-allowed;
 }
 
-.btn-tele-consulation{
+.btn-tele-consulation {
   background-color: white;
   border: 2px solid #ff6f00;
   color: #ff6f00;
@@ -1793,6 +1802,7 @@ section {
   padding-top: 20px;
   border-top: 1px solid #e9ecef;
 }
+
 /* Cancel Button Styling - Match Confirm Booking */
 .btn-secondary-consulation-cancel {
   padding: 10px 24px;
@@ -1804,7 +1814,8 @@ section {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
-  min-width: 154px; /* Changed from 120px to match Confirm button */
+  min-width: 154px;
+  /* Changed from 120px to match Confirm button */
 }
 
 .btn-secondary-consulation-cancel:hover {
@@ -1905,18 +1916,18 @@ section {
     height: 90vh;
     max-height: 90vh;
   }
-  
+
   .calendar-time-layout {
     flex-direction: column;
     gap: 20px;
   }
-  
+
   .calendar-side,
   .time-slots-side {
     min-width: 100%;
     width: 100%;
   }
-  
+
   .time-slots-side {
     min-height: 300px;
   }
@@ -1928,46 +1939,46 @@ section {
     padding: 20px;
     gap: 16px;
   }
-  
+
   .modal-header {
     padding: 20px;
   }
-  
+
   .patient-info-section .row.g-3 {
     flex-direction: column;
     gap: 12px;
   }
-  
+
   .patient-info-section .col-md-4 {
     width: 100%;
   }
-  
+
   .form-row {
     grid-template-columns: 1fr;
     gap: 12px;
   }
-  
+
   .file-upload-label {
     flex-direction: column;
     text-align: center;
     gap: 8px;
     padding: 20px 16px;
   }
-  
+
   .time-slots-grid {
     grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
   }
-  
+
   .time-period-tabs {
     gap: 6px;
   }
-  
+
   .time-period-tab {
     min-width: 80px;
     font-size: 0.8rem;
     padding: 8px 10px;
   }
-  
+
   .radio-buttons-container {
     flex-direction: column;
     gap: 12px;
@@ -1979,48 +1990,48 @@ section {
   .modal-overlay {
     padding: 10px;
   }
-  
+
   .modal-content {
     max-width: 100%;
     height: 95vh;
     max-height: 95vh;
     border-radius: 16px;
   }
-  
+
   .modal-header {
     padding: 16px 20px;
   }
-  
+
   .modal-title {
     font-size: 1.2rem;
   }
-  
+
   .modal-body {
     padding: 16px;
   }
-  
+
   .calendar-section {
     padding: 15px;
     min-height: 400px;
   }
-  
+
   .time-period-tabs {
     flex-direction: row;
     flex-wrap: wrap;
   }
-  
+
   .time-period-tab {
     flex: 1;
     min-width: 70px;
     font-size: 11px;
     padding: 6px 8px;
   }
-  
+
   .modal-actions {
     flex-direction: row;
     gap: 10px;
   }
-  
+
   .btn-secondary-consulation-cancel,
   .btn-primary-confirmbooking-consultation {
     width: auto;
@@ -2028,14 +2039,14 @@ section {
     padding: 10px 16px;
     font-size: 13px;
   }
-  
+
   .form-input,
   .form-select,
   .form-textarea {
     padding: 8px 12px;
     font-size: 13px;
   }
-  
+
   .form-textarea {
     min-height: 100px;
   }
@@ -2047,33 +2058,33 @@ section {
     flex-direction: column;
     gap: 8px;
   }
-  
+
   .btn-secondary-consulation-cancel,
   .btn-primary-confirmbooking-consultation {
     width: 100%;
     min-width: auto;
   }
-  
+
   .time-slots-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .time-period-tabs {
     gap: 4px;
   }
-  
+
   .time-period-tab {
     min-width: 60px;
     font-size: 10px;
     padding: 6px 4px;
   }
-  
+
   .selected-files-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
   }
-  
+
   .clear-all-btn {
     align-self: flex-end;
   }
@@ -2086,7 +2097,7 @@ section {
     background: white;
     padding: 0;
   }
-  
+
   .modal-content {
     box-shadow: none;
     border: 1px solid #ddd;
@@ -2094,17 +2105,19 @@ section {
     height: auto;
     max-height: none;
   }
-  
+
   .modal-close-btn,
   .btn-secondary-consulation-cancel {
     display: none;
   }
 }
+
 .symptoms-section {
   margin-top: -38px;
- 
+
 }
-.Upload-Reference-Report{
+
+.Upload-Reference-Report {
   margin-top: -35px;
 }
 
@@ -2303,29 +2316,29 @@ section {
     gap: 12px;
     padding: 16px;
   }
-  
+
   .file-upload-icon {
     margin-top: 0;
   }
-  
+
   .selected-files-row {
     gap: 6px;
   }
-  
+
   .file-chip {
     padding: 5px 8px;
     max-width: 120px;
   }
-  
+
   .file-chip-name {
     font-size: 11px;
   }
-  
+
   .file-chip-remove {
     width: 14px;
     height: 14px;
   }
-  
+
   .file-chip-remove svg {
     width: 5px;
     height: 5px;
@@ -2337,16 +2350,16 @@ section {
     max-width: 100px;
     padding: 4px 8px;
   }
-  
+
   .file-chip-name {
     font-size: 10px;
   }
-  
+
   .selected-files-count-badge {
     font-size: 11px;
     padding: 3px 8px;
   }
-  
+
   .clear-all-btn-inside {
     font-size: 11px;
   }
@@ -2355,7 +2368,8 @@ section {
 /* Time Period Tabs - One row without scroll */
 .time-period-tabs {
   display: grid;
-  grid-template-columns: repeat(4, 1fr); /* 4 equal columns */
+  grid-template-columns: repeat(4, 1fr);
+  /* 4 equal columns */
   gap: 8px;
   width: 100%;
   margin-bottom: 20px;
@@ -2374,8 +2388,8 @@ section {
   color: #4a5568;
   white-space: nowrap;
   text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* overflow: hidden; */
+  /* text-overflow: ellipsis; */
 }
 
 .time-period-tab:hover {
@@ -2397,7 +2411,7 @@ section {
   .time-period-tabs {
     gap: 6px;
   }
-  
+
   .time-period-tab {
     padding: 8px 6px;
     font-size: 0.85rem;
@@ -2406,17 +2420,19 @@ section {
 
 @media (max-width: 640px) {
   .time-period-tabs {
-    grid-template-columns: repeat(2, 1fr); /* 2x2 grid on mobile */
+    grid-template-columns: repeat(2, 1fr);
+    /* 2x2 grid on mobile */
     gap: 8px;
   }
 }
 
 @media (max-width: 400px) {
   .time-period-tabs {
-    grid-template-columns: 1fr; /* Stack vertically on very small screens */
+    grid-template-columns: 1fr;
+    /* Stack vertically on very small screens */
     gap: 6px;
   }
-  
+
   .time-period-tab {
     padding: 10px;
   }
@@ -2449,7 +2465,7 @@ section {
 }
 
 .Consultation-discount-badge {
-    position: absolute;
+  position: absolute;
   top: -11px;
   right: 10px;
   background-color: #ff4444;
@@ -2463,13 +2479,16 @@ section {
   z-index: 10;
   animation: pulse 2s infinite;
 }
+
 @keyframes pulse {
   0% {
     transform: scale(1);
   }
+
   50% {
     transform: scale(1.05);
   }
+
   100% {
     transform: scale(1);
   }
@@ -2484,7 +2503,7 @@ section {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, transparent 0%, rgba(0,0,0,0.1) 100%);
+  background: linear-gradient(135deg, transparent 0%, rgba(0, 0, 0, 0.1) 100%);
   z-index: -1;
 }
 
@@ -2578,10 +2597,13 @@ section {
 }
 
 .doctor-card-col {
-  margin-bottom: 24px; /* Space between rows */
+  margin-bottom: 24px;
+  /* Space between rows */
   padding-left: 8px;
-  padding-right: 8px; /* Space between columns */
+  padding-right: 8px;
+  /* Space between columns */
 }
+
 .read-more-less-btn {
   background: none;
   border: none;
@@ -2595,6 +2617,7 @@ section {
   text-underline-offset: 2px;
   transition: color 0.2s ease;
 }
+
 .read-more-btn:hover {
   color: #e55100;
   text-decoration: underline;
@@ -2603,7 +2626,7 @@ section {
 
 
 .apply-buttons-consultation {
-     background: transparent linear-gradient(180deg, #E64E15 0%, #E9950B 100%) 0% 0% no-repeat padding-box;
+  background: transparent linear-gradient(180deg, #E64E15 0%, #E9950B 100%) 0% 0% no-repeat padding-box;
   color: white;
   border: none;
   padding: 10px 24px;
@@ -2616,7 +2639,7 @@ section {
 }
 
 .apply-buttons-consultation:hover {
-     background: transparent linear-gradient(180deg, #E64E15 0%, #E9950B 100%) 0% 0% no-repeat padding-box;
+  background: transparent linear-gradient(180deg, #E64E15 0%, #E9950B 100%) 0% 0% no-repeat padding-box;
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(91, 134, 229, 0.35);
 }
@@ -2669,25 +2692,27 @@ section {
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+
   .apply-buttons-consultation,
   .clear-buttons-consultation {
     padding: 8px 20px;
     font-size: 0.9rem;
   }
-  
+
   .button-group {
     gap: 10px;
   }
 }
 
 @media (max-width: 480px) {
+
   .apply-buttons-consultation,
   .clear-buttons-consultation {
     padding: 8px 16px;
     font-size: 0.85rem;
     width: 100%;
   }
-  
+
   .button-group {
     flex-direction: column;
     gap: 8px;
@@ -2794,8 +2819,13 @@ section {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideUp {
@@ -2803,6 +2833,7 @@ section {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -2833,6 +2864,7 @@ section {
   display: flex;
   gap: 8px;
 }
+
 .add-dependent-btn {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
@@ -2847,6 +2879,7 @@ section {
   transition: all 0.3s ease;
   flex-shrink: 0;
 }
+
 .add-dependent-btn:hover {
   background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
   transform: translateY(-2px);
@@ -2915,12 +2948,10 @@ section {
   .dependent-select-with-button {
     flex-direction: column;
   }
-  
+
   .add-dependent-btn {
     width: 100%;
     height: 36px;
     margin-top: 5px;
   }
 }
-
-

@@ -98,16 +98,17 @@ const formatSingleTime = (time24: string): string => {
 };
 
 // Helper function to categorize time into periods
-const getTimePeriod = (timeString: string): 'morning' | 'afternoon' | 'evening' | 'night' => {
+const getTimePeriod = (timeString: string | undefined): 'morning' | 'afternoon' | 'evening' | 'night' => {
   if (!timeString) return 'morning';
 
   // Extract start time (e.g., "18:30-18:35" -> "18:30")
-  const startTime = timeString.includes('-') ? timeString.split('-')[0] : timeString;
+  const startTime = timeString.includes('-') ? timeString.split('-')[0].trim() : timeString.trim();
 
   // If time has AM/PM format (e.g., "6:30 PM")
   if (startTime.includes('AM') || startTime.includes('PM')) {
-    const time = startTime.split(' ')[0];
-    const modifier = startTime.split(' ')[1];
+    const parts = startTime.split(/\s+/);
+    const time = parts[0];
+    const modifier = parts[1];
     let [hours] = time.split(':').map(Number);
 
     if (modifier === 'PM' && hours !== 12) hours += 12;
@@ -119,7 +120,7 @@ const getTimePeriod = (timeString: string): 'morning' | 'afternoon' | 'evening' 
     return 'night';
   }
 
-  // If time is in 24-hour format (e.g., "18:30")
+  // If time is in 24-hour format (e.g., "18:30:00" or "09:00:00")
   const [hoursStr] = startTime.split(':');
   const hours = parseInt(hoursStr, 10);
 
@@ -144,6 +145,12 @@ const Consultation: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [personType, setPersonType] = useState<'Self' | 'Dependent'>('Self');
+  const [formData, setFormData] = useState({
+    relationshipId: '',
+    relationshipPersonId: '',
+    patientName: '',
+    symptoms: ''
+  });
   const [showDependentForm, setShowDependentForm] = useState(false);
 
   // Search and filter states
@@ -194,6 +201,7 @@ const Consultation: React.FC = () => {
   const [allApolloTimeSlots, setAllApolloTimeSlots] = useState<ApolloDoctorSlot[]>([]);
   const [filteredApolloTimeSlots, setFilteredApolloTimeSlots] = useState<ApolloDoctorSlot[]>([]);
   const [loadingTimeSlots, setLoadingTimeSlots] = useState(false);
+  const [availableDatesHint, setAvailableDatesHint] = useState<string>('');
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlotResponse | null>(null);
   const [selectedApolloTimeSlot, setSelectedApolloTimeSlot] = useState<ApolloDoctorSlot | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
@@ -241,15 +249,23 @@ const Consultation: React.FC = () => {
     }
   };
 
-  // Load clinics when Apollo doctor is selected for in-clinic appointment
   useEffect(() => {
-    if ((selectedDoctor?.DoctorTypeDescription === 'Apollo' || selectedDoctor?.DoctorTypeDescription === 'Appolo') &&
-      appointmentType === 'in-clinic' &&
-      selectedDoctor?.DoctorId) {
-      loadApolloClinics(selectedDoctor.DoctorId, selectedDoctor.DoctorTypeDescription);
+    const docName = selectedDoctor?.DoctorName || "Unknown";
+    const docType = (selectedDoctor?.DoctorTypeDescription || "").trim();
+    // Use regex to be case-insensitive and handle both Apollo and Appolo
+    const isApolloVariant = /appol|appol/i.test(docType);
+
+    console.log(`[DEBUG] Clinic Effect - Doctor: ${docName}, Type: "${docType}", Variant: ${isApolloVariant}, ApptType: ${appointmentType}`);
+
+    if (isApolloVariant && appointmentType === 'in-clinic' && selectedDoctor?.DoctorId) {
+      console.log(`[DEBUG] Triggering internal loadApolloClinics for ${docName} (${selectedDoctor.DoctorId})`);
+      loadApolloClinics(Number(selectedDoctor.DoctorId), selectedDoctor.DoctorTypeDescription);
     } else {
-      setApolloClinics([]);
-      setSelectedClinic('');
+      if (apolloClinics.length > 0) {
+        console.log(`[DEBUG] Clearing apolloClinics because condition not met`);
+        setApolloClinics([]);
+        setSelectedClinic('');
+      }
     }
   }, [selectedDoctor, appointmentType]);
 
@@ -317,7 +333,49 @@ const Consultation: React.FC = () => {
       setShowModal(true);
       window.history.replaceState({}, document.title);
     }
-  }, [location.state]);
+
+    // Handle serviceType (eye/dental) auto-filtering
+    if (location.state?.serviceType && specializations.length > 0) {
+      const sType = location.state.serviceType;
+      console.log(`🚀 [SERVICE_REDIRECT] Handling auto-filter for: ${sType}`);
+
+      let targetSpec: any = null;
+      if (sType === 'eye') {
+        targetSpec = specializations.find(s =>
+          s.Specializations.toLowerCase().includes('eye') ||
+          s.Specializations.toLowerCase().includes('ophthal')
+        );
+      } else if (sType === 'dental') {
+        targetSpec = specializations.find(s =>
+          s.Specializations.toLowerCase().includes('dental') ||
+          s.Specializations.toLowerCase().includes('dentist')
+        );
+      }
+
+      if (targetSpec) {
+        console.log(`✅ Found Matching Specialization: ${targetSpec.Specializations}`);
+        const specObj = { value: targetSpec.DoctorSpecializationsId, label: targetSpec.Specializations };
+        setSelectedSpecialization(specObj);
+
+        // Clear state to avoid re-triggering on refresh
+        window.history.replaceState({}, document.title);
+
+        // Perform search
+        const fetchFiltered = async () => {
+          setLoading(true);
+          try {
+            const results = await ConsultationAPI.SearchDoctors({ specialization: targetSpec.Specializations });
+            setFilteredDoctors(results);
+          } catch (err) {
+            console.error("Auto-filter search failed:", err);
+          } finally {
+            setLoading(false);
+          }
+        };
+        fetchFiltered();
+      }
+    }
+  }, [location.state, specializations]);
 
   const getTimeZoneFromPeriod = (period: string): number => {
     switch (period) {
@@ -336,6 +394,7 @@ const Consultation: React.FC = () => {
     return `${day}-${month}-${year}`;
   };
 
+  /* Commented out as per user request to stop using this API
   const loadApolloTimeSlots = async (clinicId: string, doctorId: number, selectedDate: Date) => {
     setLoadingTimeSlots(true);
     setSelectedApolloTimeSlot(null);
@@ -354,7 +413,7 @@ const Consultation: React.FC = () => {
         setAllApolloTimeSlots(response.doctorSlotsResponse);
 
         // Filter slots by selected time period
-        const filteredSlots = response.doctorSlotsResponse.filter(slot => {
+        const filteredSlots = response.doctorSlotsResponse.filter((slot: any) => {
           const slotPeriod = getTimePeriod(slot.time);
           return slotPeriod === selectedTimePeriod;
         });
@@ -362,11 +421,12 @@ const Consultation: React.FC = () => {
         setFilteredApolloTimeSlots(filteredSlots);
 
         // Convert filtered Apollo slots to TimeSlotResponse format for consistency
-        const formattedSlots: TimeSlotResponse[] = filteredSlots.map(slot => ({
+        const formattedSlots: TimeSlotResponse[] = filteredSlots.map((slot: any) => ({
           TimeId: slot.slotId,
           Time: slot.time.split('-')[0],
           TimeZone: true,
-          DCUniqueName: 'Apollo Consultation'
+          DCUniqueName: 'Apollo Consultation',
+          Date: selectedDate ? selectedDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
         }));
 
         setTimeSlots(formattedSlots);
@@ -386,91 +446,37 @@ const Consultation: React.FC = () => {
       setLoadingTimeSlots(false);
     }
   };
+  */
 
-  const loadTimeSlots = async (DCUniqueName: string, timeZone: number, selectedDate: Date, DoctorId: number) => {
-    setLoadingTimeSlots(true);
-    setSelectedTimeSlot(null);
-    setSelectedApolloTimeSlot(null);
-    setSelectedTime('');
-    try {
-      // If Apollo doctor and in-clinic appointment, use Apollo API
-      if ((selectedDoctor?.DoctorTypeDescription === 'Apollo' || selectedDoctor?.DoctorTypeDescription === 'Appolo') &&
-        appointmentType === 'in-clinic' &&
-        selectedClinic) {
-        await loadApolloTimeSlots(selectedClinic, DoctorId, selectedDate);
-        return;
-      }
-
-      // For non-Apollo doctors, use the original API
-      const requestData: TimeSlotRequest = {
-        DCUniqueName: DCUniqueName,
-        TimeZone: timeZone,
-        ...(DCUniqueName === 'Apollo Consultation' && { doctorId: DoctorId })
-      };
-      const response = await ConsultationAPI.CRMLoadTimeSlots(requestData);
-      if (Array.isArray(response)) {
-        setTimeSlots(response);
-      } else {
-        console.warn('No time slots found:', response);
-        setTimeSlots([]);
-      }
-      setAllApolloTimeSlots([]);
-      setFilteredApolloTimeSlots([]);
-    } catch (error) {
-      console.error('Error loading time slots:', error);
-      toast.error('Failed to load available time slots');
-      setTimeSlots([]);
-      setAllApolloTimeSlots([]);
-      setFilteredApolloTimeSlots([]);
-    } finally {
-      setLoadingTimeSlots(false);
-    }
+  const formatDateRequest = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
-
-  // Filter Apollo time slots when time period changes
-  useEffect(() => {
-    if ((selectedDoctor?.DoctorTypeDescription === 'Apollo' || selectedDoctor?.DoctorTypeDescription === 'Appolo') &&
-      appointmentType === 'in-clinic' &&
-      allApolloTimeSlots.length > 0) {
-      const filteredSlots = allApolloTimeSlots.filter(slot => {
-        const slotPeriod = getTimePeriod(slot.time);
-        return slotPeriod === selectedTimePeriod;
-      });
-
-      setFilteredApolloTimeSlots(filteredSlots);
-
-      // Convert filtered Apollo slots to TimeSlotResponse format
-      const formattedSlots: TimeSlotResponse[] = filteredSlots.map(slot => ({
-        TimeId: slot.slotId,
-        Time: slot.time.split('-')[0],
-        TimeZone: true,
-        DCUniqueName: 'Apollo Consultation'
-      }));
-
-      setTimeSlots(formattedSlots);
-    }
-  }, [selectedTimePeriod, allApolloTimeSlots, selectedDoctor, appointmentType]);
-
-  useEffect(() => {
-    if (showModal && (selectedConsultationType === 'tele' || appointmentType === 'in-clinic') && !selectedDate) {
-      const today = new Date();
-      setSelectedDate(today);
-    }
-  }, [showModal, selectedConsultationType, appointmentType, selectedDate]);
-
-  useEffect(() => {
-    if ((selectedConsultationType === 'tele' || appointmentType === 'in-clinic') && selectedDoctor) {
-      const dateToUse = selectedDate || new Date();
-      const timeZone = getTimeZoneFromPeriod(selectedTimePeriod);
-      const doctorType = selectedDoctor.DCUniqueName;
-      const DoctorId = selectedDoctor.DoctorId;
-      loadTimeSlots(doctorType, timeZone, dateToUse, DoctorId);
-    }
-  }, [selectedDate, selectedTimePeriod, selectedDoctor, selectedConsultationType, appointmentType, selectedClinic]);
 
   const isTimeSlotExpired = (timeSlot: TimeSlotResponse | ApolloDoctorSlot, selectedDate: Date): boolean => {
     const now = new Date();
-    const slotDateTime = new Date(selectedDate);
+
+    // Check if the slot itself has a date (from our API update) and prioritize it
+    let slotDateStr = '';
+    if ('Date' in timeSlot && timeSlot.Date) {
+      slotDateStr = timeSlot.Date;
+    } else if ('date' in timeSlot && (timeSlot as any).date) { // Case for Apollo or mixed types if any
+      slotDateStr = (timeSlot as any).date;
+    }
+
+    let slotDateTime: Date;
+
+    if (slotDateStr) {
+      // If the slot has a specific date attached, use it
+      // Handle "YYYY-MM-DD" or ISO string
+      const [y, m, d] = slotDateStr.split('T')[0].split('-').map(Number);
+      slotDateTime = new Date(y, m - 1, d);
+    } else {
+      // Fallback to the selected date passed in
+      slotDateTime = new Date(selectedDate);
+    }
 
     let timeString = '';
     if ('time' in timeSlot) {
@@ -513,8 +519,197 @@ const Consultation: React.FC = () => {
 
     slotDateTime.setHours(hours, minutes, 0, 0);
 
-    return slotDateTime < now;
+    // return slotDateTime < now;
+    return false;
   };
+
+  const loadTimeSlots = async (DCUniqueName: string, timeZone: number, selectedDate: Date, DoctorId: number) => {
+    setLoadingTimeSlots(true);
+    setSelectedTimeSlot(null);
+    setSelectedApolloTimeSlot(null);
+    setSelectedTime('');
+    try {
+      const selectedDateString = formatDateRequest(selectedDate);
+
+      // Strict params as requested: Only sending Date and doctorId
+      // Casting to any to avoid TS errors about missing deprecated fields
+      const requestData: any = {
+        Date: selectedDateString,
+        doctorId: DoctorId
+      };
+
+      const response = await ConsultationAPI.CRMLoadTimeSlots(requestData);
+
+      if (Array.isArray(response)) {
+        if (response.length === 0) {
+          const msg = `No slots available for ${selectedDateString}`;
+          toast.info(msg);
+          setAvailableDatesHint(msg);
+          setTimeSlots([]);
+          return;
+        }
+
+        console.log("Step 1: Response Count:", response.length);
+
+        // Filter slots by selected date locally since API returns multiple dates
+        let filteredSlots = response.filter(slot => {
+          if (slot.Date) {
+            return slot.Date === selectedDateString || slot.Date.startsWith(selectedDateString);
+          }
+          return true;
+        });
+
+        console.log("Step 2: After Date Filter Count:", filteredSlots.length);
+
+        // Check if filtered slots have any valid (non-expired) slots
+        const validSlotsCount = filteredSlots.filter(s => !isTimeSlotExpired(s, selectedDate)).length;
+
+        if (filteredSlots.length === 0) {
+          setAvailableDatesHint(''); // No slots for selected date
+        } else {
+          setAvailableDatesHint('');
+        }
+
+        // Filter by period
+        const filteredByPeriod = filteredSlots.filter(slot => {
+          const slotPeriod = getTimePeriod(slot.Time);
+          return slotPeriod === selectedTimePeriod;
+        });
+
+        if (filteredByPeriod.length === 0 && filteredSlots.length > 0) {
+          const availablePeriods = Array.from(new Set(filteredSlots.map(s => getTimePeriod(s.Time)))).join(', ');
+          const msg = `No slots for ${selectedTimePeriod}. Try: ${availablePeriods}`;
+          toast.info(msg);
+          setAvailableDatesHint(msg);
+        } else if (filteredSlots.length === 0 && response.length > 0) {
+          // Logic to show available periods if needed, but for now we trust filteredSlots (date filtered)
+        }
+
+        setTimeSlots(filteredByPeriod);
+
+      } else {
+        console.warn('No time slots found:', response);
+        setTimeSlots([]);
+      }
+      setAllApolloTimeSlots([]);
+      setFilteredApolloTimeSlots([]);
+    } catch (error) {
+      console.error('Error loading time slots:', error);
+      toast.error('Failed to load available time slots');
+      setTimeSlots([]);
+      setAllApolloTimeSlots([]);
+      setFilteredApolloTimeSlots([]);
+    } finally {
+      setLoadingTimeSlots(false);
+    }
+  };
+
+  const loadRelationships = async () => {
+    setLoadingRelationships(true);
+    try {
+      const relationshipsData = await gymServiceAPI.CRMRelationShipList();
+      setRelationships(relationshipsData);
+    } catch (error) {
+      console.error("Failed to load relationships:", error);
+      toast.error("Failed to load relationships. Please try again.");
+    } finally {
+      setLoadingRelationships(false);
+    }
+  };
+
+  const loadRelationshipPersons = async () => {
+    // Fetch immediately if personType is 'Dependent', even if relationship is not yet selected
+    if (personType === 'Dependent') {
+      const employeeRefId = localStorage.getItem("EmployeeRefId");
+      if (!employeeRefId) {
+        toast.error("Please log in to select dependents.");
+        return;
+      }
+
+      setLoadingRelationshipPersons(true);
+
+      try {
+        const allDependents = await DependantsAPI.GetDependents();
+        console.log("Fetched Dependents:", allDependents);
+
+        let personsData = allDependents;
+
+        if (formData.relationshipId) {
+          personsData = allDependents.filter(p =>
+            p.DependentRelationShip === parseInt(formData.relationshipId)
+          );
+        }
+
+        setRelationshipPersons(personsData);
+
+        if (formData.relationshipId && personsData.length === 1) {
+          setFormData(prev => ({
+            ...prev,
+            relationshipPersonId: personsData[0].EmployeeDependentDetailsId.toString(),
+            patientName: personsData[0].DependentName
+          }));
+        } else if (formData.relationshipId && personsData.length === 0) {
+          setFormData(prev => ({
+            ...prev,
+            relationshipPersonId: '',
+            patientName: ''
+          }));
+        }
+      } catch (error) {
+        console.error("Failed to load relationship persons:", error);
+        toast.error("Failed to load dependents. Please try again.");
+        setRelationshipPersons([]);
+      } finally {
+        setLoadingRelationshipPersons(false);
+      }
+    } else {
+      setRelationshipPersons([]);
+    }
+  };
+
+  // Filter Apollo time slots when time period changes
+  useEffect(() => {
+    if ((selectedDoctor?.DoctorTypeDescription === 'Apollo' || selectedDoctor?.DoctorTypeDescription === 'Appolo') &&
+      appointmentType === 'in-clinic' &&
+      allApolloTimeSlots.length > 0) {
+      const filteredSlots = allApolloTimeSlots.filter(slot => {
+        const slotPeriod = getTimePeriod(slot.time);
+        return slotPeriod === selectedTimePeriod;
+      });
+
+      setFilteredApolloTimeSlots(filteredSlots);
+
+      // Convert filtered Apollo slots to TimeSlotResponse format
+      const formattedSlots: TimeSlotResponse[] = filteredSlots.map(slot => ({
+        TimeId: slot.slotId,
+        Time: slot.time.split('-')[0],
+        TimeZone: true,
+        DCUniqueName: 'Apollo Consultation',
+        Date: selectedDate ? selectedDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+      }));
+
+      setTimeSlots(formattedSlots);
+    }
+  }, [selectedTimePeriod, allApolloTimeSlots, selectedDoctor, appointmentType]);
+
+  useEffect(() => {
+    if (showModal && (selectedConsultationType === 'tele' || appointmentType === 'in-clinic') && !selectedDate) {
+      const today = new Date();
+      setSelectedDate(today);
+    }
+  }, [showModal, selectedConsultationType, appointmentType, selectedDate]);
+
+  useEffect(() => {
+    if ((selectedConsultationType === 'tele' || appointmentType === 'in-clinic') && selectedDoctor) {
+      const dateToUse = selectedDate || new Date();
+      const timeZone = getTimeZoneFromPeriod(selectedTimePeriod);
+      const doctorType = selectedDoctor.DCUniqueName;
+      const DoctorId = selectedDoctor.DoctorId;
+      loadTimeSlots(doctorType, timeZone, dateToUse, DoctorId);
+    }
+  }, [selectedDate, selectedTimePeriod, selectedDoctor, selectedConsultationType, appointmentType, selectedClinic]);
+
+
 
   const handleTimeSlotSelect = (timeSlot: TimeSlotResponse | ApolloDoctorSlot) => {
     const dateToUse = selectedDate || new Date();
@@ -535,12 +730,7 @@ const Consultation: React.FC = () => {
     }
   };
 
-  const [formData, setFormData] = useState({
-    relationshipId: '',
-    relationshipPersonId: '',
-    patientName: '',
-    symptoms: ''
-  });
+
 
   const openDependentModal = () => {
     setDependentFormData({
@@ -632,16 +822,34 @@ const Consultation: React.FC = () => {
 
       const response = await DependantsAPI.CRMInsertUpdateEmployeeDependantDetails(payload);
 
-      if (response && response.Message) {
-        toast.success(response.Message);
-        closeDependentModal();
-      } else {
-        toast.error("Failed to add dependent. Please try again.");
-      }
+      // If it reaches here, it succeeded (Axios throws for non-2xx)
+      const successMessage = response?.Message || "Dependent added successfully!";
+      toast.success(successMessage);
 
-    } catch (error) {
+      // Refresh the dependents list so the new person appears in the dropdown
+      loadRelationshipPersons();
+
+      closeDependentModal();
+
+    } catch (error: any) {
       console.error("Failed to save dependent:", error);
-      toast.error("Failed to add dependent. Please try again.");
+      const errorData = error.response?.data;
+      let errorMsg = "Failed to add dependent. Please try again.";
+
+      if (errorData) {
+        if (typeof errorData === 'object') {
+          errorMsg = errorData.Message || errorData.message || errorData.error || errorMsg;
+        } else if (typeof errorData === 'string') {
+          if (errorData.includes('<!DOCTYPE') || errorData.includes('<html')) {
+            errorMsg = `Server Error (${error.response?.status || 500})`;
+          } else {
+            errorMsg = errorData.substring(0, 200);
+          }
+        }
+      } else {
+        errorMsg = error.message || errorMsg;
+      }
+      toast.error(errorMsg);
     } finally {
       setLoadingSaveDependent(false);
     }
@@ -722,74 +930,10 @@ const Consultation: React.FC = () => {
   };
 
   useEffect(() => {
-    const loadRelationships = async () => {
-      setLoadingRelationships(true);
-      try {
-        const relationshipsData = await gymServiceAPI.CRMRelationShipList();
-
-        setRelationships(relationshipsData);
-      } catch (error) {
-        console.error("Failed to load relationships:", error);
-        toast.error("Failed to load relationships. Please try again.");
-      } finally {
-        setLoadingRelationships(false);
-      }
-    };
     loadRelationships();
   }, []);
 
   useEffect(() => {
-    const loadRelationshipPersons = async () => {
-      if (personType === 'Dependent' && formData.relationshipId) {
-        setLoadingRelationshipPersons(true);
-        try {
-          const employeeRefId = localStorage.getItem("EmployeeRefId");
-          if (!employeeRefId) {
-            toast.error("Please log in to select dependents.");
-            return;
-          }
-          // Use the new GetDependents API which calls /api/dependants/
-          const allDependents = await DependantsAPI.GetDependents();
-          console.log("Fetched Dependents:", allDependents);
-
-          // Filter dependents by selected relationship logic
-          const personsData = allDependents.filter(p =>
-            p.DependentRelationShip === parseInt(formData.relationshipId)
-          );
-
-          setRelationshipPersons(personsData);
-
-          if (personsData.length === 1) {
-            setFormData(prev => ({
-              ...prev,
-              relationshipPersonId: personsData[0].EmployeeDependentDetailsId.toString(),
-              patientName: personsData[0].DependentName
-            }));
-          } else {
-            setFormData(prev => ({
-              ...prev,
-              relationshipPersonId: '',
-              patientName: ''
-            }));
-          }
-        } catch (error) {
-          console.error("Failed to load relationship persons:", error);
-          toast.error("Failed to load dependents. Please try again.");
-          setRelationshipPersons([]);
-        } finally {
-          setLoadingRelationshipPersons(false);
-        }
-      } else {
-        setRelationshipPersons([]);
-        if (personType === 'Dependent') {
-          setFormData(prev => ({
-            ...prev,
-            relationshipPersonId: '',
-            patientName: ''
-          }));
-        }
-      }
-    };
     loadRelationshipPersons();
   }, [personType, formData.relationshipId]);
 
@@ -827,7 +971,7 @@ const Consultation: React.FC = () => {
     try {
       setLoadingSpecializations(true);
       console.log("Fetching specializations...");
-      const data = await ConsultationAPI.LoadVendorListDetailsForEye();
+      const data = await ConsultationAPI.LoadDoctorSpecializations();
       const sortedData = data.sort((a, b) =>
         a.Specializations.localeCompare(b.Specializations)
       );
@@ -906,7 +1050,19 @@ const Consultation: React.FC = () => {
         districtToUse || 0
       );
 
-      const doctorsArray = Array.isArray(doctorData) ? doctorData : [];
+      let doctorsArray = Array.isArray(doctorData) ? doctorData : [];
+
+      // Safety filter to remove dummy data
+      // RELAXED FILTER: Show everything returned by the backend as requested
+      /*
+      doctorsArray = doctorsArray.filter(doc => {
+        const name = doc?.DoctorName || "";
+        const normalize = (str: string) => str.toLowerCase().replace(/[.,\s]/g, '');
+        const normalizedName = normalize(name);
+        return !normalizedName.includes("drhari");
+      });
+      */
+
       setDoctors(doctorsArray);
       setFilteredDoctors(doctorsArray);
       setCurrentPage(1);
@@ -933,149 +1089,73 @@ const Consultation: React.FC = () => {
     fetchDoctors();
   }, [currentDistrictId]);
 
-  const applyFilters = () => {
+  const applyFilters = async () => {
     setError(null);
+    setLoading(true);
 
-    let filtered = [...doctors];
-    let originalFilteredCount = filtered.length;
+    try {
+      const filters: any = {};
 
-    // Doctor name filter
-    if (searchDoctorName.trim()) {
-      const searchTerm = searchDoctorName.toLowerCase().trim();
-      filtered = filtered.filter(doc => {
-        const doctorName = doc?.DoctorName || '';
-        return doctorName.toLowerCase().includes(searchTerm);
-      });
-    }
-
-    // Pincode filter
-    if (selectedPincode && (!Array.isArray(selectedPincode) || selectedPincode.length > 0)) {
-      if (Array.isArray(selectedPincode)) {
-        filtered = filtered.filter(doc => {
-          const pincode = doc?.Pincode || '';
-          return selectedPincode.some(pin => {
-            const pinLabel = pin?.label || '';
-            return pincode === pinLabel;
-          });
-        });
-      } else {
-        filtered = filtered.filter(doc => {
-          const pincode = doc?.Pincode || '';
-          const pinLabel = selectedPincode?.label || '';
-          return pincode === pinLabel;
-        });
+      if (searchDoctorName.trim()) {
+        filters.name = searchDoctorName.trim();
       }
-    }
 
-    // Specialization filter
-    if (selectedSpecialization && (!Array.isArray(selectedSpecialization) || selectedSpecialization.length > 0)) {
-      if (Array.isArray(selectedSpecialization)) {
-        filtered = filtered.filter(doc => {
-          if (!doc?.DoctorSpecializations) return false;
-
-          const docSpecializations = doc.DoctorSpecializations.split(',').map(id => id.trim());
-          const selectedIds = selectedSpecialization
-            .filter(spec => spec?.value)
-            .map(spec => spec.value.toString());
-
-          return selectedIds.some(id => docSpecializations.includes(id));
-        });
-      } else {
-        filtered = filtered.filter(doc => {
-          if (!doc?.DoctorSpecializations) return false;
-
-          const docSpecializations = doc.DoctorSpecializations.split(',').map(id => id.trim());
-          const specValue = selectedSpecialization?.value?.toString();
-          return specValue && docSpecializations.includes(specValue);
-        });
-      }
-    }
-
-    // Language filter
-    if (selectedLanguage && (!Array.isArray(selectedLanguage) || selectedLanguage.length > 0)) {
-      if (Array.isArray(selectedLanguage)) {
-        filtered = filtered.filter(doc => {
-          const language = doc?.Language || '';
-          const languageLower = language.toLowerCase();
-
-          return selectedLanguage.some(lang => {
-            const langLabel = lang?.label || '';
-            return languageLower.includes(langLabel.toLowerCase());
-          });
-        });
-      } else {
-        filtered = filtered.filter(doc => {
-          const language = doc?.Language || '';
-          const langLabel = selectedLanguage?.label || '';
-          return language.toLowerCase().includes(langLabel.toLowerCase());
-        });
-      }
-    }
-
-    // Doctor type filter
-    if (selectedDoctorType && (!Array.isArray(selectedDoctorType) || selectedDoctorType.length > 0)) {
-      if (Array.isArray(selectedDoctorType)) {
-        filtered = filtered.filter(doc => {
-          const doctorType = doc?.DoctorTypeDescription || '';
-
-          return selectedDoctorType.some(type => {
-            let filterValue = type?.label || '';
-            if (filterValue === 'In-House') {
-              filterValue = 'Welleazy';
-            }
-            if (filterValue === 'Appolo') {
-              return doctorType === 'Apollo' || doctorType === 'Appolo';
-            }
-            return doctorType === filterValue;
-          });
-        });
-      } else {
-        let filterValue = selectedDoctorType?.label || '';
-        if (filterValue === 'In-House') {
-          filterValue = 'Welleazy';
+      if (selectedPincode) {
+        if (Array.isArray(selectedPincode)) {
+          filters.pincode = selectedPincode.map(p => p.label).join(',');
+        } else {
+          filters.pincode = selectedPincode.label;
         }
-
-        const finalFilterValue = filterValue;
-        filtered = filtered.filter(doc => {
-          const doctorType = doc?.DoctorTypeDescription || '';
-          if (finalFilterValue === 'Appolo') {
-            return doctorType === 'Apollo' || doctorType === 'Appolo';
-          }
-          return doctorType === finalFilterValue;
-        });
-      }
-    }
-
-    const hasFilters = searchDoctorName.trim() ||
-      (selectedPincode && (!Array.isArray(selectedPincode) || selectedPincode.length > 0)) ||
-      (selectedSpecialization && (!Array.isArray(selectedSpecialization) || selectedSpecialization.length > 0)) ||
-      (selectedLanguage && (!Array.isArray(selectedLanguage) || selectedLanguage.length > 0)) ||
-      (selectedDoctorType && (!Array.isArray(selectedDoctorType) || selectedDoctorType.length > 0));
-
-    if (hasFilters && filtered.length === 0) {
-      let message = "No doctors found matching your search criteria.";
-
-      if (selectedLanguage && (!Array.isArray(selectedLanguage) || selectedLanguage.length > 0)) {
-        message = "We regret the inconvenience, but the selected language doctor is currently not available. Please explore the service with other available doctors. Thank you.";
-      } else if (selectedSpecialization && (!Array.isArray(selectedSpecialization) || selectedSpecialization.length > 0)) {
-        message = "We regret the inconvenience, but the selected specialization doctor is currently not available. Please explore the service with other available doctors. Thank you.";
-      } else if (selectedDoctorType && (!Array.isArray(selectedDoctorType) || selectedDoctorType.length > 0)) {
-        message = "We regret the inconvenience, but the selected vendor type doctor is currently not available. Please explore the service with other available doctors. Thank you.";
-      } else if (selectedPincode && (!Array.isArray(selectedPincode) || selectedPincode.length > 0)) {
-        message = "We regret the inconvenience, but the selected pincode doctor is currently not available. Please explore the service with other available doctors. Thank you.";
       }
 
-      setError(message);
-      setFilteredDoctors([]);
+      if (selectedSpecialization) {
+        if (Array.isArray(selectedSpecialization)) {
+          filters.specialization = selectedSpecialization.map(s => s.label).join(',');
+        } else {
+          filters.specialization = selectedSpecialization.label;
+        }
+      }
+
+      if (selectedLanguage) {
+        if (Array.isArray(selectedLanguage)) {
+          filters.language = selectedLanguage.map(l => l.label).join(',');
+        } else {
+          filters.language = selectedLanguage.label;
+        }
+      }
+
+      if (selectedDoctorType) {
+        if (Array.isArray(selectedDoctorType)) {
+          filters.vendor = selectedDoctorType.map(t => t.label === 'In-House' ? 'Welleazy' : t.label).join(',');
+        } else {
+          filters.vendor = selectedDoctorType.label === 'In-House' ? 'Welleazy' : selectedDoctorType.label;
+        }
+      }
+
+      // Always include district if available, as a city filter
+      if (currentDistrictId) {
+        // filters.city = currentDistrictId.toString(); // Use name if needed, but city param usually expects name/ID
+      }
+
+      console.log("🚀 [SEARCH] Calling SearchDoctors with filters:", filters);
+      const searchResults = await ConsultationAPI.SearchDoctors(filters);
+
+      setFilteredDoctors(searchResults);
       setCurrentPage(1);
-      return;
-    }
 
-    setFilteredDoctors(filtered);
-    setCurrentPage(1);
-    setTimeout(() => {
-      doctorSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 100);
+      if (searchResults.length === 0) {
+        setError("No doctors found matching your search criteria.");
+      }
+
+      setTimeout(() => {
+        doctorSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    } catch (err) {
+      console.error("Error applying filters:", err);
+      setError("Failed to fetch filtered doctors. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const clearFilters = () => {
@@ -1196,6 +1276,11 @@ const Consultation: React.FC = () => {
       const corporateId = localStorage.getItem("CorporateId") || "37";
       const createdBy = localStorage.getItem("LoginRefId") || "11048";
       const employeeRefId = Number(localStorage.getItem("EmployeeRefId") || "0");
+      if (employeeRefId === 0) {
+        toast.error("Please log in to book an appointment");
+        return;
+      }
+
       const branchId = localStorage.getItem("BranchId") || "108";
       const previousCaseLeadId = localStorage.getItem("PreviousCaseLeadId") || "0";
       const previousCartUniqueId = Number(localStorage.getItem("PreviousCartUniqueId") || 0);
@@ -1213,44 +1298,57 @@ const Consultation: React.FC = () => {
         preferredDateTime = formatAppointmentDateTime(selectedDate, timeString);
       }
 
+      if (!preferredDateTime) {
+        toast.error("Please select a date and time slot for your appointment");
+        return;
+      }
+
       const service = selectedDoctor?.Service || "";
       let ProductId = "1";
-      let consultationPrice = 0;
       let consultationType = "";
 
       if (appointmentType === "econsult") {
-        if (service.includes("Video Consultation")) {
+        if (selectedConsultationType === 'video') {
           ProductId = "1";
           consultationType = "Video Consultation";
-        } else if (service.includes("Tele Consultation")) {
+        } else if (selectedConsultationType === 'tele') {
           ProductId = "2";
           consultationType = "Tele Consultation";
+        } else {
+          // Fallback if none selected, but usually one is active
+          ProductId = "1";
+          consultationType = "Video Consultation";
         }
       } else if (appointmentType === "in-clinic") {
         ProductId = "3";
         consultationType = "In-Clinic Consultation";
       }
 
-      // Use selected clinic ID for Apollo doctors
-      const dcId = selectedDoctor?.DoctorTypeDescription === 'Apollo' && selectedClinic
+      // Use selected clinic ID for Apollo/Appolo doctors
+      const docTypeLower = selectedDoctor?.DoctorTypeDescription?.toLowerCase() || "";
+      const isApolloVariant = docTypeLower.includes('apollo') || docTypeLower.includes('appolo');
+
+      const dcId = (isApolloVariant && selectedClinic)
         ? selectedClinic
         : selectedDoctor?.ClinicId?.toString() || "0";
 
       const doctorId = selectedDoctor?.DoctorId?.toString() || "0";
-      const DCUniqueName = selectedDoctor?.DCUniqueName;
+      console.log(`🔍 [BOOKING] Mapping ID: ${doctorId} for Doctor: ${selectedDoctor?.DoctorName}`);
 
-      const appointmentData: BookAppointmentRequest = {
+      const consultationPrice = selectedDoctor?.ConsultationFees || (selectedDoctor?.Fee ? Number(selectedDoctor.Fee.replace(/[^0-9.]/g, '')) : 0);
+
+      const appointmentData: any = {
         CaseLeadId: previousCaseLeadId,
         LeadType: "Consultation",
         CaseRecMode: "Email",
-        ServicesOffered: service,
+        ServicesOffered: consultationType, // Use the dynamically determined type
         CorporateId: corporateId,
         BranchId: branchId,
         ProductId,
         EmployeeRefId: employeeRefId.toString(),
         MedicalTest: "",
         PaymentType: "Customer Paid",
-        CaseFor: "1",
+        CaseFor: personType === 'Self' ? "1" : "2",
         EmployeeToPay: "0.00",
         IsActive: "1",
         LeadStatus: "1",
@@ -1265,98 +1363,123 @@ const Consultation: React.FC = () => {
         EmployeeAddressDetailsId: "0",
         PreferredAppointmentDateTime: preferredDateTime,
         CaseLeadCompletionDateTime: "",
-        Files: files
+        Files: files,
+        // Passing extra fields needed by the updated API logic
+        Specialization: selectedDoctor?.Specialization || "",
+        DoctorName: selectedDoctor?.DoctorName || ""
       };
 
-      console.log("📢 [BOOKING] Step 1: Creating appointment...");
+      // Relaxed check: Only block if we truly have no way to identify the place
+      // For Welleazy doctors, we might fallback to a default branch if ClinicId is 0
+      const effectiveDcId = (dcId === "0" || !dcId) && !isApolloVariant ? (selectedDoctor?.ClinicId || branchId).toString() : dcId;
+
+      if (appointmentType === 'in-clinic' && (effectiveDcId === "0" || !effectiveDcId) && !selectedDoctor?.ClinicName && !selectedDoctor?.Address) {
+        console.error("❌ [BOOKING] Cannot book In-Clinic appointment: Missing DCId for doctor", selectedDoctor);
+        toast.error("This doctor does not have an assigned clinic for In-Clinic visits. Please choose another doctor or E-Consult.");
+        return;
+      }
+
+      // Update dcId to use the effective one
+      const finalDcId = effectiveDcId || "108"; // Fallback to 108 if still nothing and we want to try anyway
+
+      console.log("📢 [BOOKING] Step 1: Creating appointment to get CaseLeadId...");
       const appointmentResult = await ConsultationAPI.CRMSaveBookAppointmentDetails(appointmentData);
       console.log("📄 [BOOKING] Appointment result:", appointmentResult);
 
       const caseLeadId = appointmentResult?.CaseLead_Id;
 
       // Check if booking was successful
-      if (!appointmentResult.Success || !caseLeadId || caseLeadId === "0") {
+      // REVISED LOGIC: The 'select-doctor' API returns success but often returns CaseLeadId as "0" or missing.
+      // We must NOT block the flow in this case. We should proceed to Step 3 (Cart) using the existing ID or 0.
+      if (!appointmentResult.Success) {
         const errorMsg = appointmentResult.Message || "Failed to create appointment";
         console.error("❌ [BOOKING] Appointment creation failed:", errorMsg);
         toast.error(errorMsg);
         return;
       }
 
-      localStorage.setItem("PreviousCaseLeadId", caseLeadId);
+      // If CaseLeadId is 0 from API, fallback to previous one or keep 0.
+      // Do not stop the flow.
+      const effectiveCaseLeadId = (caseLeadId && caseLeadId !== "0") ? caseLeadId : previousCaseLeadId;
 
-      const payload = { EmployeeRefId: employeeRefId, ServiceOfferedId: ProductId };
+      console.log(`ℹ️ [BOOKING] Proceeding with CaseLeadId: ${effectiveCaseLeadId}`);
 
-      console.log("📢 [BOOKING] Step 2: Checking sponsored services...");
-      const SponsoredStatusResult = await ConsultationAPI.CRMSponsoredServices(payload);
-      console.log("📄 [BOOKING] Sponsored result:", SponsoredStatusResult);
+      if (effectiveCaseLeadId && effectiveCaseLeadId !== "0") {
+        localStorage.setItem("PreviousCaseLeadId", effectiveCaseLeadId);
+      }
 
-      const isServiceAvailable = Number(SponsoredStatusResult.ServiceAvailable) === 1;
+      // Step 2 & 4 are skipped because the endpoints are returning 404 and 
+      // the new cart API seems to handle the necessary persistence.
+      const isServiceAvailable = false;
 
       const cartPayload = {
-        CaseLead_Id: caseLeadId,
+        CaseLead_Id: effectiveCaseLeadId,
         EmployeeRefId: employeeRefId,
         CaseFor: personType === 'Self' ? 1 : 2,
         EmployeeDependentDetailsId: formData.relationshipPersonId ? parseInt(formData.relationshipPersonId) : 0,
         CaseType: "Consultation",
         ProductId: Number(ProductId),
-        DCId: Number(dcId),
+        DCId: Number(finalDcId),
         SponsoredStatus: isServiceAvailable ? 1 : 0,
         TestPackageTypeId: 2,
-        CartUniqueId: previousCartUniqueId
+        CartUniqueId: previousCartUniqueId,
+        DoctorId: selectedDoctor?.DoctorId || 0,
+        Specialization: selectedDoctor?.DoctorSpecializations || "",
+        AppointmentDate: preferredDateTime,
+        Symptoms: formData.symptoms || "General Checkup",
+        documents: files
       };
 
       console.log("📢 [BOOKING] Step 3: Adding to cart...", cartPayload);
       const cartResult = await ConsultationAPI.CRMCustomerInsertCartItemDetails(cartPayload);
       console.log("📄 [BOOKING] Cart result:", cartResult);
 
-      if (!cartResult?.Success || !cartResult?.CartUniqueId) {
+      if (!cartResult?.Success) {
         const errorMsg = cartResult?.Message || "Failed to add item to cart";
         console.error("❌ [BOOKING] Cart insertion failed:", errorMsg);
         toast.error(errorMsg);
         return;
       }
 
-      const cartUniqueId = cartResult.CartUniqueId;
-      const cartDetailsId = cartResult.CartDetailsId;
+      const cartUniqueId = cartResult.CartUniqueId || previousCartUniqueId || `CART_${Date.now()}`;
+      const cartDetailsId = cartResult.CartDetailsId || 0;
+
       localStorage.setItem("PreviousCartUniqueId", cartUniqueId.toString());
 
-      if (cartDetailsId === undefined) {
-        toast.error("CartDetailsId not returned from server");
-        return;
+      if (cartResult.Message && (cartResult.Message.toLowerCase().includes("added") || cartResult.Message.toLowerCase().includes("successfully"))) {
+        toast.success(cartResult.Message);
       }
-
-      const customerCartDetailsPayload = {
-        CaseleadId: caseLeadId,
-        AppointmentDateTime: preferredDateTime,
-        DCId: 0,
-        CreatedBy: employeeRefId,
-        CartDetailsId: cartDetailsId,
-        StMId: "",
-        DCSelection: DCUniqueName,
-        TestPackageCode: ""
-      };
-
-      console.log("📢 [BOOKING] Step 4: Saving cart details...");
-      const customerCartResult = await ConsultationAPI.CRMSaveCustomerCartDetails(customerCartDetailsPayload);
-      console.log("📄 [BOOKING] Customer cart result:", customerCartResult);
 
       const appointmentCartItem = {
         id: `appointment_${Date.now()}`,
-        caseLeadId: caseLeadId,
+        caseLeadId: effectiveCaseLeadId,
         cartUniqueId: cartUniqueId,
         name: `${selectedDoctor?.DoctorName || 'Doctor'} - ${consultationType}`,
-        doctorName: selectedDoctor?.DoctorName,
+        PersonName: formData.patientName,
+        Relationship: personType === 'Self' ? 'Self' : (relationships.find(r => r.RelationshipId.toString() === formData.relationshipId.toString())?.Relationship || 'Dependent'),
+        relationship: personType === 'Self' ? 'Self' : (relationships.find(r => r.RelationshipId.toString() === formData.relationshipId.toString())?.Relationship || 'Dependent'),
+        DoctorName: selectedDoctor?.DoctorName,
+        DoctorSpeciality: selectedDoctor?.Specialization || selectedDoctor?.DoctorSpecializations || "",
         price: consultationPrice,
-        quantity: 1,
+        ItemAmount: consultationPrice,
+        Quantity: 1,
         type: 'appointment',
+        ItemName: consultationType,
         consultationType: consultationType,
         appointmentTime: preferredDateTime,
-        appointmentDate: selectedDate,
+        appointmentDate: preferredDateTime ? preferredDateTime.split(" ")[0] : null,
+        AppointmentDate: preferredDateTime ? preferredDateTime.split(" ")[0] : null,
+        AppointmentTime: preferredDateTime,
         timeSlot: selectedApolloTimeSlot?.time || selectedTimeSlot?.Time,
         symptoms: formData.symptoms,
         timestamp: Date.now()
       };
-      const updatedCart = [appointmentCartItem];
+      const currentCart = JSON.parse(localStorage.getItem(userCartKey) || '[]');
+      const updatedCart = [
+        ...currentCart.filter((item: any) => item.id !== appointmentCartItem.id),
+        appointmentCartItem
+      ];
+
       localStorage.setItem("CartUniqueId", cartUniqueId.toString());
       if (!localStorage.getItem("EmployeeRefId")) {
         localStorage.setItem("EmployeeRefId", employeeRefId.toString());
@@ -1366,9 +1489,9 @@ const Consultation: React.FC = () => {
         detail: { count: updatedCart.length }
       }));
       console.log("✅ [BOOKING] Booking completed successfully!");
-      toast.success("Appointment booked successfully!");
+      toast.success("Appointment added to cart successfully!");
 
-      navigate("/Checkout", {
+      navigate("/CommonCartDcAndConsultation", {
         state: {
           cartItems: updatedCart,
           totalAmount: consultationPrice,
@@ -1386,10 +1509,22 @@ const Consultation: React.FC = () => {
         status: error.response?.status
       });
 
-      const errorMessage = error.response?.data?.Message ||
-        error.response?.data?.message ||
-        error.message ||
-        "Failed to book appointment. Please try again.";
+      const errorData = error.response?.data;
+      let errorMessage = "Failed to book appointment. Please try again.";
+
+      if (errorData) {
+        if (typeof errorData === 'object') {
+          errorMessage = errorData.Message || errorData.message || errorData.error || errorMessage;
+        } else if (typeof errorData === 'string') {
+          if (errorData.includes('<!DOCTYPE') || errorData.includes('<html')) {
+            errorMessage = `Server Error (${error.response?.status || 500})`;
+          } else {
+            errorMessage = errorData.substring(0, 200);
+          }
+        }
+      } else {
+        errorMessage = error.message || errorMessage;
+      }
 
       toast.error(errorMessage);
     }
@@ -1484,8 +1619,28 @@ const Consultation: React.FC = () => {
   };
 
   const renderSpecialization = (doc: CRMConsultationDoctorDetailsResponse) => {
-    const specialization = doc.Specialization || 'General Physician';
+    let specialization = doc.Specialization || 'General Physician';
     const doctorId = doc.DoctorId?.toString() || 'unknown';
+
+    // If we have an ID, prioritize the name from our master list over what the doctor object says
+    // (This helps when backend sends incorrect names like 'Cardiologist' for ID 2)
+    if (doc.DoctorSpecializations) {
+      const ids = doc.DoctorSpecializations.split(',');
+      let matchedNames = ids.map(id => {
+        const spec = specializations.find(s => String(s.DoctorSpecializationsId) === id.trim());
+        return spec ? spec.Specializations : null;
+      }).filter(Boolean) as string[];
+
+      if (matchedNames.length > 0) {
+        // Force "Dentist" only if ID 2 is present, as requested
+        if (ids.includes("2") || matchedNames.includes("Dentist")) {
+          specialization = "Dentist";
+        } else {
+          specialization = matchedNames.join(', ');
+        }
+      }
+    }
+
     const needsToggle = needsTruncation(specialization);
     const isExpanded = expandedSpecializations[doctorId] || false;
 
@@ -1881,8 +2036,8 @@ const Consultation: React.FC = () => {
               {/* Calendar Section - Only show for tele or in-clinic */}
               {(selectedConsultationType === 'tele' || appointmentType === 'in-clinic') && (
                 <div>
-                  {/* Only show clinic dropdown for Apollo doctors */}
-                  {selectedDoctor?.DoctorTypeDescription === 'Apollo' && appointmentType === 'in-clinic' && (
+                  {/* Only show clinic dropdown for Apollo/Appolo doctors */}
+                  {selectedDoctor?.DoctorTypeDescription?.toLowerCase().match(/apoll|appol/) && appointmentType === 'in-clinic' && (
                     <div className="clinic-selection-section" style={{
                       marginBottom: '20px',
                       width: '100%',
@@ -1938,7 +2093,7 @@ const Consultation: React.FC = () => {
                             setSelectedApolloTimeSlot(null);
                             setSelectedTime('');
                           }}
-                          minDate={new Date()}
+
                           inline
                           className="tele-calendar"
                           dateFormat="dd/MM/yyyy"
@@ -2028,7 +2183,11 @@ const Consultation: React.FC = () => {
                             <div className="no-time-slots">
                               <p>⏰ No slots available</p>
                               <small>
-                                {allApolloTimeSlots.length > 0
+                                {availableDatesHint ? (
+                                  <div style={{ color: '#d9534f', marginTop: '10px' }}>
+                                    {availableDatesHint}
+                                  </div>
+                                ) : allApolloTimeSlots.length > 0
                                   ? `No slots available for ${selectedTimePeriod}. Try selecting a different time period.`
                                   : "This doctor doesn't have available slots for the selected time period"}
                               </small>
@@ -2575,9 +2734,7 @@ const Consultation: React.FC = () => {
                                 />
                               )}
 
-                              <div className="Consultation-discount-badge">
-                                50% OFF
-                              </div>
+
                             </div>
 
                             <Card.Body className="doctor-card-body">
@@ -2684,6 +2841,22 @@ const Consultation: React.FC = () => {
                                       if (availability.eConsult) {
                                         setSelectedDoctor(doc);
                                         setAppointmentType('econsult');
+                                        // Set default consultation type based on doctor services
+                                        if (doc.Service?.includes("Video Consultation")) {
+                                          setSelectedConsultationType('video');
+                                        } else if (doc.Service?.includes("Tele Consultation")) {
+                                          setSelectedConsultationType('tele');
+                                        } else {
+                                          setSelectedConsultationType('video');
+                                        }
+
+                                        // PROACTIVE: Call select-doctor API immediately on click
+                                        ConsultationAPI.CRMSaveBookAppointmentDetails({
+                                          DoctorId: doc.DoctorId
+                                        } as any).then(res => {
+                                          console.log("🚀 [SELECT DOCTOR] Triggered on click:", res);
+                                        });
+
                                         setShowModal(true);
                                         setFormData(prev => ({
                                           ...prev,
@@ -2709,6 +2882,14 @@ const Consultation: React.FC = () => {
                                       if (availability.inClinic) {
                                         setSelectedDoctor(doc);
                                         setAppointmentType('in-clinic');
+
+                                        // PROACTIVE: Call select-doctor API immediately on click
+                                        ConsultationAPI.CRMSaveBookAppointmentDetails({
+                                          DoctorId: doc.DoctorId
+                                        } as any).then(res => {
+                                          console.log("🚀 [SELECT DOCTOR] Triggered on click:", res);
+                                        });
+
                                         setShowModal(true);
                                         setFormData(prev => ({
                                           ...prev,

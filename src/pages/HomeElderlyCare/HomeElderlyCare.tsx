@@ -8,6 +8,8 @@ import { CustomerProfile, State, District, Relationship, RelationshipPerson } fr
 import { toast } from "react-toastify";
 import { HomeElderlyCareAPI } from '../../api/HomeElderlyCare';
 import { HomeElderlyCareCaseDetails } from '../../types/HomeElderlyCare';
+import { MangeProfileApi } from '../../api/MangeProfile';
+import { useAuth } from '../../context/AuthContext';
 
 const locations = [
   'Bangalore/Bengaluru',
@@ -99,25 +101,15 @@ const statesData = [
   'Uttar Pradesh'
 ];
 
-const cities = {
-  'Karnataka': ['Bangalore', 'Mysore', 'Hubli', 'Mangalore'],
-  'Maharashtra': ['Mumbai', 'Pune', 'Nagpur', 'Nashik'],
-  'Delhi': ['New Delhi', 'North Delhi', 'South Delhi'],
-  'Telangana': ['Hyderabad', 'Warangal', 'Nizamabad'],
-  'Tamil Nadu': ['Chennai', 'Coimbatore', 'Madurai'],
-  'West Bengal': ['Kolkata', 'Howrah', 'Durgapur'],
-  'Gujarat': ['Ahmedabad', 'Surat', 'Vadodara'],
-  'Rajasthan': ['Jaipur', 'Jodhpur', 'Udaipur'],
-  'Uttar Pradesh': ['Lucknow', 'Kanpur', 'Varanasi']
-};
-
 const HomeElderlyCare: React.FC = () => {
   const [location, setLocation] = useState('Bangalore/Bengaluru');
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [locationCarouselIndex, setLocationCarouselIndex] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const { user } = useAuth();
   const [selectedCard, setSelectedCard] = useState<number | null>(null);
+  const [hasPreFilled, setHasPreFilled] = useState(false); // Track if form was pre-filled for current modal
   const [selectedServiceId, setSelectedServiceId] = useState<number>(1); // Track selected service ID
 
   const [loadingProfile, setLoadingProfile] = useState(false);
@@ -174,6 +166,23 @@ const HomeElderlyCare: React.FC = () => {
     if (serviceId) {
       setSelectedServiceId(serviceId);
     }
+
+    // Pre-fill form with profile data if it exists and type is Self
+    if (appointmentType === 'Self' && customerProfile) {
+      setFormData(prev => ({
+        ...prev,
+        name: customerProfile.EmployeeName || '',
+        contactNumber: customerProfile.MobileNo || '',
+        email: customerProfile.Emailid || '',
+        address: customerProfile.Address || '',
+        stateId: customerProfile.StateId?.toString() || '',
+        districtId: customerProfile.CityId?.toString() || '',
+        state: customerProfile.StateName || '',
+        district: customerProfile.DistrictName || '',
+        city: customerProfile.DistrictName || ''
+      }));
+    }
+
     setShowAppointmentModal(true);
   };
 
@@ -198,12 +207,16 @@ const HomeElderlyCare: React.FC = () => {
       relationshipPersonId: ''
     });
     setAppointmentType('Self');
+    setHasPreFilled(false);
     setSubmitting(false);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    
+
+    // Once user interacts with form, stop auto-filling
+    setHasPreFilled(true);
+
     if (name === 'appointmentType') {
       setAppointmentType(value);
       // Reset dependent fields when switching between self and dependent
@@ -213,7 +226,14 @@ const HomeElderlyCare: React.FC = () => {
           membershipType: 'self',
           relationshipId: '',
           relationshipPersonId: '',
-          name: customerProfile?.EmployeeName || ''
+          name: customerProfile?.EmployeeName || '',
+          contactNumber: customerProfile?.MobileNo || '',
+          email: customerProfile?.Emailid || '',
+          address: customerProfile?.Address || '',
+          stateId: customerProfile?.StateId?.toString() || '',
+          districtId: customerProfile?.CityId?.toString() || '',
+          state: customerProfile?.StateName || '',
+          district: customerProfile?.DistrictName || '',
         }));
       } else {
         setFormData(prev => ({
@@ -221,7 +241,14 @@ const HomeElderlyCare: React.FC = () => {
           membershipType: 'dependent',
           relationshipId: '',
           relationshipPersonId: '',
-          name: ''
+          name: '',
+          contactNumber: '',
+          email: '',
+          address: '',
+          stateId: '',
+          districtId: '',
+          state: '',
+          district: '',
         }));
       }
     } else {
@@ -233,10 +260,14 @@ const HomeElderlyCare: React.FC = () => {
   };
 
   const handleStateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const { name, value } = e.target;
+    // Once user interacts with form, stop auto-filling
+    setHasPreFilled(true);
+    const { value } = e.target;
+    const selectedState = states.find(s => s.StateId.toString() === value);
     setFormData(prev => ({
       ...prev,
-      [name]: value,
+      stateId: value,
+      state: selectedState ? selectedState.StateName : '',
       city: '', // Reset city when state changes
       district: '', // Reset district when state changes
       districtId: '' // Reset districtId when state changes
@@ -244,13 +275,14 @@ const HomeElderlyCare: React.FC = () => {
   };
 
   const handleDistrictChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const { name, value } = e.target;
+    const { value } = e.target;
     const selectedDistrict = districts.find(d => d.DistrictId.toString() === value);
     setFormData(prev => ({
       ...prev,
-      [name]: value,
+      districtId: value,
       district: selectedDistrict ? selectedDistrict.DistrictName : '',
-      districtId: value
+      city: selectedDistrict ? selectedDistrict.DistrictName : '',
+      districtName: selectedDistrict ? selectedDistrict.DistrictName : '',
     }));
   };
 
@@ -267,7 +299,7 @@ const HomeElderlyCare: React.FC = () => {
   const handleRelationshipPersonChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { value } = e.target;
     const selectedPerson = relationshipPersons.find(p => p.EmployeeDependentDetailsId.toString() === value);
-    
+
     setFormData(prev => ({
       ...prev,
       relationshipPersonId: value,
@@ -277,33 +309,33 @@ const HomeElderlyCare: React.FC = () => {
 
   const handleSubmitAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Basic validation
     if (!formData.name.trim()) {
       toast.error("Please enter your name");
       return;
     }
-    
+
     if (!formData.contactNumber.trim()) {
       toast.error("Please enter your contact number");
       return;
     }
-    
+
     if (!formData.email.trim()) {
       toast.error("Please enter your email");
       return;
     }
-    
+
     if (!formData.stateId) {
       toast.error("Please select your state");
       return;
     }
-    
+
     if (!formData.districtId) {
       toast.error("Please select your district");
       return;
     }
-    
+
     if (!formData.address.trim()) {
       toast.error("Please enter your address");
       return;
@@ -311,49 +343,61 @@ const HomeElderlyCare: React.FC = () => {
 
     setSubmitting(true);
 
-    const corporateId = localStorage.getItem("CorporateId") || "0";
-    const createdBy = localStorage.getItem("LoginRefId") || "0";
-    const employeeRefId = localStorage.getItem("EmployeeRefId") || "0";
-
-    // Prepare the case data with the selected service ID
-    const caseData: HomeElderlyCareCaseDetails = {
-      CorporateId: Number(corporateId),
-      CareProgramCaseId: "",
-      CorporateBranchId: 5, // Default branch ID
-      EmployeeRefId: Number(employeeRefId),
-      EmployeeDependentDetailsId: appointmentType === "Dependant" && formData.relationshipPersonId 
-        ? Number(formData.relationshipPersonId) 
-        : 0,
-      CaseFor: appointmentType === "Self" ? 1 : 2,
-      CustomerName: formData.name.trim(),
-      ContactNumber: formData.contactNumber.trim(),
-      EmailId: formData.email.trim(),
-      State: Number(formData.stateId),
-      City: Number(formData.districtId),
-      Address: formData.address.trim(),
-      CareProgramId: selectedServiceId, // Use the selected service ID
-      CaseStatus: 1, // New case status
-      IsActive: 1,
-      Requirements: formData.requirements.trim(),
-      CreatedBy: Number(createdBy),
+    const serviceTypeMap: { [key: number]: string } = {
+      1: "elderly_care_attendant",  // Corrected from 'elderly_care_attendance'
+      2: "elderly_care_program",
+      3: "home_nursing"
     };
 
-    console.log("Submitting case data:", caseData); // For debugging
-    console.log("Selected Service ID:", selectedServiceId); // For debugging
+    const payload: any = {
+      for_whom: appointmentType === "Self" ? "self" : "dependant",
+      service_type: serviceTypeMap[selectedServiceId],
+      requirements: formData.requirements.trim() || "Full day attendant",
+      request_type: "callback",
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      contact_number: formData.contactNumber.trim(),
+      address_text: formData.address.trim(),
+      state: parseInt(formData.stateId),
+      city: parseInt(formData.districtId || "0")
+    };
+
+    if (appointmentType === "Dependant" && formData.relationshipPersonId) {
+      payload.dependant = parseInt(formData.relationshipPersonId);
+    }
+
+    console.log("Submitting new Care Program payload:", payload);
 
     try {
-      const response = await HomeElderlyCareAPI.HEPSaveCareProgramsCaseDetails(caseData);
-      
-      if (response && response.Message) {
+      const response = await HomeElderlyCareAPI.CRMCreateCareProgramBooking(payload);
+
+      if (response && (response.Message || response.message)) {
         toast.success("We have received your request, Our team will get back to you soon");
-        handleCloseAppointmentModal();
       } else {
         toast.success("Appointment request submitted successfully!");
-        handleCloseAppointmentModal();
       }
+      handleCloseAppointmentModal();
     } catch (error: any) {
       console.error("Failed to submit appointment:", error);
-      toast.error(error?.response?.data?.Message || "Failed to submit appointment. Please try again.");
+      console.error("Error Response Data:", error.response?.data);
+
+      let errorMsg = "Failed to submit appointment. Please try again.";
+      if (error?.response?.data) {
+        if (typeof error.response.data === 'string') {
+          errorMsg = error.response.data;
+        } else if (error.response.data.detail) {
+          errorMsg = error.response.data.detail;
+        } else if (error.response.data.Message) {
+          errorMsg = error.response.data.Message;
+        } else if (Object.keys(error.response.data).length > 0) {
+          // Join all field errors
+          const fieldErrors = Object.entries(error.response.data)
+            .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
+            .join(' | ');
+          if (fieldErrors) errorMsg = fieldErrors;
+        }
+      }
+      toast.error(errorMsg);
     } finally {
       setSubmitting(false);
     }
@@ -367,6 +411,85 @@ const HomeElderlyCare: React.FC = () => {
     setLocationCarouselIndex(prev => prev >= locationData.length - LOCATIONS_VISIBLE ? 0 : prev + 1);
   };
 
+  // Load user profile on mount
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      // Check all possible locations for the User ID
+      const storedUser = localStorage.getItem("user");
+      let employeeRefId = user?.employeeRefId;
+
+      if (!employeeRefId && storedUser) {
+        try {
+          const parsed = JSON.parse(storedUser);
+          employeeRefId = parsed.employeeRefId || parsed.EmployeeRefId || parsed.id;
+        } catch (e) { }
+      }
+
+      if (!employeeRefId) {
+        employeeRefId = Number(localStorage.getItem("employeeRefId") || localStorage.getItem("EmployeeRefId"));
+      }
+
+      if (employeeRefId) {
+        setLoadingProfile(true);
+        try {
+          const profile = await MangeProfileApi.CRMLoadCustomerProfileDetails(Number(employeeRefId));
+          // Handle potential array or object response
+          const profileData = Array.isArray(profile) ? profile[0] : profile;
+          if (profileData && Object.keys(profileData).length > 0) {
+            setCustomerProfile(profileData);
+            console.log("Verified customer profile loaded:", profileData);
+          }
+        } catch (error) {
+          console.error("Failed to load customer profile:", error);
+        } finally {
+          setLoadingProfile(false);
+        }
+      }
+    };
+    fetchUserProfile();
+  }, [user]);
+
+  // AUTO PRE-FILL: Sync formData with real profile data
+  useEffect(() => {
+    // Only pre-fill if:
+    // 1. Modal is open
+    // 2. We haven't pre-filled yet for this modal session
+    // 3. Type is 'Self'
+    if (showAppointmentModal && !hasPreFilled && appointmentType === 'Self') {
+
+      // Data Source 1: The customerProfile state (from API)
+      // Data Source 2: Direct localStorage fallbacks if API hasn't landed yet
+      const profile = customerProfile;
+      const lsName = localStorage.getItem("employeeName") || localStorage.getItem("EmployeeName");
+      const lsEmail = localStorage.getItem("email") || localStorage.getItem("Emailid");
+      const lsMobile = localStorage.getItem("mobile") || localStorage.getItem("MobileNo") || localStorage.getItem("mobile");
+      const lsAddress = localStorage.getItem("address") || localStorage.getItem("Address");
+      const lsStateId = localStorage.getItem("StateId");
+      const lsCityId = localStorage.getItem("CityId");
+
+      if (profile || lsName || lsEmail || lsMobile || lsAddress) {
+        console.log("Auto-populating form with available profile data...");
+        setFormData(prev => ({
+          ...prev,
+          name: profile?.EmployeeName || lsName || prev.name || '',
+          email: profile?.Emailid || lsEmail || prev.email || '',
+          contactNumber: profile?.MobileNo || lsMobile || prev.contactNumber || '',
+          address: profile?.Address || lsAddress || prev.address || '',
+          stateId: profile?.StateId?.toString() || lsStateId || prev.stateId || '',
+          districtId: profile?.CityId?.toString() || lsCityId || prev.districtId || '',
+          state: profile?.StateName || prev.state || '',
+          city: profile?.DistrictName || prev.city || '',
+          district: profile?.DistrictName || prev.district || '',
+        }));
+
+        // Mark as pre-filled so user can now edit/delete without it snapping back
+        if (profile || (lsName && lsEmail)) {
+          setHasPreFilled(true);
+        }
+      }
+    }
+  }, [customerProfile, appointmentType, showAppointmentModal, hasPreFilled]);
+
   const getVisibleLocations = () => {
     const visible = [];
     for (let i = 0; i < LOCATIONS_VISIBLE; i++) {
@@ -379,17 +502,18 @@ const HomeElderlyCare: React.FC = () => {
     const loadStates = async () => {
       setLoadingStates(true);
       try {
-        const statesData = await gymServiceAPI.CRMStateList();
-        setStates(statesData);
+        const response = await HomeElderlyCareAPI.CRMGetStates();
+        const rawStates = Array.isArray(response) ? response : (response?.results || response?.data || []);
+
+        const mappedStates = rawStates.map((s: any) => ({
+          StateId: s.id || s.StateId,
+          StateName: s.name || s.StateName
+        }));
+
+        setStates(mappedStates);
       } catch (error) {
         console.error("Failed to load states:", error);
         toast.error("Failed to load states. Please try again.");
-        // Fallback to static states if API fails
-        setStates(statesData.map((stateName, index) => ({
-          StateId: index + 1,
-          StateName: stateName,
-          CountryId: 1
-        })));
       } finally {
         setLoadingStates(false);
       }
@@ -403,12 +527,22 @@ const HomeElderlyCare: React.FC = () => {
       if (formData.stateId) {
         setLoadingDistricts(true);
         try {
-          const districtsData = await gymServiceAPI.CRMDistrictList(parseInt(formData.stateId));
-          setDistricts(districtsData);
+          const response = await HomeElderlyCareAPI.CRMGetCitiesByState(parseInt(formData.stateId));
+
+          const rawCities = Array.isArray(response) ? response :
+            (Array.isArray(response?.data) ? response.data :
+              (Array.isArray(response?.results) ? response.results : []));
+
+          const mappedDistricts = rawCities.map((city: any) => ({
+            DistrictId: city.id || city.DistrictId,
+            DistrictName: city.name || city.DistrictName
+          }));
+
+          setDistricts(mappedDistricts);
         } catch (error) {
-          console.error("Failed to load districts:", error);
+          console.error("Failed to load cities:", error);
           setDistricts([]);
-          toast.error("Failed to load districts for the selected state.");
+          toast.error("Failed to load cities for the selected state.");
         } finally {
           setLoadingDistricts(false);
         }
@@ -424,16 +558,53 @@ const HomeElderlyCare: React.FC = () => {
     const loadRelationships = async () => {
       setLoadingRelationships(true);
       try {
-        const relationshipsData = await gymServiceAPI.CRMRelationShipList();
-        const filteredRelationships = relationshipsData.filter(
-        relationship => relationship.RelationshipId !== 1 && 
-                       relationship.RelationshipId !== 2 && 
-                       relationship.RelationshipId !== 3
-      );
-        setRelationships(filteredRelationships);
+        // Use the verified relationship API instead of the experimental one
+        const rawRelationships = await gymServiceAPI.CRMRelationShipList();
+        console.log("Relationships fetched from standard API:", rawRelationships);
+
+        let mapped = rawRelationships.map((r: any) => ({
+          RelationshipId: r.RelationshipId || r.id,
+          Relationship: r.Relationship || r.name
+        }));
+
+        console.log("Mapped relationships for dropdown:", mapped);
+
+        // Whitelist only specific relationships: Father, Mother, Brother, Sister
+        const allowed = ['father', 'mother', 'brother', 'sister'];
+        let filtered = mapped.filter((r: any) =>
+          allowed.includes(r.Relationship?.toLowerCase())
+        );
+
+        // Ensure all 4 are present
+        const common = [
+          { id: 4, name: 'Father' },
+          { id: 5, name: 'Mother' },
+          { id: 6, name: 'Brother' },
+          { id: 7, name: 'Sister' }
+        ];
+
+        common.forEach(c => {
+          if (!filtered.some((r: any) => r.Relationship?.toLowerCase() === c.name.toLowerCase())) {
+            filtered.push({ RelationshipId: c.id, Relationship: c.name });
+          }
+        });
+
+        // Ensure order is consistent
+        filtered.sort((a, b) => {
+          const order = ['father', 'mother', 'brother', 'sister'];
+          return order.indexOf(a.Relationship.toLowerCase()) - order.indexOf(b.Relationship.toLowerCase());
+        });
+
+        console.log("Final relationship options:", filtered);
+        setRelationships(filtered);
       } catch (error) {
         console.error("Failed to load relationships:", error);
-        toast.error("Failed to load relationships. Please try again.");
+        setRelationships([
+          { RelationshipId: 4, Relationship: 'Father' },
+          { RelationshipId: 5, Relationship: 'Mother' },
+          { RelationshipId: 6, Relationship: 'Brother' },
+          { RelationshipId: 7, Relationship: 'Sister' }
+        ]);
       } finally {
         setLoadingRelationships(false);
       }
@@ -447,18 +618,17 @@ const HomeElderlyCare: React.FC = () => {
       if (appointmentType === 'Dependant' && formData.relationshipId) {
         setLoadingRelationshipPersons(true);
         try {
-          const employeeRefId = localStorage.getItem("EmployeeRefId");
+          const employeeRefId = user?.employeeRefId || localStorage.getItem("EmployeeRefId");
           if (!employeeRefId) {
             toast.error("Please log in to select dependents.");
             return;
           }
           const personsData = await gymServiceAPI.CRMRelationShipPersonNames(
-            parseInt(employeeRefId),
+            Number(employeeRefId),
             parseInt(formData.relationshipId)
           );
           setRelationshipPersons(personsData);
-          
-          // If only one person exists, auto-select it
+
           if (personsData.length === 1) {
             setFormData(prev => ({
               ...prev,
@@ -481,59 +651,77 @@ const HomeElderlyCare: React.FC = () => {
   }, [appointmentType, formData.relationshipId]);
 
   useEffect(() => {
-    const fetchCustomerProfile = async () => {
+    const fetchCareProgramOptions = async () => {
       if (showAppointmentModal) {
         setLoadingProfile(true);
         setProfileError(null);
         try {
-          const employeeRefId = localStorage.getItem("EmployeeRefId");
-          if (!employeeRefId) {
-            setProfileError("Please log in to continue with your purchase.");
-            setLoadingProfile(false);
-            return;
-          }
+          const serviceTypeMap: { [key: number]: string } = {
+            1: "elderly_care_attendant", // Corrected
+            2: "elderly_care_program",
+            3: "home_nursing"
+          };
 
-          const profile = await gymServiceAPI.CRMLoadCustomerProfileDetails(parseInt(employeeRefId));
-          setCustomerProfile(profile);
+          const serviceType = serviceTypeMap[selectedServiceId] || "elderly_care_attendance";
+          const optionsData = await HomeElderlyCareAPI.CRMGetCareProgramBookingOptions(serviceType);
 
-          const userState = states.find(s => s.StateName === profile.StateName || s.StateId === profile.State);
-          const userDistrict = districts.find(d => d.DistrictName === profile.DistrictName || d.DistrictId === profile.City);
+          // Data Hierarchy: API specific data > General Profile Data > Local Storage
+          const apiProfile = optionsData?.user_details || optionsData?.profile || optionsData || {};
+          const profile = customerProfile; // fallback
+
+          const getName = () => apiProfile.name || apiProfile.EmployeeName || profile?.EmployeeName || localStorage.getItem("employeeName") || localStorage.getItem("EmployeeName") || "";
+          const getMobile = () => apiProfile.contact_number || apiProfile.MobileNo || profile?.MobileNo || localStorage.getItem("mobile") || localStorage.getItem("MobileNo") || "";
+          const getEmail = () => apiProfile.email || apiProfile.Emailid || profile?.Emailid || localStorage.getItem("email") || localStorage.getItem("Emailid") || "";
+
+          const getAddress = () => {
+            // 1. Try API Profile (from care program options)
+            const apiAddr = apiProfile.address || apiProfile.address_text ||
+              (apiProfile.AddressLineOne || apiProfile.AddressLineTwo ? `${apiProfile.AddressLineOne || ''} ${apiProfile.AddressLineTwo || ''}`.trim() : "");
+
+            if (apiAddr && apiAddr.length > 2) return apiAddr;
+
+            // 2. Try Customer Profile (loaded on mount)
+            if (profile) {
+              const profileAddr = profile.Address ||
+                (profile.AddressLineOne || profile.AddressLineTwo ? `${profile.AddressLineOne || ''} ${profile.AddressLineTwo || ''}`.trim() : "");
+              if (profileAddr && profileAddr.length > 2) return profileAddr;
+            }
+
+            // 3. Try Local Storage
+            return localStorage.getItem("address") || localStorage.getItem("Address") || "";
+          };
+
+          const getStateId = () => apiProfile.state || apiProfile.StateId || profile?.StateId?.toString() || localStorage.getItem("StateId") || "";
+          const getCityId = () => apiProfile.city || apiProfile.CityId || profile?.CityId?.toString() || localStorage.getItem("CityId") || "";
+          const getStateName = () => apiProfile.state_name || apiProfile.StateName || profile?.StateName || "";
+          const getCityName = () => apiProfile.city_name || apiProfile.DistrictName || profile?.DistrictName || "";
 
           setFormData(prev => ({
             ...prev,
-            name: profile.EmployeeName || '',
-            contactNumber: profile.MobileNo || '',
-            email: profile.Emailid || '',
-            state: profile.StateName || '',
-            stateId: userState ? userState.StateId.toString() : profile.State?.toString() || '',
-            district: profile.DistrictName || '',
-            districtId: userDistrict ? userDistrict.DistrictId.toString() : profile.City?.toString() || '',
-            city: profile.DistrictName || '', // Using DistrictName as city
-            address: `${profile.AddressLineOne || ''} ${profile.AddressLineTwo || ''}`.trim(),
-            landmark: profile.Landmark || '',
-            pincode: profile.Pincode || '',
-            membershipType: 'self',
-            relationshipId: '1'
+            name: getName(),
+            contactNumber: getMobile(),
+            email: getEmail(),
+            address: getAddress(),
+            state: getStateName(),
+            stateId: getStateId(),
+            city: getCityName(),
+            districtId: getCityId(),
+            pincode: apiProfile.pincode || apiProfile.Pincode || profile?.Pincode || '',
           }));
-        } catch (error) {
-          console.error("Failed to load customer profile:", error);
+
+        } catch (error: any) {
+          console.error("Failed to load care program options:", error);
           setProfileError("Failed to load your profile information. Please fill the form manually.");
-          toast.error("Failed to load your profile information.");
         } finally {
           setLoadingProfile(false);
         }
       }
     };
-
-    if (showAppointmentModal && states.length > 0) {
-      fetchCustomerProfile();
-    }
-  }, [showAppointmentModal, states, districts]);
+    fetchCareProgramOptions();
+  }, [showAppointmentModal, selectedServiceId]);
 
   return (
     <div className="home-elderly-care-page">
-      
-      
       <div className="home-elderly-care-row">
         {cards.map((card, idx) => {
           const truncatedText = card.fullText.slice(0, 100) + (card.fullText.length > 100 ? '...' : '');
@@ -554,24 +742,23 @@ const HomeElderlyCare: React.FC = () => {
                       </span>
                     )}
                   </p>
-               <button
-  onClick={() => handleShowAppointmentModal(card.id)}
-  style={{
-    padding: "12px 24px",
-    borderRadius: "8px",
-    border: "none",
-    background: "linear-gradient(180deg, #E64E15 0%, #E9950B 100%)",
-    color: "#fff",
-    fontSize: "14px",
-    fontWeight: 600,
-    cursor: "pointer",
-    textTransform: "uppercase",
-    transition: "all 0.3s ease",
-  }}
->
-  BOOK APPOINTMENT
-</button>
-
+                  <button
+                    onClick={() => handleShowAppointmentModal(card.id)}
+                    style={{
+                      padding: "12px 24px",
+                      borderRadius: "8px",
+                      border: "none",
+                      background: "linear-gradient(180deg, #E64E15 0%, #E9950B 100%)",
+                      color: "#fff",
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      textTransform: "uppercase",
+                      transition: "all 0.3s ease",
+                    }}
+                  >
+                    BOOK APPOINTMENT
+                  </button>
                 </div>
               </div>
             </div>
@@ -579,61 +766,56 @@ const HomeElderlyCare: React.FC = () => {
         })}
       </div>
 
-      {/* Modal for showing service details */}
-     <Modal 
-  show={showModal} 
-  onHide={handleCloseModal} 
-  size="lg" 
-  centered
-  className="service-modal"
->
-  <div  className='blue-text fw-bold' style={{marginTop:'-5px'}}>View Details</div>
-<div className="modal-close-button" onClick={handleCloseModal} style={{ cursor: 'pointer', position: 'absolute', top: '15px', right: '15px', zIndex: 1051 }}>
-  <FontAwesomeIcon icon={faTimes} size="lg" />
-</div>
-
-
-  <Modal.Body>
-    {selectedCard !== null && (
-      <div style={{ marginTop: "-40px" }}>
-        <div className="modal-text">
-          {cards[selectedCard].fullText.split("\n").map((line, index) => (
-            <p
-              key={index}
-              className={line.startsWith("•") ? "bullet-point" : ""}
-            >
-              {line}
-            </p>
-          ))}
+      <Modal
+        show={showModal}
+        onHide={handleCloseModal}
+        size="lg"
+        centered
+        className="service-modal"
+      >
+        <div className='blue-text fw-bold' style={{ marginTop: '-5px' }}>View Details</div>
+        <div className="modal-close-button" onClick={handleCloseModal} style={{ cursor: 'pointer', position: 'absolute', top: '15px', right: '15px', zIndex: 1051 }}>
+          <FontAwesomeIcon icon={faTimes} size="lg" />
         </div>
-      </div>
-    )}
-  </Modal.Body>
 
-  <Modal.Footer style={{ marginTop: "-20px" }}>
-    <button
-      onClick={handleCloseModal}
-      style={{
-        padding: "10px 20px",
-        borderRadius: "8px",
-        border: "1px solid #ddd",
-        backgroundColor: "#fff",
-        cursor: "pointer",
-        fontWeight: 600,
-      }}
-    >
-      Close
-    </button>
-  </Modal.Footer>
+        <Modal.Body>
+          {selectedCard !== null && (
+            <div style={{ marginTop: "-40px" }}>
+              <div className="modal-text">
+                {cards[selectedCard].fullText.split("\n").map((line, index) => (
+                  <p
+                    key={index}
+                    className={line.startsWith("•") ? "bullet-point" : ""}
+                  >
+                    {line}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+        </Modal.Body>
 
-</Modal>
+        <Modal.Footer style={{ marginTop: "-20px" }}>
+          <button
+            onClick={handleCloseModal}
+            style={{
+              padding: "10px 20px",
+              borderRadius: "8px",
+              border: "1px solid #ddd",
+              backgroundColor: "#fff",
+              cursor: "pointer",
+              fontWeight: 600,
+            }}
+          >
+            Close
+          </button>
+        </Modal.Footer>
+      </Modal>
 
-
-      {/* Book Appointment Modal */}
-      <Modal 
-        show={showAppointmentModal} 
-        onHide={handleCloseAppointmentModal} 
-        size="lg" 
+      <Modal
+        show={showAppointmentModal}
+        onHide={handleCloseAppointmentModal}
+        size="lg"
         centered
         className="appointment-modal"
       >
@@ -646,13 +828,8 @@ const HomeElderlyCare: React.FC = () => {
               {profileError}
             </div>
           )}
-          
-          {/* <div className="selected-service-info mb-3 p-3 bg-light rounded">
-            <strong>Selected Service:</strong> {cards.find(card => card.id === selectedServiceId)?.title}
-          </div> */}
-          
-          <Form onSubmit={handleSubmitAppointment} style={{marginTop:'-29px'}}>
-            {/* Appointment Type - Radio Buttons */}
+
+          <Form onSubmit={handleSubmitAppointment} style={{ marginTop: '-29px' }}>
             <Form.Group className="mb-0">
               <div className="d-flex gap-4">
                 <Form.Check
@@ -663,7 +840,6 @@ const HomeElderlyCare: React.FC = () => {
                   value="Self"
                   checked={appointmentType === 'Self'}
                   onChange={handleInputChange}
-                  className=""
                 />
                 <Form.Check
                   type="radio"
@@ -673,14 +849,11 @@ const HomeElderlyCare: React.FC = () => {
                   value="Dependant"
                   checked={appointmentType === 'Dependant'}
                   onChange={handleInputChange}
-                  className=""
                 />
               </div>
             </Form.Group>
 
-            {/* Name and Contact Number Section */}
             <div className="row mb-2">
-              {/* Self Appointment */}
               {appointmentType === 'Self' && (
                 <div className="col-md-6">
                   <Form.Group>
@@ -698,7 +871,6 @@ const HomeElderlyCare: React.FC = () => {
                 </div>
               )}
 
-              {/* Dependent Appointment */}
               {appointmentType === 'Dependant' && (
                 <>
                   <div className="col-md-6">
@@ -712,14 +884,11 @@ const HomeElderlyCare: React.FC = () => {
                         disabled={loadingRelationships}
                       >
                         <option value="">Select Relationship</option>
-                        {relationships
-                          .filter(rel => rel.RelationshipId !== 1) // Exclude "Self"
-                          .map((relationship) => (
-                            <option key={relationship.RelationshipId} value={relationship.RelationshipId}>
-                              {relationship.Relationship}
-                            </option>
-                          ))
-                        }
+                        {relationships.map((relationship) => (
+                          <option key={relationship.RelationshipId} value={relationship.RelationshipId}>
+                            {relationship.Relationship}
+                          </option>
+                        ))}
                       </Form.Select>
                       {loadingRelationships && <small className="text-muted">Loading relationships...</small>}
                     </Form.Group>
@@ -740,7 +909,6 @@ const HomeElderlyCare: React.FC = () => {
                     </Form.Group>
                   </div>
 
-                  {/* Dependent Selection */}
                   {formData.relationshipId && (
                     <div className="col-12 mt-2">
                       <Form.Group>
@@ -789,7 +957,6 @@ const HomeElderlyCare: React.FC = () => {
                 </>
               )}
 
-              {/* Contact Number for Self */}
               {appointmentType === 'Self' && (
                 <div className="col-md-6">
                   <Form.Group>
@@ -808,7 +975,6 @@ const HomeElderlyCare: React.FC = () => {
               )}
             </div>
 
-            {/* Email and State in one row */}
             <div className="row mb-2">
               <div className="col-md-6">
                 <Form.Group>
@@ -845,7 +1011,6 @@ const HomeElderlyCare: React.FC = () => {
               </div>
             </div>
 
-            {/* District and Address in one row */}
             <div className="row mb-2">
               <div className="col-md-6">
                 <Form.Group>
@@ -883,7 +1048,6 @@ const HomeElderlyCare: React.FC = () => {
               </div>
             </div>
 
-            {/* Requirements */}
             <Form.Group className="mb-2">
               <Form.Label>Requirements</Form.Label>
               <Form.Control
@@ -897,7 +1061,6 @@ const HomeElderlyCare: React.FC = () => {
               />
             </Form.Group>
 
-            {/* Loading indicator */}
             {loadingProfile && (
               <div className="text-center mb-3">
                 <div className="spinner-border text-primary" role="status">
@@ -907,11 +1070,10 @@ const HomeElderlyCare: React.FC = () => {
               </div>
             )}
 
-            {/* Buttons */}
             <div className="d-flex gap-3 justify-content-center">
-              <Button 
-                type="submit" 
-                variant="primary" 
+              <Button
+                type="submit"
+                variant="primary"
                 className="submit-appointment-btn flex-fill"
                 disabled={submitting || loadingProfile}
               >
@@ -924,9 +1086,9 @@ const HomeElderlyCare: React.FC = () => {
                   "REQUEST CALL BACK"
                 )}
               </Button>
-              <Button 
-                type="button" 
-                variant="outline-secondary" 
+              <Button
+                type="button"
+                variant="outline-secondary"
                 className="cancel-btn flex-fill"
                 onClick={handleCloseAppointmentModal}
                 disabled={submitting || loadingProfile}
@@ -938,9 +1100,8 @@ const HomeElderlyCare: React.FC = () => {
         </Modal.Body>
       </Modal>
 
-      {/* Our Locations Section */}
       <Container>
-        <section className="our-location-sections" style={{ marginBottom: '48px'}}>
+        <section className="our-location-sections" style={{ marginBottom: '48px' }}>
           <h2 className="our-location-headings">Our Locations</h2>
           <div className="location-carousel-wrappers">
             <button className="carousel-arrow left" onClick={handlePrev}>
