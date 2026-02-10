@@ -907,7 +907,7 @@ const DiagnosticCart: React.FC = () => {
       if (selectedVTName === 'Home') visitTypeId = 1;
       else if (selectedVTName === 'Center' || selectedVTName === 'Clinic') visitTypeId = 2;
       else if (selectedVTName === 'Other') visitTypeId = 3;
-      else if (selectedDC.center_name.toLowerCase().includes('clinic')) visitTypeId = 2;
+      else if (selectedDC.center_name?.toLowerCase().includes('clinic')) visitTypeId = 2;
 
       // 3. Prepare Add to Cart Request
       const testIds = cartItems

@@ -1,7 +1,8 @@
 import { api } from '../services/api';
 import {
   CRMInsertUpdateEmployeeDependantDetailsRequest, CRMInsertUpdateEmployeeDependantDetailsResponse,
-  CRMFetchDependentDetailsForEmployeeRequest, CRMFetchDependentDetailsForEmployeeResponse, District
+  CRMFetchDependentDetailsForEmployeeRequest, CRMGenerateDependentMemberIdResponse,
+  CRMFetchDependentDetailsForEmployeeResponse, District
 } from '../types/dependants';
 
 

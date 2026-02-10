@@ -109,7 +109,7 @@ const PharmacyOfflineMedicine: React.FC = () => {
       try {
         // Filter products for suggestions based on input
         const filteredSuggestions = products.filter(product =>
-          product.name.toLowerCase().includes(medicineInput.toLowerCase())
+          (product.name || '').toLowerCase().includes(medicineInput.toLowerCase())
         ).slice(0, 8); // Limit to 8 suggestions
         setSuggestions(filteredSuggestions);
         setShowSuggestions(true);

@@ -123,7 +123,7 @@ export const ConsultationAPI = {
       // User explicitly requested ONLY the endpoint shown in the 2nd image: /api/appointments/doctor-availability/
       // The 1st image showed unwanted parameters like dc_unique_name
       const params = {
-        doctor_id: requestData.doctorId,
+        doctor: requestData.doctorId,
         date: requestData.Date
       };
 

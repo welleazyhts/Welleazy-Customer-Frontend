@@ -572,7 +572,7 @@ const HomeElderlyCare: React.FC = () => {
         // Whitelist only specific relationships: Father, Mother, Brother, Sister
         const allowed = ['father', 'mother', 'brother', 'sister'];
         let filtered = mapped.filter((r: any) =>
-          allowed.includes(r.Relationship?.toLowerCase())
+          allowed.includes((r.Relationship || '').toLowerCase())
         );
 
         // Ensure all 4 are present
@@ -584,7 +584,7 @@ const HomeElderlyCare: React.FC = () => {
         ];
 
         common.forEach(c => {
-          if (!filtered.some((r: any) => r.Relationship?.toLowerCase() === c.name.toLowerCase())) {
+          if (!filtered.some((r: any) => (r.Relationship || '').toLowerCase() === c.name.toLowerCase())) {
             filtered.push({ RelationshipId: c.id, Relationship: c.name });
           }
         });
@@ -592,7 +592,9 @@ const HomeElderlyCare: React.FC = () => {
         // Ensure order is consistent
         filtered.sort((a, b) => {
           const order = ['father', 'mother', 'brother', 'sister'];
-          return order.indexOf(a.Relationship.toLowerCase()) - order.indexOf(b.Relationship.toLowerCase());
+          const relationshipA = (a.Relationship || '').toLowerCase();
+          const relationshipB = (b.Relationship || '').toLowerCase();
+          return order.indexOf(relationshipA) - order.indexOf(relationshipB);
         });
 
         console.log("Final relationship options:", filtered);

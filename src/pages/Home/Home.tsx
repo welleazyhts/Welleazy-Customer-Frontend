@@ -365,11 +365,14 @@ const Home: React.FC = () => {
   // Merge dynamic cities with static images
   const locationData = dynamicCities.length > 0
     ? dynamicCities.map(city => {
-      const staticMatch = staticLocationData.find(s => s.name.toLowerCase() === city.DistrictName.toLowerCase());
+      const cityName = city.DistrictName || (city as any).name || '';
+      const staticMatch = staticLocationData.find(s =>
+        (s.name || '').toLowerCase() === cityName.toLowerCase()
+      );
       return {
-        name: city.DistrictName,
+        name: cityName,
         img: staticMatch ? staticMatch.img : '/BANGALORE-8.png', // Default image
-        id: city.DistrictId
+        id: city.DistrictId || (city as any).id
       };
     })
     : staticLocationData;

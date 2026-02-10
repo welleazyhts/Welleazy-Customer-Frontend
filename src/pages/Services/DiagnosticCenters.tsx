@@ -40,6 +40,7 @@ import './DiagnosticCenters.css';
 import { Relationship, RelationshipPerson } from '../../types/GymServices'
 import { gymServiceAPI } from '../../api/GymService';
 import { AddressBookAPI } from '../../api/AddressBook';
+import { EmployeeAddressDetails } from '../../types/AddressBook';
 import { toast } from "react-toastify";
 
 
@@ -146,7 +147,7 @@ const DiagnosticCenters: React.FC = () => {
     email: ''
   });
 
-  const [availableAddresses, setAvailableAddresses] = useState<any[]>([]);
+  const [availableAddresses, setAvailableAddresses] = useState<EmployeeAddressDetails[]>([]);
   const [bookingVisitType, setBookingVisitType] = useState<number>(1); // 1 = Home, 2 = Center
   const [userAddressId, setUserAddressId] = useState<number>(0);
 
@@ -243,7 +244,7 @@ const DiagnosticCenters: React.FC = () => {
       if (response && response.length > 0) {
         // Filter to only include tests that match the search name to avoid showing unrelated tests
         const filteredResponse = response.filter(test =>
-          test.TestName.toLowerCase().includes(testName.toLowerCase())
+          (test.TestName || '').toLowerCase().includes((testName || '').toLowerCase())
         );
 
         setTestDetails(filteredResponse);
@@ -385,7 +386,7 @@ const DiagnosticCenters: React.FC = () => {
           const testName = selectedTests[index];
           // Filter to match the requested test name
           const filtered = response.filter(test =>
-            test.TestName.toLowerCase().includes(testName.toLowerCase())
+            (test.TestName || '').toLowerCase().includes((testName || '').toLowerCase())
           );
 
           allTestDetails = [...allTestDetails, ...filtered];
@@ -445,7 +446,7 @@ const DiagnosticCenters: React.FC = () => {
 
   const loadUserAddresses = async () => {
     try {
-      let addresses = [];
+      let addresses: EmployeeAddressDetails[] = [];
       if (formData.serviceFor === 'self') {
         addresses = await AddressBookAPI.getSelfAddresses(1); // address_type=1 for self
       } else if (formData.serviceFor === 'dependent' && formData.relationshipPersonId) {
@@ -454,7 +455,7 @@ const DiagnosticCenters: React.FC = () => {
 
       setAvailableAddresses(addresses);
       if (addresses.length > 0) {
-        setUserAddressId(addresses[0].id || addresses[0].EmployeeAddressDetailsId);
+        setUserAddressId(addresses[0].EmployeeAddressDetailsId);
       } else {
         setUserAddressId(0);
       }
@@ -525,7 +526,7 @@ const DiagnosticCenters: React.FC = () => {
 
   const filteredDCs = dcDetails.filter(dc => {
     // 1. Visit Type filter
-    const matchesVisitType = !filterVisitType || dc.VisitType.toLowerCase().includes(filterVisitType.toString().toLowerCase());
+    const matchesVisitType = !filterVisitType || (dc.VisitType || '').toLowerCase().includes(filterVisitType.toString().toLowerCase());
 
     // 2. Strict Pincode Filter - only apply if pincode is 6 digits
     let matchesPincode = true;
@@ -687,7 +688,7 @@ const DiagnosticCenters: React.FC = () => {
         }
 
         const selectedAddressObj = bookingVisitType === 1
-          ? availableAddresses.find(addr => (addr.id || addr.EmployeeAddressDetailsId) === userAddressId)
+          ? availableAddresses.find(addr => addr.EmployeeAddressDetailsId === userAddressId)
           : null;
 
         const cartData = {
@@ -1343,8 +1344,8 @@ const DiagnosticCenters: React.FC = () => {
                             onChange={(e) => setUserAddressId(Number(e.target.value))}
                           >
                             {availableAddresses.map((addr, idx) => (
-                              <option key={addr.id || addr.EmployeeAddressDetailsId || idx} value={addr.id || addr.EmployeeAddressDetailsId}>
-                                {addr.address_line1 || addr.AddressLineOne}, {addr.pincode || addr.Pincode || ''}
+                              <option key={addr.EmployeeAddressDetailsId || idx} value={addr.EmployeeAddressDetailsId}>
+                                {addr.AddressLineOne}, {addr.Pincode || ''}
                               </option>
                             ))}
                           </Form.Select>
