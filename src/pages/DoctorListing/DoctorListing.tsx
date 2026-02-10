@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Container, Row, Col, Card, Button, Form, Badge, Modal } from 'react-bootstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
-  faUserMd, 
-  faMapMarkerAlt, 
-  faClock, 
+import {
+  faUserMd,
+  faMapMarkerAlt,
+  faClock,
   faRupeeSign,
   faVideo,
   faHospital,
@@ -66,16 +66,16 @@ const DoctorListing: React.FC = () => {
   }, [location]);
 
   const cities = ['Mumbai', 'Bangalore', 'New Delhi', 'Jaipur', 'Kolkata', 'Lucknow', 'Ahmedabad', 'Hyderabad', 'Chandigarh', 'Srinagar', 'Cochin'];
-  
+
   const specialties = [
-    'General Physician', 'Cardiologist', 'Dermatologist', 'Gynecologist', 
-    'Pediatrician', 'Orthopedist', 'Neurologist', 'Psychiatrist', 
+    'General Physician', 'Cardiologist', 'Dermatologist', 'Gynecologist',
+    'Pediatrician', 'Orthopedist', 'Neurologist', 'Psychiatrist',
     'Dentist', 'Ophthalmologist', 'ENT Specialist', 'Gastroenterologist',
     'Endocrinologist', 'Urologist', 'Rheumatologist', 'Oncologist'
   ];
 
   const languages = [
-    'English', 'Hindi', 'Marathi', 'Gujarati', 'Telugu', 'Tamil', 
+    'English', 'Hindi', 'Marathi', 'Gujarati', 'Telugu', 'Tamil',
     'Malayalam', 'Punjabi', 'Bengali', 'Kannada', 'Urdu'
   ];
 
@@ -340,11 +340,16 @@ const DoctorListing: React.FC = () => {
 
   // Filter doctors based on search criteria
   const allFilteredDoctors = doctors.filter(doctor => {
-    const matchesSearch = doctor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         doctor.specialty.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesSpecialty = !selectedSpecialty || doctor.specialty.toLowerCase().includes(selectedSpecialty.toLowerCase());
-    const matchesLanguage = !selectedLanguage || doctor.languages.some(lang => 
-      lang.toLowerCase().includes(selectedLanguage.toLowerCase())
+    const name = (doctor.name || '').toLowerCase();
+    const specialty = (doctor.specialty || '').toLowerCase();
+    const search = (searchQuery || '').toLowerCase();
+    const matchSpecialty = (selectedSpecialty || '').toLowerCase();
+    const matchLanguage = (selectedLanguage || '').toLowerCase();
+
+    const matchesSearch = name.includes(search) || specialty.includes(search);
+    const matchesSpecialty = !selectedSpecialty || specialty.includes(matchSpecialty);
+    const matchesLanguage = !selectedLanguage || doctor.languages.some(lang =>
+      (lang || '').toLowerCase().includes(matchLanguage)
     );
     return matchesSearch && matchesSpecialty && matchesLanguage;
   });
@@ -421,8 +426,8 @@ const DoctorListing: React.FC = () => {
                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Patient Name</Form.Label>
-                      <Form.Control 
-                        type="text" 
+                      <Form.Control
+                        type="text"
                         value={patientName}
                         onChange={(e) => setPatientName(e.target.value)}
                         placeholder="Enter patient name"
@@ -435,8 +440,8 @@ const DoctorListing: React.FC = () => {
                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Select Date</Form.Label>
-                      <Form.Control 
-                        type="date" 
+                      <Form.Control
+                        type="date"
                         value={selectedDate}
                         onChange={(e) => setSelectedDate(e.target.value)}
                         min={new Date().toISOString().split('T')[0]}
@@ -458,8 +463,8 @@ const DoctorListing: React.FC = () => {
 
                 <Form.Group className="mb-3">
                   <Form.Label>Symptoms/Reason for visit</Form.Label>
-                  <Form.Control 
-                    as="textarea" 
+                  <Form.Control
+                    as="textarea"
                     rows={3}
                     value={symptoms}
                     onChange={(e) => setSymptoms(e.target.value)}
@@ -543,7 +548,7 @@ const DoctorListing: React.FC = () => {
                 <Col lg={4} md={3}>
                   <Form.Group>
                     <Form.Label><FontAwesomeIcon icon={faSearch} /> Search Doctor</Form.Label>
-                    <Form.Control 
+                    <Form.Control
                       type="text"
                       placeholder="Search by doctor name or specialty"
                       value={searchQuery}
@@ -566,13 +571,13 @@ const DoctorListing: React.FC = () => {
           <Row className="align-items-center">
             <Col>
               <p className="results-text">
-                Showing {filteredDoctors.length} of {allFilteredDoctors.length} doctors 
+                Showing {filteredDoctors.length} of {allFilteredDoctors.length} doctors
                 {selectedSpecialty && ` for ${selectedSpecialty}`}
                 {selectedLanguage && ` speaking ${selectedLanguage}`} in {selectedCity}
               </p>
             </Col>
             <Col xs="auto">
-              <Form.Select size="sm" style={{width: 'auto'}}>
+              <Form.Select size="sm" style={{ width: 'auto' }}>
                 <option>Sort by Relevance</option>
                 <option>Sort by Rating</option>
                 <option>Sort by Experience</option>
@@ -614,7 +619,7 @@ const DoctorListing: React.FC = () => {
                               <span className="review-count">({doctor.reviewCount} reviews)</span>
                             </div>
                           </div>
-                          
+
                           <div className="doctor-details">
                             <p className="specialty">
                               <FontAwesomeIcon icon={faUserMd} className="me-2" />
@@ -659,8 +664,8 @@ const DoctorListing: React.FC = () => {
                           </div>
 
                           <div className="action-buttons mt-3">
-                            <Button 
-                              variant="primary" 
+                            <Button
+                              variant="primary"
                               className="book-btn me-2"
                               onClick={() => handleBookAppointment(doctor)}
                             >
@@ -688,7 +693,7 @@ const DoctorListing: React.FC = () => {
               <FontAwesomeIcon icon={faUserMd} className="no-results-icon" />
               <h4>No doctors found</h4>
               <p>Try adjusting your search criteria or browse all doctors</p>
-              <Button variant="outline-primary" onClick={() => {setSearchQuery(''); setSelectedSpecialty(''); setSelectedLanguage('');}}>
+              <Button variant="outline-primary" onClick={() => { setSearchQuery(''); setSelectedSpecialty(''); setSelectedLanguage(''); }}>
                 View All Doctors
               </Button>
             </div>
@@ -697,9 +702,9 @@ const DoctorListing: React.FC = () => {
           {/* Load More Button */}
           {filteredDoctors.length > 0 && filteredDoctors.length < allFilteredDoctors.length && (
             <div className="load-more-section text-center py-4">
-              <Button 
-                variant="outline-primary" 
-                size="lg" 
+              <Button
+                variant="outline-primary"
+                size="lg"
                 className="load-more-btn"
                 onClick={handleLoadMore}
                 disabled={isLoading}
@@ -725,7 +730,7 @@ const DoctorListing: React.FC = () => {
       </Container>
 
       {/* Booking Modal */}
-      <BookingModal 
+      <BookingModal
         show={showBookingModal}
         onHide={() => setShowBookingModal(false)}
         doctor={selectedDoctor}

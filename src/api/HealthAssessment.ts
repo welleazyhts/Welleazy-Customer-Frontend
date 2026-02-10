@@ -165,10 +165,21 @@ export const HealthAssessmentAPI = {
         for_whom: payload.RelationType === 1 ? "self" : "dependant",
         dependant: payload.RelationType === 1 ? undefined : payload.EmployeeDependentDetailsId || payload.MemberId
       };
+      console.log('Starting assessment with payload:', startPayload);
       const response = await api.post('/api/health-assessments/', startPayload);
       const data = response.data as any;
+
+      console.log('CRMInsertUpdateHRACustomerGeneralDetails response:', data);
+
+      // Robust ID extraction
+      const id = data.id || data.Id || data.HRAGeneralDetailsId || (data.data && data.data.id);
+
+      if (!id) {
+        console.error('Failed to extract ID from response:', data);
+      }
+
       return {
-        HRAGeneralDetailsId: data.id,
+        HRAGeneralDetailsId: id,
         Message: "Success"
       };
     } catch (error) {
@@ -190,12 +201,16 @@ export const HealthAssessmentAPI = {
 
   // Map existing methods to the generic updateStep
   CRMInsertUpdateHRACustomerBasicProfileDetails: async (payload: HRACustomerBasicProfileDetailsSave) => {
+    // Validate and format height_cm to satisfy "max 3 digits before decimal"
+    let heightCm = payload.HeightInCM;
+    if (heightCm > 999) heightCm = 999;
+
     return HealthAssessmentAPI.updateStep(payload.HRAGeneralDetailsId, {
       current_step: 4,
       height_unit: payload.HeightIn === 1 ? "feet" : "cm",
       height_feet: payload.HeightInFeet,
       height_inches: payload.HeightInInches,
-      height_cm: payload.HeightInCM,
+      height_cm: Math.round(heightCm), // Ensure integer or properly gathered number
       weight_kg: payload.WeightInKg,
       bmi: payload.BMI.toLowerCase(),
       health_opinion: payload.Opinion.toLowerCase()

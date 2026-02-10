@@ -46,7 +46,7 @@
 .summary-card {
   border: none;
   border-radius: 15px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   margin-bottom: 30px;
   background: linear-gradient(135deg, #f8f9fa 0%, #e3f2fd 100%);
 }
@@ -83,7 +83,7 @@
 .test-selection-card {
   border: none;
   border-radius: 15px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .test-buttons {
@@ -132,7 +132,7 @@
 .filters-card {
   border: none;
   border-radius: 15px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .filter-section,
@@ -189,7 +189,7 @@
 .dc-card {
   border: none;
   border-radius: 15px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   height: 100%;
   transition: all 0.3s;
   overflow: hidden;
@@ -197,7 +197,7 @@
 
 .dc-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
 }
 
 .dc-card.selected {
@@ -245,23 +245,31 @@
 
 /* Visit Type Badge */
 .visit-type-badge {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: 50px;
+  font-size: 13px;
   font-weight: 600;
   margin-bottom: 15px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
 }
 
 .visit-type-badge.home {
-  background: #e8f5e9;
-  color: #4CAF50;
+  background: #e3f2fd;
+  color: #1976d2;
+  border: 1px solid #bbdefb;
 }
 
-.visit-type-badge.clinic {
-  background: #ffe0d6;
-  color: #ff5722;
+.visit-type-badge.clinic,
+.visit-type-badge.center {
+  background: #fff3e0;
+  color: #e65100;
+  border: 1px solid #ffe0b2;
 }
+
+
 
 /* DC Details */
 .dc-details {
@@ -312,7 +320,7 @@
 .action-card {
   border: none;
   border-radius: 15px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   background: linear-gradient(135deg, #f8f9fa 0%, #e3f2fd 100%);
 }
 
@@ -331,7 +339,7 @@
 .test-details-card {
   border: none;
   border-radius: 15px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .test-variants {
@@ -386,25 +394,25 @@
     position: relative;
     margin-bottom: 15px;
   }
-  
+
   .filter-section,
   .sort-section {
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .filter-buttons {
     flex-wrap: wrap;
   }
-  
+
   .test-buttons {
     justify-content: center;
   }
-  
+
   .summary-item {
     padding: 10px;
   }
-  
+
   .confirm-btn {
     min-width: 100%;
   }
@@ -504,16 +512,17 @@
   .modal-dialog {
     margin: 10px;
   }
-  
+
   .modal-body table {
     font-size: 0.85rem;
   }
-  
+
   .modal-body th,
   .modal-body td {
     padding: 8px 5px;
   }
 }
+
 /* Address Display Styles */
 .address-container {
   display: flex;
@@ -524,7 +533,8 @@
 .address-text {
   flex: 1;
   word-break: break-word;
-  min-width: 0; /* Important for text truncation */
+  min-width: 0;
+  /* Important for text truncation */
 }
 
 .read-more-address {
@@ -555,11 +565,11 @@
   .address-container {
     flex-wrap: wrap;
   }
-  
+
   .address-text {
     font-size: 0.9rem;
   }
-  
+
   .read-more-address {
     font-size: 0.75rem;
   }

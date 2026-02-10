@@ -7,6 +7,7 @@ import { toast } from 'react-toastify';
 import { DependantsAPI } from '../../api/dependants';
 import { District } from '../../types/dependants';
 import { CheckOutAPI } from '../../api/CheckOut';
+import { labTestsAPI } from '../../api/labtests';
 
 import {
   faShoppingCart,
@@ -19,7 +20,9 @@ import {
   faFileMedical,
   faFileInvoiceDollar,
   faStethoscope,
-  faHeartCirclePlus
+  faHeartCirclePlus,
+  faCalendarAlt,
+  faNotesMedical
 } from '@fortawesome/free-solid-svg-icons';
 import './Header.css';
 
@@ -87,6 +90,9 @@ interface DiagnosticCartItem {
   dcId?: string;
   dcName?: string;
   packageCode?: string;
+  note?: string;
+  appointmentDate?: string;
+  appointmentTime?: string;
 }
 
 const Header: React.FC = () => {
@@ -261,90 +267,26 @@ const Header: React.FC = () => {
     };
   }, []);
 
-  // Fetch appointment cart from API
+  // Fetch diagnostic cart from API disabled to prevent showing "old data"
+  /*
   useEffect(() => {
-    console.log("Header: Cart Effect Triggered", { user, cartUniqueId });
-    const fetchAppointmentCartFromAPI = async () => {
-      console.log("Header: fetchAppointmentCartFromAPI started");
-      if (!user) {
-        console.log("Header: User not logged in, skipping cart fetch");
-        return;
-      }
-
-      try {
-        const employeeRefId = localStorage.getItem("EmployeeRefId");
-        const storedCartUniqueId = localStorage.getItem("CartUniqueId");
-        console.log("Header: LocalStorage vals", { employeeRefId, storedCartUniqueId });
-
-        if (employeeRefId && storedCartUniqueId) {
-          const employeeId = parseInt(employeeRefId);
-          const cartUniqueId = parseInt(storedCartUniqueId);
-
-          if (employeeId && cartUniqueId) {
-            console.log("Header: Calling CheckOutAPI.CRMGetCustomerCartDetails", { employeeId, cartUniqueId });
-            const cartDetails = await CheckOutAPI.CRMGetCustomerCartDetails(employeeId, cartUniqueId);
-
-            if (cartDetails && cartDetails.length > 0) {
-              const apiAppointmentItems = cartDetails.map((item: any) => ({
-                id: (item.id || item.CaseRefId)?.toString() || Math.random().toString(),
-                type: 'appointment' as const,
-                name: item.note || item.ItemName || 'Consultation', // Use note or ItemName or default
-                price: parseFloat(item.final_price || item.price || item.ItemAmount?.toString() || '0'),
-                quantity: item.Quantity || 1,
-                consultationType: item.item_type || item.ItemName,
-                doctorName: item.doctor?.full_name || item.doctor?.name || item.DoctorName || 'Doctor',
-                appointmentTime: item.appointment_time || item.AppointmentDateTime || undefined,
-                caseLeadId: (item.id || item.CaseRefId)?.toString(),
-                cartUniqueId: cartUniqueId,
-                PersonName: item.dependant_name || item.PersonName, // Assuming dependant_name might exist or fallback
-                relationship: item.Relationship || '',
-                appointmentDate: item.appointment_date || item.AppointmentDate || null,
-                doctorCity: item.doctor?.city || item.DoctorCity || '',
-                doctorSpeciality: item.doctor?.specialization || item.DoctorSpeciality || '',
-                clinicName: item.ClinicName || item.DCAddress || item.DRAddress || '',
-                mobileNo: item.MobileNo || '',
-                emailId: item.Emailid || '',
-                DCSelection: item.DCSelection || '',
-                DoctorId: item.doctor?.id || item.DoctorId || 0,
-              }));
-
-              const cartKey = `app_cart_${employeeRefId}`;
-              const existingCart = JSON.parse(localStorage.getItem(cartKey) || '[]');
-              const nonAppointmentItems = existingCart.filter((item: any) => item.type !== 'appointment');
-              const updatedCart = [...nonAppointmentItems, ...apiAppointmentItems];
-
-              localStorage.setItem(cartKey, JSON.stringify(updatedCart));
-              setAppointmentCartItems(apiAppointmentItems);
-              window.dispatchEvent(new CustomEvent('cartUpdated'));
-            } else {
-              const cartKey = `app_cart_${employeeRefId}`;
-              const existingCart = JSON.parse(localStorage.getItem(cartKey) || '[]');
-              const nonAppointmentItems = existingCart.filter((item: any) => item.type !== 'appointment');
-              localStorage.setItem(cartKey, JSON.stringify(nonAppointmentItems));
-              setAppointmentCartItems([]);
-              window.dispatchEvent(new CustomEvent('cartUpdated'));
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching appointment cart from API:', error);
-        toast.error('Failed to load appointment cart data');
-      }
+    const fetchDiagnosticCartFromAPI = async () => {
+      if (!user) return;
+      // ...
     };
 
-    if (user && cartUniqueId > 0) {
-      fetchAppointmentCartFromAPI();
-    } else if (user) {
-      const employeeRefId = localStorage.getItem("EmployeeRefId");
-      if (employeeRefId) {
-        const cartKey = `app_cart_${employeeRefId}`;
-        const existingCart = JSON.parse(localStorage.getItem(cartKey) || '[]');
-        const nonAppointmentItems = existingCart.filter((item: any) => item.type !== 'appointment');
-        localStorage.setItem(cartKey, JSON.stringify(nonAppointmentItems));
-        setAppointmentCartItems([]);
-      }
+    if (user) {
+      fetchDiagnosticCartFromAPI();
     }
+  }, [user, location.pathname]);
+  */
+
+  // Fetch appointment cart from API disabled to prevent showing "old data"
+  /*
+  useEffect(() => {
+    // ...
   }, [user, cartUniqueId]);
+  */
 
   // Calculate counts based on current page
   const isOnPharmacyPage = location.pathname === '/pharmacy';
@@ -592,96 +534,40 @@ const Header: React.FC = () => {
   const handleProceedToCheckout = async () => {
     setShowCartMenu(false);
 
-    if (isOnPharmacyPage) {
+    // If we are on pharmacy page, prioritize pharmacy cart
+    if (isOnPharmacyPage && pharmacyCartCount > 0) {
       navigate('/pharmacy/cart');
-    } else if (isOnDiagnosticPage) {
-      // Navigate to diagnostic cart page
-      if (diagnosticCartItems.length > 0) {
-        // Extract test data from diagnostic cart items
-        const selectedTests = diagnosticCartItems.map(item => ({
-          TestId: item.testId,
-          TestName: item.testName,
-          TestPackageCode: item.packageCode,
-          CorporatePrice: item.price,
-          NormalPrice: item.price
-        }));
+      return;
+    }
 
-        // You might need to get the diagnostic center from localStorage or navigate to selection
-        navigate('/diagnostic-cart', {
-          state: {
-            selectedTests: selectedTests,
-            // You might need to pass additional data like diagnostic center
-          }
-        });
-      }
+    // If we have diagnostic OR appointment items, go to common cart
+    if (diagnosticCartItems.length > 0 || appointmentCartItems.length > 0) {
+      const consolidatedItems = [
+        ...appointmentCartItems,
+        ...diagnosticCartItems.map(item => ({
+          ...item,
+          ItemAmount: item.price,
+          name: item.testName,
+          PersonName: item.dependentName || (localStorage.getItem("DisplayName") || 'Patient'),
+          Relationship: item.relation || 'Self'
+        }))
+      ];
+
+      navigate("/CommonCartDcAndConsultation", {
+        state: {
+          cartItems: consolidatedItems,
+          totalAmount: totalCartAmount,
+          fromHeader: true
+        }
+      });
+      return;
+    }
+
+    // Fallback if no specific page logic applies but we have items
+    if (pharmacyCartCount > 0) {
+      navigate('/pharmacy/cart');
     } else {
-      try {
-        const employeeRefId = localStorage.getItem("EmployeeRefId");
-        const storedCartUniqueId = localStorage.getItem("CartUniqueId");
-
-        if (!employeeRefId || !storedCartUniqueId) {
-          toast.warning("Please log in to view your cart");
-          return;
-        }
-
-        const employeeId = parseInt(employeeRefId);
-        const cartUniqueId = parseInt(storedCartUniqueId);
-
-        if (!employeeId || !cartUniqueId) {
-          toast.warning("Invalid cart information");
-          return;
-        }
-
-        const loadingToast = toast.loading("Checking your appointment cart...");
-        const cartDetails = await CheckOutAPI.CRMGetCustomerCartDetails(employeeId, cartUniqueId);
-        toast.dismiss(loadingToast);
-
-        if (!cartDetails || cartDetails.length === 0) {
-          toast.warning("No appointments found in your cart");
-          return;
-        }
-
-        const apiAppointmentItems = cartDetails.map((item: any) => ({
-          id: item.CaseRefId?.toString() || Math.random().toString(),
-          type: 'appointment' as const,
-          name: item.ItemName || 'Consultation',
-          price: parseFloat(item.ItemAmount?.toString() || '0'),
-          quantity: item.Quantity || 1,
-          consultationType: item.ItemName,
-          doctorName: item.DoctorName,
-          appointmentTime: item.AppointmentDateTime || undefined,
-          caseLeadId: item.CaseRefId?.toString(),
-          cartUniqueId: cartUniqueId,
-          PersonName: item.PersonName || '',
-          relationship: item.Relationship || '',
-          appointmentDate: item.AppointmentDate || undefined,
-          doctorCity: item.DoctorCity || '',
-          doctorSpeciality: item.DoctorSpeciality || '',
-          clinicName: item.ClinicName || item.DCAddress || item.DRAddress || '',
-          mobileNo: item.MobileNo || '',
-          emailId: item.Emailid || '',
-          DCSelection: item.DCSelection || '',
-          DoctorId: item.DoctorId || 0,
-        }));
-
-        const cartKey = `app_cart_${employeeRefId}`;
-        const existingCart = JSON.parse(localStorage.getItem(cartKey) || '[]');
-        const nonAppointmentItems = existingCart.filter((item: any) => item.type !== 'appointment');
-        const updatedCart = [...nonAppointmentItems, ...apiAppointmentItems];
-        localStorage.setItem(cartKey, JSON.stringify(updatedCart));
-        const totalAmount = apiAppointmentItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-        navigate("/CommonCartDcAndConsultation", {
-          state: {
-            cartItems: apiAppointmentItems,
-            totalAmount: totalAmount,
-            fromAppointment: true
-          }
-        });
-
-      } catch (error) {
-        console.error('Error fetching cart details:', error);
-        toast.error("Failed to load your appointment cart");
-      }
+      toast.info("Your cart is empty");
     }
   };
 
@@ -804,11 +690,7 @@ const Header: React.FC = () => {
                 </Link>
               </div>
               <div className="cart-section" ref={cartRef}>
-                <div className="icon-container" onClick={() => {
-                  setShowCartMenu(!showCartMenu);
-                  setShowProfileMenu(false);
-                  setShowNotifications(false);
-                }}>
+                <div className="icon-container" onClick={handleProceedToCheckout}>
                   <FontAwesomeIcon icon={faShoppingCart} />
                   {totalCartCount > 0 && (
                     <Badge bg="danger" pill className="cart-badge" style={{ marginLeft: '-13px', marginTop: '-35px' }}>
@@ -816,112 +698,6 @@ const Header: React.FC = () => {
                     </Badge>
                   )}
                   <div className="cart-info"></div>
-                  {showCartMenu && (
-                    <div className="dropdown-menu cart-dropdown show">
-                      <div className="cart-header">
-                        <h6>Cart</h6>
-                      </div>
-                      <div className="cart-body">
-                        {isOnPharmacyPage ? (
-                          pharmacyCartCount === 0 ? (
-                            <p className="empty-cart-message">Your pharmacy cart is empty</p>
-                          ) : (
-                            <div className="cart-items-list">
-                              {cartItems.map((item, index) => (
-                                <div key={`pharmacy_${index}`} className="cart-item pharmacy-item">
-                                  <div className="cart-item-details">
-                                    <div className="cart-item-name">
-                                      <FontAwesomeIcon icon={faPills} className="me-2" />
-                                      {item.name} (Qty: {item.quantity})
-                                    </div>
-                                    <div className="cart-item-price">
-                                      :₹{(item.price * item.quantity).toFixed(2)}
-                                    </div>
-                                  </div>
-                                  <button
-                                    className="cart-item-remove"
-                                    onClick={() => handleRemoveCartItem(index)}
-                                  >
-                                    <FontAwesomeIcon icon={faTrashAlt} />
-                                  </button>
-                                </div>
-                              ))}
-
-                              <div className="cart-total-section">
-                                <div className="total-amount">
-                                  <strong>Total: ₹{totalCartAmount.toFixed(2)}</strong>
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        ) : isOnDiagnosticPage ? (
-                          diagnosticCartCount === 0 ? (
-                            <p className="empty-cart-message">No diagnostic tests in cart</p>
-                          ) : (
-                            <div className="cart-items-list">
-
-
-                            </div>
-                          )
-                        ) : (
-                          appointmentCartCount === 0 ? (
-                            <p className="empty-cart-message">No appointments in cart</p>
-                          ) : (
-                            <div className="cart-items-list">
-                              {appointmentCartItems.map((item, index) => (
-                                <div key={`appointment_${index}`} className="cart-item appointment-item">
-                                  <div className="cart-item-details">
-                                    <div className="cart-item-name">
-                                      {item.consultationType || 'Consultation'}
-                                      :₹{item.price.toFixed(2)}
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-
-
-
-                              <div className="cart-total-section">
-                                <div className="total-amount">
-                                  <strong>Total: ₹{totalCartAmount.toFixed(2)}</strong>
-                                </div>
-                              </div>
-
-                              {diagnosticCartItems.map((item, index) => (
-                                <div key={`diagnostic_${index}`} className="cart-item diagnostic-item">
-                                  <div className="cart-item-details">
-                                    <div className="cart-item-name">
-                                      {item.testName}- {item.price}
-                                    </div>
-
-                                  </div>
-
-                                </div>
-                              ))}
-
-                            </div>
-                          )
-                        )}
-                      </div>
-
-                      {totalCartCount > 0 && (
-                        <div className="cart-footer">
-                          <div className="cart-buttons">
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              className="checkout-btn"
-                              onClick={handleProceedToCheckout}
-                            >
-                              {isOnPharmacyPage ? 'View Cart' :
-                                isOnDiagnosticPage ? 'View Cart' :
-                                  'View Cart'}
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
 

@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Container, Row, Col, Form, Button, Card, Dropdown, Modal } from 'react-bootstrap';
+import { Container, Row, Col, Form, Button, Card, Dropdown, Modal, Spinner } from 'react-bootstrap';
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
-  faHome, 
-  faClinicMedical, 
-  faTimes, 
-  faPlus, 
+import {
+  faHome,
+  faClinicMedical,
+  faTimes,
+  faPlus,
   faMapMarkerAlt,
   faStethoscope,
   faVial,
@@ -16,15 +16,19 @@ import {
   faShoppingCart,
   faTag,
   faEye,
-  faCalendarAlt
+  faCalendarAlt,
+  faCheck
 } from '@fortawesome/free-solid-svg-icons';
 import './LabTests.css';
 import Slider from 'react-slick';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
 import { labTestsAPI } from "../../api/labtests";
-import { CRMFetchCommonTestNameDetailsRequest, HealthPackage } from "../../types/labtests";
+import { CRMFetchCommonTestNameDetailsRequest, CRMFetchCommonTestNameDetailsResponse, HealthPackage, VisitType } from "../../types/labtests";
 import { useNavigate } from 'react-router-dom';
+import { DependantsAPI } from '../../api/dependants';
+import { District } from '../../types/dependants';
+import { DiagnosticCenterDetailed, APIHealthPackage } from '../../types/labtests';
 
 const LabTests: React.FC = () => {
   // Router
@@ -38,18 +42,18 @@ const LabTests: React.FC = () => {
   const [selectedTests, setSelectedTests] = useState<string[]>([]);
   const [location, setLocation] = useState('Bangalore/Bengaluru');
   const [showAppointmentPopup, setShowAppointmentPopup] = useState(false);
-  
+
   // Test names state
-  const [testNames, setTestNames] = useState<string[]>([]);
+  const [testNames, setTestNames] = useState<CRMFetchCommonTestNameDetailsResponse[]>([]);
   const [isLoadingTests, setIsLoadingTests] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredTestNames, setFilteredTestNames] = useState<string[]>([]);
+  const [filteredTestNames, setFilteredTestNames] = useState<CRMFetchCommonTestNameDetailsResponse[]>([]);
 
   // Health packages state with pagination
-  const [healthPackages, setHealthPackages] = useState<HealthPackage[]>([]);
-  const [specialPackages, setSpecialPackages] = useState<HealthPackage[]>([]);
-  const [regularPackages, setRegularPackages] = useState<HealthPackage[]>([]);
+  const [healthPackages, setHealthPackages] = useState<APIHealthPackage[]>([]);
+  const [specialPackages, setSpecialPackages] = useState<APIHealthPackage[]>([]);
+  const [regularPackages, setRegularPackages] = useState<APIHealthPackage[]>([]);
   const [isLoadingPackages, setIsLoadingPackages] = useState(false);
   const [isLoadingSpecialPackages, setIsLoadingSpecialPackages] = useState(false);
   const [isLoadingRegularPackages, setIsLoadingRegularPackages] = useState(false);
@@ -57,6 +61,11 @@ const LabTests: React.FC = () => {
   const [selectedPackageType, setSelectedPackageType] = useState<'annual' | 'special' | 'regular'>('annual');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 8;
+  const [visitTypes, setVisitTypes] = useState<VisitType[]>([]);
+  const [dynamicCities, setDynamicCities] = useState<District[]>([]);
+  const [isLoadingCities, setIsLoadingCities] = useState(false);
+  const [diagnosticCenters, setDiagnosticCenters] = useState<DiagnosticCenterDetailed[]>([]);
+  const [isLoadingCenters, setIsLoadingCenters] = useState(false);
 
   // Modal state
   const [showTestsModal, setShowTestsModal] = useState(false);
@@ -71,7 +80,34 @@ const LabTests: React.FC = () => {
   useEffect(() => {
     fetchCommonTestNames();
     fetchHealthPackages();
+    loadVisitTypes();
+    fetchCities();
+    fetchDiagnosticCenters();
   }, []);
+
+  const fetchCities = async () => {
+    setIsLoadingCities(true);
+    try {
+      const data = await DependantsAPI.CRMLoadCitys();
+      if (data && data.length > 0) {
+        setDynamicCities(data);
+        console.log("Loaded cities:", data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch cities:", error);
+    } finally {
+      setIsLoadingCities(false);
+    }
+  };
+
+  const loadVisitTypes = async () => {
+    try {
+      const data = await labTestsAPI.fetchVisitTypes();
+      if (data) setVisitTypes(data);
+    } catch (error) {
+      console.error("Failed to load visit types:", error);
+    }
+  };
 
   const fetchCommonTestNames = async () => {
     setIsLoadingTests(true);
@@ -80,24 +116,21 @@ const LabTests: React.FC = () => {
       const corporateId = Number(localStorage.getItem("CorporateId") || 37);
       const employeeRefId = localStorage.getItem("EmployeeRefId") || "0";
       const request: CRMFetchCommonTestNameDetailsRequest = {
-        CorporateId: corporateId, 
+        CorporateId: corporateId,
         EmployeeRefId: employeeRefId,
-        CityId: cityid 
+        CityId: cityid
       };
-      
+
       const response = await labTestsAPI.fetchCommonTestNameDetails(request);
       console.log("Test names response", response);
-      
+
       if (response && response.length > 0) {
-        const allTestNames = response
-          .map(test => test.TestName?.trim())
-          .filter(name => name && name.length > 0);      
-        setTestNames(allTestNames);
-        setFilteredTestNames(allTestNames);
-        
-        console.log(`Loaded ${allTestNames.length} test names from API`);
+        setTestNames(response);
+        setFilteredTestNames(response);
+
+        console.log(`Loaded ${response.length} tests from API`);
       } else {
-        console.log("No test names found in API response");
+        console.log("No tests found in API response");
         setTestNames([]);
         setFilteredTestNames([]);
       }
@@ -110,24 +143,32 @@ const LabTests: React.FC = () => {
     }
   };
 
+  const fetchDiagnosticCenters = async () => {
+    setIsLoadingCenters(true);
+    try {
+      const data = await labTestsAPI.fetchDiagnosticCenters();
+      if (data && data.length > 0) {
+        setDiagnosticCenters(data);
+        console.log("Loaded diagnostic centers:", data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch diagnostic centers:", error);
+    } finally {
+      setIsLoadingCenters(false);
+    }
+  };
+
   const fetchHealthPackages = async () => {
     setIsLoadingPackages(true);
     try {
-      const corporateId = Number(localStorage.getItem("CorporateId") || 37);
-      const employeeRefId = localStorage.getItem("EmployeeRefId") || "0";
-      
-      const response = await labTestsAPI.fetchHealthPackages({
-        CorporateId: corporateId,
-        EmployeeRefId: employeeRefId
-      });
-      
+      const response = await labTestsAPI.fetchHealthPackagesByType('annual');
       console.log("Health packages response", response);
-      
+
       if (response && response.length > 0) {
-        setHealthPackages(response);
-        console.log(`Loaded ${response.length} health packages from API`);
+        // Filter for annual type
+        const filtered = response.filter(pkg => pkg.package_type?.toLowerCase().includes('annual'));
+        setHealthPackages(filtered);
       } else {
-        console.log("No health packages found in API response");
         setHealthPackages([]);
       }
     } catch (error) {
@@ -141,9 +182,26 @@ const LabTests: React.FC = () => {
   const fetchSpecialPackages = async () => {
     setIsLoadingSpecialPackages(true);
     try {
-      const corporateId = Number(localStorage.getItem("CorporateId") || 37);
-      const employeeRefId = localStorage.getItem("EmployeeRefId");
-      
+      const response = await labTestsAPI.fetchSponsoredPackages();
+      console.log("Sponsored packages response", response);
+
+      if (response && response.length > 0) {
+        // Map SponsoredPackage to APIHealthPackage format
+        const mapped: APIHealthPackage[] = response.map(pkg => ({
+          id: pkg.id,
+          name: pkg.name,
+          code: pkg.code,
+          description: pkg.description,
+          price: pkg.price,
+          validity_till: pkg.validity_till,
+          tests: pkg.test_ids || [], // Map test_ids to tests
+          package_type: 'special',
+          active: true
+        }));
+        setSpecialPackages(mapped);
+      } else {
+        setSpecialPackages([]);
+      }
     } catch (error) {
       console.error("Failed to fetch special packages:", error);
       setSpecialPackages([]);
@@ -155,9 +213,14 @@ const LabTests: React.FC = () => {
   const fetchRegularPackages = async () => {
     setIsLoadingRegularPackages(true);
     try {
-      const corporateId = Number(localStorage.getItem("CorporateId") || 37);
-      const employeeRefId = localStorage.getItem("EmployeeRefId") || "0";  
-      
+      const response = await labTestsAPI.fetchHealthPackagesByType('regular');
+      if (response && response.length > 0) {
+        // Filter for regular type
+        const filtered = response.filter(pkg => pkg.package_type?.toLowerCase() === 'regular');
+        setRegularPackages(filtered);
+      } else {
+        setRegularPackages([]);
+      }
     } catch (error) {
       console.error("Failed to fetch regular packages:", error);
       setRegularPackages([]);
@@ -169,11 +232,11 @@ const LabTests: React.FC = () => {
   // Handle package type button click
   const handlePackageTypeClick = (type: 'annual' | 'special' | 'regular') => {
     if (selectedPackageType === type) return;
-    
+
     setSelectedPackageType(type);
     setCurrentPage(1);
     setSelectedPackage(null);
-    
+
     // Fetch packages if not already loaded
     if (type === 'special' && specialPackages.length === 0) {
       fetchSpecialPackages();
@@ -214,26 +277,29 @@ const LabTests: React.FC = () => {
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
-    
+
     if (query.trim() === '') {
       setFilteredTestNames(testNames);
     } else {
-      const filtered = testNames.filter(test => 
-        test.toLowerCase().includes(query.toLowerCase())
-      );
+      const filtered = testNames.filter(test => {
+        const name = (test.name || test.TestName || '').toLowerCase();
+        const code = (test.code || '').toLowerCase();
+        return name.includes(query.toLowerCase()) || code.includes(query.toLowerCase());
+      });
       setFilteredTestNames(filtered);
     }
   };
 
   // Handle adding a test
-  const handleAddTest = (testName: string) => {
+  const handleAddTest = (test: CRMFetchCommonTestNameDetailsResponse) => {
+    const testName = test.name || test.TestName || "Unknown Test";
     if (selectedTests.includes(testName)) {
       alert(`"${testName}" is already in your selected tests list.`);
       return;
     }
-    
+
     setSelectedTests(prev => [...prev, testName]);
-    
+
     // Show appointment popup when first test is selected
     if (selectedTests.length === 0) {
       setTimeout(() => {
@@ -245,7 +311,7 @@ const LabTests: React.FC = () => {
   // Handle adding a health package
   const handleAddPackage = (packageId: number) => {
     const packagesToDisplay = getPackagesToDisplay();
-    const selectedPkg = packagesToDisplay.find(pkg => pkg.PackageId === packageId);
+    const selectedPkg = packagesToDisplay.find(pkg => pkg.id === packageId);
     if (!selectedPkg) return;
 
     if (selectedPackage === packageId) {
@@ -254,15 +320,25 @@ const LabTests: React.FC = () => {
     } else {
       // Select new package
       setSelectedPackage(packageId);
-      
+
       // Add package tests to selected tests
-      const packageTests = selectedPkg.TestName.split(',').map(test => test.trim());
-      const newTests = packageTests.filter(test => !selectedTests.includes(test));
-      
+      // Resolved names from IDs
+      const packageTestNames: string[] = [];
+      if (selectedPkg.tests && selectedPkg.tests.length > 0) {
+        selectedPkg.tests.forEach(id => {
+          const testFound = testNames.find(t => t.id === id || t.TestId === id);
+          if (testFound && (testFound.name || testFound.TestName)) {
+            packageTestNames.push(testFound.name || testFound.TestName || "");
+          }
+        });
+      }
+
+      const newTests = packageTestNames.filter(test => !selectedTests.includes(test));
+
       if (newTests.length > 0) {
         setSelectedTests(prev => [...prev, ...newTests]);
       }
-      
+
       // Show appointment popup if this is the first selection
       if (selectedTests.length === 0) {
         setTimeout(() => {
@@ -275,28 +351,39 @@ const LabTests: React.FC = () => {
   // Handle viewing package tests
   const handleViewTests = (packageId: number) => {
     const packagesToDisplay = getPackagesToDisplay();
-    const selectedPkg = packagesToDisplay.find(pkg => pkg.PackageId === packageId);
+    const selectedPkg = packagesToDisplay.find(pkg => pkg.id === packageId);
     if (!selectedPkg) return;
-    
-    // Extract test names from TestName string
-    const tests = selectedPkg.TestName.split(',').map(test => test.trim());
+
+    // Extract test names from tests
+    const tests: string[] = [];
+    if (selectedPkg.tests && selectedPkg.tests.length > 0) {
+      selectedPkg.tests.forEach(id => {
+        const testFound = testNames.find(t => t.id === id || t.TestId === id);
+        if (testFound && (testFound.name || testFound.TestName)) {
+          tests.push(testFound.name || testFound.TestName || "");
+        }
+      });
+    }
+
     setSelectedPackageTests(tests);
-    setSelectedPackageName(selectedPkg.PackageName);
+    setSelectedPackageName(selectedPkg.name);
     setShowTestsModal(true);
   };
 
   // Handle adding multiple tests at once
   const handleAddMultipleTests = () => {
     // Add all filtered tests that aren't already selected
-    const newTests = filteredTestNames.filter(test => !selectedTests.includes(test));
-    
+    const newTests = filteredTestNames
+      .map(test => test.name || test.TestName || "")
+      .filter((name): name is string => !!name && !selectedTests.includes(name));
+
     if (newTests.length === 0) {
       alert('All tests are already selected.');
       return;
     }
-    
+
     setSelectedTests(prev => [...prev, ...newTests]);
-    
+
     // Show appointment popup when first test is selected
     if (selectedTests.length === 0 && newTests.length > 0) {
       setTimeout(() => {
@@ -332,12 +419,12 @@ const LabTests: React.FC = () => {
   // Pagination logic
   const packagesToDisplay = getPackagesToDisplay();
   const totalPages = Math.ceil(packagesToDisplay.length / itemsPerPage);
-  
+
   // Get current page items
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentPackages = packagesToDisplay.slice(indexOfFirstItem, indexOfLastItem);
-  
+
   // Handle page change
   const handlePageChange = (pageNumber: number) => {
     if (pageNumber >= 1 && pageNumber <= totalPages) {
@@ -354,7 +441,7 @@ const LabTests: React.FC = () => {
   const getPageNumbers = () => {
     const pageNumbers = [];
     const maxVisiblePages = 5;
-    
+
     if (totalPages <= maxVisiblePages) {
       // Show all pages if total pages is less than maxVisiblePages
       for (let i = 1; i <= totalPages; i++) {
@@ -387,7 +474,7 @@ const LabTests: React.FC = () => {
         pageNumbers.push(totalPages);
       }
     }
-    
+
     return pageNumbers;
   };
 
@@ -425,7 +512,7 @@ const LabTests: React.FC = () => {
   };
 
   // Carousel logic for locations
-  const locationData = [
+  const staticLocationData = [
     { name: 'New Delhi', img: '/DELHI-8.png' },
     { name: 'Chandigarh', img: '/Chandigarh.png' },
     { name: 'Srinagar', img: '/srinagr.png' },
@@ -437,18 +524,33 @@ const LabTests: React.FC = () => {
     { name: 'Jaipur', img: '/JAIPUR-8.png' },
     { name: 'Lucknow', img: '/LUCKNOW-8.png' },
   ];
-  
+
+  // Merge dynamic cities with static images
+  const locationData = dynamicCities.length > 0
+    ? dynamicCities.map(city => {
+      const cityName = city.DistrictName || (city as any).name || '';
+      const staticMatch = staticLocationData.find(s =>
+        (s.name || '').toLowerCase() === cityName.toLowerCase()
+      );
+      return {
+        name: cityName,
+        img: staticMatch ? staticMatch.img : '/BANGALORE-8.png', // Default image
+        id: city.DistrictId || (city as any).id
+      };
+    })
+    : staticLocationData;
+
   const LOCATIONS_VISIBLE = 4;
   const [locationCarouselIndex, setLocationCarouselIndex] = useState(0);
-  
+
   const handlePrev = () => {
     setLocationCarouselIndex(prev => prev === 0 ? locationData.length - LOCATIONS_VISIBLE : prev - 1);
   };
-  
+
   const handleNext = () => {
     setLocationCarouselIndex(prev => prev >= locationData.length - LOCATIONS_VISIBLE ? 0 : prev + 1);
   };
-  
+
   // Auto-rotate carousel every 2 seconds
   useEffect(() => {
     const interval = setInterval(() => {
@@ -472,11 +574,11 @@ const LabTests: React.FC = () => {
     <div className="lab-tests-page">
       <div className="lab-tests-hero">
         <Container>
-          
+
           <Row className="mb-3">
             <Col xs={12} md={12}>
-              <div style={{ 
-                background: '#ffffff', 
+              <div style={{
+                background: '#ffffff',
                 padding: '20px',
                 borderRadius: '12px',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
@@ -485,18 +587,18 @@ const LabTests: React.FC = () => {
                 <h4 style={{ color: '#1976d2', marginBottom: '16px', fontWeight: 600 }}>
                   Search And Add Test
                 </h4>
-                
+
                 <div className="mb-4">
                   <div style={{ marginBottom: '20px' }}>
                     <div className="d-flex align-items-center">
                       {/* Custom Dropdown with search and Add buttons */}
-                      <Dropdown 
-                        show={dropdownOpen} 
+                      <Dropdown
+                        show={dropdownOpen}
                         onToggle={(isOpen) => setDropdownOpen(isOpen)}
                         style={{ flex: 1 }}
                       >
-                        <Dropdown.Toggle 
-                          variant="outline-primary" 
+                        <Dropdown.Toggle
+                          variant="outline-primary"
                           id="dropdown-test-search"
                           style={{
                             width: '100%',
@@ -518,7 +620,7 @@ const LabTests: React.FC = () => {
                           </span>
                         </Dropdown.Toggle>
 
-                        <Dropdown.Menu 
+                        <Dropdown.Menu
                           style={{
                             width: '100%',
                             maxHeight: '400px',
@@ -571,31 +673,32 @@ const LabTests: React.FC = () => {
                           </div>
 
                           {/* Test list with Add buttons */}
-                          <div style={{ 
-                            maxHeight: '300px', 
+                          <div style={{
+                            maxHeight: '300px',
                             overflowY: 'auto',
                             paddingRight: '5px'
                           }}>
                             {isLoadingTests ? (
-                              <div style={{ 
-                                padding: '20px', 
-                                textAlign: 'center', 
-                                color: '#666' 
+                              <div style={{
+                                padding: '20px',
+                                textAlign: 'center',
+                                color: '#666'
                               }}>
                                 Loading tests...
                               </div>
                             ) : filteredTestNames.length === 0 ? (
-                              <div style={{ 
-                                padding: '20px', 
-                                textAlign: 'center', 
-                                color: '#666' 
+                              <div style={{
+                                padding: '20px',
+                                textAlign: 'center',
+                                color: '#666'
                               }}>
                                 No tests found
                               </div>
                             ) : (
-                              filteredTestNames.map((testName, index) => {
+                              filteredTestNames.map((test, index) => {
+                                const testName = test.name || test.TestName || "Unknown Test";
                                 const isAlreadyAdded = selectedTests.includes(testName);
-                                
+
                                 return (
                                   <div
                                     key={index}
@@ -616,28 +719,34 @@ const LabTests: React.FC = () => {
                                     }}
                                   >
                                     {/* Test Name */}
-                                    <div style={{ 
-                                      display: 'flex', 
-                                      alignItems: 'center', 
+                                    <div style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
                                       flex: 1,
                                       paddingRight: '10px'
                                     }}>
-                                      <FontAwesomeIcon 
-                                        icon={faVial} 
-                                        style={{ 
-                                          marginRight: '12px', 
+                                      <FontAwesomeIcon
+                                        icon={faVial}
+                                        style={{
+                                          marginRight: '12px',
                                           color: isAlreadyAdded ? '#4CAF50' : '#1976d2',
                                           fontSize: '14px',
                                           minWidth: '20px'
-                                        }} 
+                                        }}
                                       />
-                                      <span style={{ 
-                                        fontSize: '14px', 
-                                        fontWeight: 500,
-                                        color: isAlreadyAdded ? '#4CAF50' : '#333',
-                                        lineHeight: '1.4'
-                                      }}>
-                                        {testName}
+                                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <span style={{
+                                          fontSize: '14px',
+                                          fontWeight: 500,
+                                          color: isAlreadyAdded ? '#4CAF50' : '#333',
+                                          lineHeight: '1.4'
+                                        }}>
+                                          {testName}
+                                        </span>
+                                        <div style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
+                                          {test.code && <small style={{ color: '#888' }}>{test.code}</small>}
+                                          {test.price && <small style={{ color: '#1976d2', fontWeight: 600 }}>₹{test.price}</small>}
+                                        </div>
                                         {isAlreadyAdded && (
                                           <div style={{
                                             fontSize: '11px',
@@ -652,15 +761,15 @@ const LabTests: React.FC = () => {
                                             ✓ Already Added
                                           </div>
                                         )}
-                                      </span>
+                                      </div>
                                     </div>
-                                    
+
                                     {/* Add Button */}
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         if (!isAlreadyAdded) {
-                                          handleAddTest(testName);
+                                          handleAddTest(test);
                                         }
                                       }}
                                       style={{
@@ -686,7 +795,7 @@ const LabTests: React.FC = () => {
                                     >
                                       {isAlreadyAdded ? (
                                         <>
-                                          <FontAwesomeIcon icon={faTimes} size="sm" />
+                                          <FontAwesomeIcon icon={faCheck} size="sm" />
                                           Added
                                         </>
                                       ) : (
@@ -704,11 +813,11 @@ const LabTests: React.FC = () => {
                         </Dropdown.Menu>
                       </Dropdown>
                     </div>
-                    
+
                     {/* Info text */}
-                    <div style={{ 
-                      marginTop: '10px', 
-                      fontSize: '13px', 
+                    <div style={{
+                      marginTop: '10px',
+                      fontSize: '13px',
                       color: '#666',
                       display: 'flex',
                       justifyContent: 'space-between'
@@ -726,7 +835,7 @@ const LabTests: React.FC = () => {
 
               {/* Show selected tests */}
               {selectedTests.length > 0 && (
-                <div style={{ 
+                <div style={{
                   padding: '20px',
                   background: '#ffffff',
                   borderRadius: '12px',
@@ -734,20 +843,20 @@ const LabTests: React.FC = () => {
                   boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
                   marginTop: '20px'
                 }}>
-                  <div style={{ 
-                    display: 'flex', 
+                  <div style={{
+                    display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     marginBottom: '16px'
                   }}>
-                    <div style={{ 
-                      fontWeight: 700, 
-                      color: '#1976d2', 
+                    <div style={{
+                      fontWeight: 700,
+                      color: '#1976d2',
                       fontSize: '18px'
                     }}>
                       Selected Tests <span style={{ color: '#4CAF50' }}>({selectedTests.length})</span>
                     </div>
-                    
+
                     <div style={{ display: 'flex', gap: '10px' }}>
                       {selectedTests.length > 0 && (
                         <button
@@ -779,40 +888,40 @@ const LabTests: React.FC = () => {
                           Clear All
                         </button>
                       )}
-                      
-                     <Button 
-  variant="primary" 
-  style={{ 
-    padding: '8px 24px',
-    background: 'linear-gradient(to right, #ff8c00, #ff6b1c)',
-    border: 'none',
-    fontWeight: 600,
-    fontSize: '14px',
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '8px',
-    boxShadow: '0 4px 12px rgba(255, 107, 28, 0.3)'
-  }}
-  onClick={() => {
-    if (selectedTests.length > 0) {
-      navigate('/diagnostic-centers', { 
-        state: { 
-          selectedTests,
-          location: location 
-        }
-      });
-    }
-  }}
-  disabled={selectedTests.length === 0}
->
-  <FontAwesomeIcon icon={faClinicMedical} className="me-2" />
-  Select Diagnostic Center
-</Button>
+
+                      <Button
+                        variant="primary"
+                        style={{
+                          padding: '8px 24px',
+                          background: 'linear-gradient(to right, #ff8c00, #ff6b1c)',
+                          border: 'none',
+                          fontWeight: 600,
+                          fontSize: '14px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          boxShadow: '0 4px 12px rgba(255, 107, 28, 0.3)'
+                        }}
+                        onClick={() => {
+                          if (selectedTests.length > 0) {
+                            navigate('/diagnostic-centers', {
+                              state: {
+                                selectedTests,
+                                location: location
+                              }
+                            });
+                          }
+                        }}
+                        disabled={selectedTests.length === 0}
+                      >
+                        <FontAwesomeIcon icon={faClinicMedical} className="me-2" />
+                        Select Diagnostic Center
+                      </Button>
                     </div>
                   </div>
-                  
+
                   {/* Selected tests list */}
-                  <div style={{ 
+                  <div style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
                     gap: '12px',
@@ -823,8 +932,8 @@ const LabTests: React.FC = () => {
                     borderRadius: '8px'
                   }}>
                     {selectedTests.length === 0 ? (
-                      <div style={{ 
-                        color: '#999', 
+                      <div style={{
+                        color: '#999',
                         fontStyle: 'italic',
                         padding: '20px',
                         width: '100%',
@@ -863,14 +972,14 @@ const LabTests: React.FC = () => {
                             }}>
                               {index + 1}
                             </div>
-                            <FontAwesomeIcon 
-                              icon={faVial} 
-                              style={{ 
-                                color: '#1976d2', 
-                                fontSize: '14px' 
-                              }} 
+                            <FontAwesomeIcon
+                              icon={faVial}
+                              style={{
+                                color: '#1976d2',
+                                fontSize: '14px'
+                              }}
                             />
-                            <span style={{ 
+                            <span style={{
                               fontWeight: 500,
                               color: '#1976d2'
                             }}>
@@ -912,20 +1021,20 @@ const LabTests: React.FC = () => {
                   </div>
                 </div>
               )}
-              
+
               {/* Health Packages Section with Three Buttons */}
-              <div className='HealthPackages-Section-lab' style={{ 
-                background: '#ffffff', 
+              <div className='HealthPackages-Section-lab' style={{
+                background: '#ffffff',
                 padding: '20px',
                 borderRadius: '12px',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
                 marginBottom: '20px',
-                marginTop:'20px'
+                marginTop: '20px'
               }}>
-                <h4 style={{ color: '#1976d2', marginBottom: '16px', fontWeight: 600,textAlign:'center' }}>
+                <h4 style={{ color: '#1976d2', marginBottom: '16px', fontWeight: 600, textAlign: 'center' }}>
                   Health Packages
                 </h4>
-                
+
                 {/* Three Button Tabs */}
                 <div className='health-packages-button' style={{
                   display: 'flex',
@@ -934,7 +1043,7 @@ const LabTests: React.FC = () => {
                   marginBottom: '30px',
                   flexWrap: 'wrap'
                 }}>
-                  <button 
+                  <button
                     onClick={() => handlePackageTypeClick('annual')}
                     style={{
                       padding: '12px 30px',
@@ -982,8 +1091,8 @@ const LabTests: React.FC = () => {
                       </span>
                     )}
                   </button>
-                  
-                  <button 
+
+                  <button
                     onClick={() => handlePackageTypeClick('special')}
                     style={{
                       padding: '12px 30px',
@@ -1031,8 +1140,8 @@ const LabTests: React.FC = () => {
                       </span>
                     )}
                   </button>
-                  
-                  <button 
+
+                  <button
                     onClick={() => handlePackageTypeClick('regular')}
                     style={{
                       padding: '12px 30px',
@@ -1082,7 +1191,7 @@ const LabTests: React.FC = () => {
                   </button>
                 </div>
 
-                
+
 
                 {getIsLoading() ? (
                   <div style={{ textAlign: 'center', padding: '40px' }}>
@@ -1094,31 +1203,31 @@ const LabTests: React.FC = () => {
                     </p>
                   </div>
                 ) : packagesToDisplay.length === 0 ? (
-                  <div style={{ 
-                    textAlign: 'center', 
+                  <div style={{
+                    textAlign: 'center',
                     padding: '40px',
                     background: '#f8f9fa',
                     borderRadius: '10px',
                     border: '2px dashed #ddd'
                   }}>
-                    <FontAwesomeIcon 
-                      icon={selectedPackageType === 'annual' ? faCalendarAlt : 
-                            selectedPackageType === 'special' ? faStethoscope : faVial} 
-                      size="3x" 
-                      style={{ 
+                    <FontAwesomeIcon
+                      icon={selectedPackageType === 'annual' ? faCalendarAlt :
+                        selectedPackageType === 'special' ? faStethoscope : faVial}
+                      size="3x"
+                      style={{
                         color: '#ccc',
                         marginBottom: '20px'
-                      }} 
+                      }}
                     />
                     <h5 style={{ color: '#999', marginBottom: '10px' }}>
                       No {selectedPackageType} packages available
                     </h5>
                     <p style={{ color: '#aaa', fontSize: '14px' }}>
-                      {selectedPackageType === 'annual' ? 
+                      {selectedPackageType === 'annual' ?
                         'Annual health checkup packages will be available soon.' :
-                       selectedPackageType === 'special' ? 
-                        'Special packages are currently being updated.' :
-                        'Regular packages will be added shortly.'}
+                        selectedPackageType === 'special' ?
+                          'Special packages are currently being updated.' :
+                          'Regular packages will be added shortly.'}
                     </p>
                   </div>
                 ) : (
@@ -1127,100 +1236,92 @@ const LabTests: React.FC = () => {
                     <div className="packages-grid">
                       <Row>
                         {currentPackages.map((pkg) => {
-                          const isSelected = selectedPackage === pkg.PackageId;
-                          const discountedPrice = calculateDiscountedPrice(pkg.CorporatePackagePrice, pkg.Discount);
-                          
+                          const isSelected = selectedPackage === pkg.id;
+                          const packagePrice = parseFloat(pkg.price);
+                          // Fake discount for UI consistent look if not provided properly
+                          const fakeDiscount = 10;
+                          const originalPrice = Math.round(packagePrice / (1 - (fakeDiscount / 100)));
+
                           return (
-                            <Col xs={12} md={6} lg={3} key={pkg.PackageId} className="mb-4">
-                              <Card 
+                            <Col xs={12} md={6} lg={3} key={pkg.id} className="mb-4">
+                              <Card
                                 className={`package-card-labtest ${isSelected ? 'selected' : ''}`}
-                                onClick={() => handleAddPackage(pkg.PackageId)}
+                                onClick={() => handleAddPackage(pkg.id)}
                                 style={{
-                                  borderColor: selectedPackageType === 'annual' ? '#1976d2' : 
-                                              selectedPackageType === 'special' ? '#ff5722' : '#4CAF50',
+                                  borderColor: selectedPackageType === 'annual' ? '#1976d2' :
+                                    selectedPackageType === 'special' ? '#ff5722' : '#4CAF50',
                                   borderWidth: isSelected ? '2px' : '1px'
                                 }}
                               >
                                 {/* Discount Badge */}
-                                {/* <div className="package-discount-badge" style={{
-                                  background: selectedPackageType === 'annual' ? 
-                                    'linear-gradient(135deg, #1976d2, #2196f3)' :
-                                    selectedPackageType === 'special' ? 
-                                    'linear-gradient(135deg, #ff5722, #ff7043)' :
-                                    'linear-gradient(135deg, #4CAF50, #66bb6a)'
-                                }}>
-                                  {pkg.Discount}% OFF
-                                </div> */}
-
                                 <div className='package-discount-badge'>
-                                   {pkg.Discount}% OFF
-                                  </div>                                
+                                  {fakeDiscount}% OFF
+                                </div>
                                 {/* View Tests Button */}
-                                <div 
-                                  className='packege-view-test' 
+                                <div
+                                  className='packege-view-test'
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleViewTests(pkg.PackageId);
+                                    handleViewTests(pkg.id);
                                   }}
                                   style={{
-                                    background: selectedPackageType === 'annual' ? '#e3f2fd' : 
-                                               selectedPackageType === 'special' ? '#ffe0d6' : '#e8f5e9',
-                                    color: selectedPackageType === 'annual' ? '#1976d2' : 
-                                          selectedPackageType === 'special' ? '#ff5722' : '#4CAF50'
+                                    background: selectedPackageType === 'annual' ? '#e3f2fd' :
+                                      selectedPackageType === 'special' ? '#ffe0d6' : '#e8f5e9',
+                                    color: selectedPackageType === 'annual' ? '#1976d2' :
+                                      selectedPackageType === 'special' ? '#ff5722' : '#4CAF50'
                                   }}
                                 >
                                   <FontAwesomeIcon icon={faEye} className="me-1" size="sm" />
-                                  View Tests ({pkg.TestCount})
+                                  View Tests ({pkg.tests.length})
                                 </div>
-                                
+
                                 <Card.Body className="package-card-body">
                                   <div className="package-header-labtest">
                                     <div>
                                       <Card.Title className="package-title">
-                                        {pkg.PackageName}
+                                        {pkg.name}
                                       </Card.Title>
                                     </div>
                                     {isSelected && (
                                       <div className="package-selected-indicator" style={{
-                                        background: selectedPackageType === 'annual' ? '#1976d2' : 
-                                                   selectedPackageType === 'special' ? '#ff5722' : '#4CAF50'
+                                        background: selectedPackageType === 'annual' ? '#1976d2' :
+                                          selectedPackageType === 'special' ? '#ff5722' : '#4CAF50'
                                       }}>
                                         ✓
                                       </div>
                                     )}
                                   </div>
-                                  
+
                                   <div className="package-pricing">
                                     <div>
                                       <div className="package-discounted-price">
-                                        {formatPrice(pkg.CorporatePackagePrice)}
+                                        {formatPrice(packagePrice)}
                                         <div className="package-original-price">
-                                          {formatPrice(pkg.NormalPackagePrice)}
+                                          {formatPrice(originalPrice)}
                                         </div>
                                       </div>
                                     </div>
                                   </div>
-                                  
+
                                   <Button
                                     size="sm"
                                     className="add-package-btn"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleAddPackage(pkg.PackageId);
+                                      handleAddPackage(pkg.id);
                                     }}
                                     style={{
-                                      background: isSelected ? 
-                                        (selectedPackageType === 'annual' ? '#1976d2' : 
-                                         selectedPackageType === 'special' ? '#ff5722' : '#4CAF50') :
-                                        (selectedPackageType === 'annual' ? '#e3f2fd' : 
-                                         selectedPackageType === 'special' ? '#ffe0d6' : '#e8f5e9'),
-                                      color: isSelected ? 'white' : 
-                                        (selectedPackageType === 'annual' ? '#1976d2' : 
-                                         selectedPackageType === 'special' ? '#ff5722' : '#4CAF50'),
-                                      border: `1px solid ${
-                                        selectedPackageType === 'annual' ? '#1976d2' : 
+                                      background: isSelected ?
+                                        (selectedPackageType === 'annual' ? '#1976d2' :
+                                          selectedPackageType === 'special' ? '#ff5722' : '#4CAF50') :
+                                        (selectedPackageType === 'annual' ? '#e3f2fd' :
+                                          selectedPackageType === 'special' ? '#ffe0d6' : '#e8f5e9'),
+                                      color: isSelected ? 'white' :
+                                        (selectedPackageType === 'annual' ? '#1976d2' :
+                                          selectedPackageType === 'special' ? '#ff5722' : '#4CAF50'),
+                                      border: `1px solid ${selectedPackageType === 'annual' ? '#1976d2' :
                                         selectedPackageType === 'special' ? '#ff5722' : '#4CAF50'
-                                      }`
+                                        }`
                                     }}
                                   >
                                     <FontAwesomeIcon icon={faTag} className="me-2" />
@@ -1228,7 +1329,7 @@ const LabTests: React.FC = () => {
                                   </Button>
                                   <div className='validatedate-labtest'>
                                     <FontAwesomeIcon icon={faCalendarAlt} className="me-1" size="sm" />
-                                    Valid till {pkg.ValidityDate ? (pkg.ValidityDate) : ''}
+                                    Valid till {pkg.validity_till ? (pkg.validity_till) : ''}
                                   </div>
                                 </Card.Body>
                               </Card>
@@ -1248,7 +1349,7 @@ const LabTests: React.FC = () => {
                         >
                           <FontAwesomeIcon icon={faChevronLeft} /> Prev
                         </button>
-                        
+
                         <div className="pagination-numbers">
                           {getPageNumbers().map((pageNum, index) => (
                             pageNum === '...' ? (
@@ -1266,7 +1367,7 @@ const LabTests: React.FC = () => {
                             )
                           ))}
                         </div>
-                        
+
                         <button
                           className="pagination-btn next-btn"
                           onClick={() => handlePageChange(currentPage + 1)}
@@ -1276,7 +1377,7 @@ const LabTests: React.FC = () => {
                         </button>
                       </div>
                     )}
-                    
+
                     {/* Page Info */}
                     <div className="pagination-info">
                       Showing {indexOfFirstItem + 1}-{Math.min(indexOfLastItem, packagesToDisplay.length)} of {packagesToDisplay.length} packages
@@ -1324,7 +1425,7 @@ const LabTests: React.FC = () => {
               <Card style={{ border: 'none', boxShadow: '0 2px 16px rgba(0,0,0,0.06)', borderRadius: '24px', width: '100%' }} className="text-center">
                 <Card.Body>
                   <div style={{ background: '#ffe5f0', borderRadius: '50%', width: '90px', height: '90px', margin: '0 auto 18px auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <span style={{ fontWeight: 700, fontSize: '1.3rem', color: '#ff6b35' }}>BEST<br/>PRICE</span>
+                    <span style={{ fontWeight: 700, fontSize: '1.3rem', color: '#ff6b35' }}>BEST<br />PRICE</span>
                   </div>
                   <div style={{ fontWeight: 600, color: '#b48b8b', fontSize: '1.1rem' }}>BEST PRICE COMPARISON</div>
                 </Card.Body>
@@ -1363,10 +1464,87 @@ const LabTests: React.FC = () => {
           </Slider>
         </Container>
       </div>
-      
+
+      {/* Featured Diagnostic Centers Section */}
+      <div style={{ background: '#f8fafd', padding: '48px 0', marginBottom: '30px' }}>
+        <Container>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+            <div>
+              <h2 style={{ fontWeight: 700, fontSize: '1.8rem', marginBottom: '8px' }}>Featured Diagnostic Centers</h2>
+              <p style={{ color: '#666', marginBottom: 0 }}>Top-rated labs for accurate results and care</p>
+            </div>
+            <Button
+              variant="outline-primary"
+              onClick={() => navigate('/diagnostic-centers')}
+              style={{ borderRadius: '8px', padding: '8px 20px' }}
+            >
+              View All Centers
+            </Button>
+          </div>
+
+          {isLoadingCenters ? (
+            <div className="text-center py-5">
+              <Spinner animation="border" variant="primary" />
+              <p className="mt-3">Loading diagnostic centers...</p>
+            </div>
+          ) : diagnosticCenters.length > 0 ? (
+            <Row>
+              {diagnosticCenters.slice(0, 4).map((dc, idx) => (
+                <Col key={dc.id || idx} md={3} className="mb-4">
+                  <Card style={{
+                    border: 'none',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                    borderRadius: '16px',
+                    height: '100%',
+                    transition: 'transform 0.3s ease'
+                  }} className="h-100 dc-hover-card">
+                    <Card.Body>
+                      <div style={{
+                        background: '#e3f2fd',
+                        color: '#1976d2',
+                        padding: '4px 12px',
+                        borderRadius: '20px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        display: 'inline-block',
+                        marginBottom: '12px'
+                      }}>
+                        {dc.area || 'Premium Lab'}
+                      </div>
+                      <Card.Title style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '12px' }}>
+                        {dc.name}
+                      </Card.Title>
+                      <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '16px' }}>
+                        <FontAwesomeIcon icon={faMapMarkerAlt} className="me-2" style={{ color: '#ff6b35' }} />
+                        {dc.address.length > 60 ? dc.address.substring(0, 60) + '...' : dc.address}
+                      </div>
+                      <div className="mt-auto">
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          className="w-100"
+                          style={{ borderRadius: '8px' }}
+                          onClick={() => navigate('/diagnostic-centers', { state: { selectedTests: [], selectedDC: dc } })}
+                        >
+                          Book Appointment
+                        </Button>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          ) : (
+            <div className="text-center py-4">
+              <p style={{ color: '#888' }}>No diagnostic centers available at the moment.</p>
+            </div>
+          )}
+        </Container>
+      </div>
+
       {/* Our Locations Section */}
       <Container>
-        <section className="our-location-sections" style={{ marginBottom: '48px'}}>
+        <section className="our-location-sections" style={{ marginBottom: '48px' }}>
           <h2 className="our-location-headings">Our Locations</h2>
           <div className="location-carousel-wrappers">
             <button className="carousel-arrow left" onClick={handlePrev}>
@@ -1394,10 +1572,10 @@ const LabTests: React.FC = () => {
         size="lg"
         centered
       >
-        <Modal.Header closeButton style={{ 
-          background: selectedPackageType === 'annual' ? '#1976d2' : 
-                     selectedPackageType === 'special' ? '#ff5722' : '#4CAF50',
-          color: 'white' 
+        <Modal.Header closeButton style={{
+          background: selectedPackageType === 'annual' ? '#1976d2' :
+            selectedPackageType === 'special' ? '#ff5722' : '#4CAF50',
+          color: 'white'
         }}>
           <Modal.Title>
             <FontAwesomeIcon icon={faVial} className="me-2" />
@@ -1409,29 +1587,28 @@ const LabTests: React.FC = () => {
             <div className="mb-3" style={{ color: '#666', fontSize: '14px' }}>
               <strong>{selectedPackageTests.length}</strong> tests included in this package
             </div>
-            
+
             <div className="tests-grid">
               {selectedPackageTests.map((test, index) => (
-                <div 
-                  key={index} 
+                <div
+                  key={index}
                   className="test-item"
                   style={{
                     padding: '12px 15px',
                     marginBottom: '10px',
                     background: '#f8f9fa',
                     borderRadius: '8px',
-                    borderLeft: `4px solid ${
-                      selectedPackageType === 'annual' ? '#1976d2' : 
+                    borderLeft: `4px solid ${selectedPackageType === 'annual' ? '#1976d2' :
                       selectedPackageType === 'special' ? '#ff5722' : '#4CAF50'
-                    }`,
+                      }`,
                     display: 'flex',
                     alignItems: 'center'
                   }}
                 >
-                  <div 
+                  <div
                     style={{
-                      background: selectedPackageType === 'annual' ? '#1976d2' : 
-                                 selectedPackageType === 'special' ? '#ff5722' : '#4CAF50',
+                      background: selectedPackageType === 'annual' ? '#1976d2' :
+                        selectedPackageType === 'special' ? '#ff5722' : '#4CAF50',
                       color: 'white',
                       width: '28px',
                       height: '28px',
@@ -1448,8 +1625,8 @@ const LabTests: React.FC = () => {
                     {index + 1}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ 
-                      fontWeight: 500, 
+                    <div style={{
+                      fontWeight: 500,
                       color: '#333',
                       fontSize: '15px',
                       lineHeight: '1.4'
@@ -1477,13 +1654,13 @@ const LabTests: React.FC = () => {
           </div>
         </Modal.Body>
         <Modal.Footer>
-          <Button 
-            variant="secondary" 
+          <Button
+            variant="secondary"
             onClick={() => setShowTestsModal(false)}
           >
             Close
           </Button>
-          <Button 
+          <Button
             variant="primary"
             onClick={() => {
               // Add all tests from package to selection
@@ -1495,8 +1672,8 @@ const LabTests: React.FC = () => {
             }}
             disabled={selectedPackageTests.every(test => selectedTests.includes(test))}
             style={{
-              background: selectedPackageType === 'annual' ? '#1976d2' : 
-                         selectedPackageType === 'special' ? '#ff5722' : '#4CAF50',
+              background: selectedPackageType === 'annual' ? '#1976d2' :
+                selectedPackageType === 'special' ? '#ff5722' : '#4CAF50',
               border: 'none'
             }}
           >

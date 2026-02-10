@@ -293,6 +293,11 @@ const HealthAssessment: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
+      resetAllStates(); // Reset all form states including IDs
+      setCurrentAssessmentId(null);
+      setHrageneralDetailsId(0);
+      setSelectedUserIndex(null); // Ensure user selection is required again
+
       const result = await HealthAssessmentAPI.CRMGetEmployeeSelfAndDependentList();
 
       if (!result || result.length === 0) {
@@ -413,6 +418,7 @@ const HealthAssessment: React.FC = () => {
         "Happy",
         "Very Happy"
       ];
+
       let memberId: number;
       if (selectedEmployee.Relation === "Self") {
         memberId = selectedEmployee.EmployeeRefId;
@@ -420,32 +426,59 @@ const HealthAssessment: React.FC = () => {
         memberId = selectedEmployee.EmployeeRefId;
       }
 
-      const payload = {
-        HRAGeneralDetailsId: currentAssessmentId || 0, // Use currentAssessmentId if resuming
-        MemberId: memberId,
-        RelationType: selectedEmployee.RelationType,
-        Remarks: moodRemarks[moodValue] || "Neutral",
-        IsActive: 0,
-        CreatedBy: parseInt(createdBy),
-        EmployeeDependentDetailsId: selectedEmployee.EmployeeDependentDetailsId
-      };
-
       setLoading(true);
-      const response = await HealthAssessmentAPI.CRMInsertUpdateHRACustomerGeneralDetails(payload);
-      if (response && response.HRAGeneralDetailsId) {
-        setHrageneralDetailsId(response.HRAGeneralDetailsId);
 
-        const CRMSaveHRAQuestionAnswerStatusDetails = await HealthAssessmentAPI.CRMSaveHRAQuestionAnswerStatusDetails({
-          HRAGeneralDetailsId: response.HRAGeneralDetailsId,
-          QuestionAnsweredId: 1,
-        });
-        setView('basicProfile');
-      } else {
-        //toast.error("Failed to save assessment");
+      let assessmentId = currentAssessmentId || hrageneralDetailsId;
+
+      // 1. If no assessment exists yet, create one
+      if (!assessmentId) {
+        const payload = {
+          HRAGeneralDetailsId: 0,
+          MemberId: memberId,
+          RelationType: selectedEmployee.RelationType,
+          Remarks: moodRemarks[moodValue] || "Neutral",
+          IsActive: 0,
+          CreatedBy: parseInt(createdBy),
+          EmployeeDependentDetailsId: selectedEmployee.EmployeeDependentDetailsId
+        };
+
+        console.log("Starting new assessment...");
+        const response = await HealthAssessmentAPI.CRMInsertUpdateHRACustomerGeneralDetails(payload);
+        console.log("New assessment created response:", response);
+
+        if (response && response.HRAGeneralDetailsId) {
+          assessmentId = response.HRAGeneralDetailsId;
+          setHrageneralDetailsId(assessmentId);
+          setCurrentAssessmentId(assessmentId);
+        } else {
+          console.error("Critical: Assessment created but no ID returned", response);
+        }
       }
-    } catch (error) {
-      console.error("Error saving assessment:", error);
-      toast.error("Error saving assessment. Please try again.");
+
+      // 2. Always save/update the mood remarks for the current assessment
+      if (assessmentId) {
+        console.log(`Saving mood "${moodRemarks[moodValue]}" for assessment ${assessmentId}`);
+        try {
+          // Use current_step: 3 for mood assessment based on the sequence (General Details is 1, Basic Profile is 4)
+          await HealthAssessmentAPI.updateStep(assessmentId, {
+            current_step: 3,
+            remarks: moodRemarks[moodValue] || "Neutral"
+          });
+
+          // Proceed to next view
+          setView('basicProfile');
+        } catch (updateError) {
+          console.error("Error updating mood:", updateError);
+          // Still proceed even if mood save fails, to avoid blocking the user
+          setView('basicProfile');
+        }
+      } else {
+        toast.error("Failed to initialize assessment. Please try again.");
+      }
+    } catch (error: any) {
+      console.error("Error in handleSaveGeneralDetails:", error);
+      const errorMessage = error?.response?.data?.message || error?.message || "Please check your connection and try again.";
+      toast.error(`Failed to save assessment: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -1559,7 +1592,7 @@ const HealthAssessment: React.FC = () => {
       <div className="assessment-records-page">
         <div className="assessment-records-container">
           <div className="assessment-illustration">
-            <img src="healthassesment bng.png" alt="Health Assessment Illustration" />
+            <img src="/health-assessment-bg.png" alt="Health Assessment Illustration" />
           </div>
           <div className="assessment-records-panel">
             <div className="panel-header">
@@ -1631,7 +1664,7 @@ const HealthAssessment: React.FC = () => {
       <div className="assessment-records-page">
         <div className="assessment-records-container">
           <div className="assessment-illustration">
-            <img src="select user.png" alt="Select User Illustration" />
+            <img src="/select-user.png" alt="Select User Illustration" />
           </div>
           <div className="assessment-records-panel">
             <div className="panel-header">
@@ -1707,7 +1740,7 @@ const HealthAssessment: React.FC = () => {
       <div className="assessment-records-page">
         <div className="assessment-records-container">
           <div className="assessment-illustration">
-            <img src="general.png" alt="General Details Illustration" />
+            <img src="/general.png" alt="General Details Illustration" />
           </div>
           <div className="assessment-records-panel">
             <div className="panel-header">
@@ -3926,7 +3959,7 @@ const HealthAssessment: React.FC = () => {
     <div className="health-assessment-container">
       <div className="assessment-banner">
         <img
-          src="Health-Assessments.jpg"
+          src="/Health-Assessments.jpg"
           alt="Health Assessment Banner"
           className="assessment-banner-img"
         />

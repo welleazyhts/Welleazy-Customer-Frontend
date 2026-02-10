@@ -1,13 +1,17 @@
 
 
-export interface EyeDentalCare
-{
-    EyeDentalCareTreatmentId :number,
-    TreatmentName:string,
-    EyeDentalCareTreatmentName:string,
-    TreatmentImageName:string,
-    TreatmentImagePath:string,
-    IsActive:number,
+export interface EyeDentalCare {
+    id?: number;
+    name?: string;
+    image?: string | null;
+    short_description?: string;
+    detailed_description?: string;
+    EyeDentalCareTreatmentId?: number;
+    TreatmentName?: string;
+    EyeDentalCareTreatmentName?: string;
+    TreatmentImageName?: string;
+    TreatmentImagePath?: string;
+    IsActive?: number;
 }
 export interface VendorListDetailsForEye {
     vendor_id: number;
@@ -31,23 +35,23 @@ export interface VendorListDetailsForEye {
     AddressURL: string | null;
 }
 export interface VoucherData {
-  requestId: string;
-  name: string;
-  vendorName: string;
-  centerAddress: string;
-  serviceName: string;
-  treatmentName: string;
-  contactNumber: string;
-  email: string;
-  caseDetailsId: string;
+    requestId: string;
+    name: string;
+    vendorName: string;
+    centerAddress: string;
+    serviceName: string;
+    treatmentName: string;
+    contactNumber: string;
+    email: string;
+    caseDetailsId: string;
 }
-export interface Emaildata{
-    EmailId:string,
-    Name:string,
-    VendorName:string,
-    VendorAddress:string,
-    RequestId:string,
-    ServiceName:string,
-    TreatmentName:string,
-    LoginRefId:string,
+export interface Emaildata {
+    EmailId: string,
+    Name: string,
+    VendorName: string,
+    VendorAddress: string,
+    RequestId: string,
+    ServiceName: string,
+    TreatmentName: string,
+    LoginRefId: string,
 }

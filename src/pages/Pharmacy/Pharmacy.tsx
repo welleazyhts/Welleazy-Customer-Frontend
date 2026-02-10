@@ -98,7 +98,7 @@ const Pharmacy: React.FC = () => {
   const localNameFilteredMedicines = useMemo(() => {
     if (!searchTerm.trim()) return medicines;
     return medicines.filter(m =>
-      m.name.toLowerCase().includes(searchTerm.toLowerCase())
+      (m.name || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [searchTerm, medicines]);
 

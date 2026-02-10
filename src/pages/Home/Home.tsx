@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, use } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Container, Row, Col, Button, Modal, Table } from 'react-bootstrap';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import './Home.css';
@@ -16,9 +16,11 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { upcomingeventdata, VitalData, HealthMetricHistory, SponsoredServiceType } from '../../types/home';
 import { useAuth } from '../../context/AuthContext';
+import { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 import { toast } from "react-toastify";
 import { homeAPI } from '../../api/home';
-import { IconDefinition } from '@fortawesome/fontawesome-svg-core';
+import { DependantsAPI } from '../../api/dependants';
+import { District } from '../../types/dependants';
 
 const Home: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'Sponsored' | 'Health'>('Sponsored');
@@ -55,6 +57,8 @@ const Home: React.FC = () => {
   const location = useLocation();
 
   const [SponsoredService, setSponsoredService] = useState<SponsoredServiceType[]>([]);
+  const [dynamicCities, setDynamicCities] = useState<District[]>([]);
+  const [isLoadingCities, setIsLoadingCities] = useState(false);
 
 
 
@@ -345,7 +349,7 @@ const Home: React.FC = () => {
     return text.slice(0, maxLength) + '...';
   };
 
-  const locationData = [
+  const staticLocationData = [
     { name: 'New Delhi', img: '/DELHI-8.png' },
     { name: 'Chandigarh', img: '/Chandigarh.png' },
     { name: 'Srinagar', img: '/srinagr.png' },
@@ -357,6 +361,21 @@ const Home: React.FC = () => {
     { name: 'Jaipur', img: '/JAIPUR-8.png' },
     { name: 'Lucknow', img: '/LUCKNOW-8.png' },
   ];
+
+  // Merge dynamic cities with static images
+  const locationData = dynamicCities.length > 0
+    ? dynamicCities.map(city => {
+      const cityName = city.DistrictName || (city as any).name || '';
+      const staticMatch = staticLocationData.find(s =>
+        (s.name || '').toLowerCase() === cityName.toLowerCase()
+      );
+      return {
+        name: cityName,
+        img: staticMatch ? staticMatch.img : '/BANGALORE-8.png', // Default image
+        id: city.DistrictId || (city as any).id
+      };
+    })
+    : staticLocationData;
 
   const LOCATIONS_VISIBLE = 4;
   const [locationCarouselIndex, setLocationCarouselIndex] = useState(0);
@@ -507,6 +526,25 @@ const Home: React.FC = () => {
       fetchVitalData();
     }
   }, [isAuthenticated, activeTab]);
+
+  useEffect(() => {
+    fetchCities();
+  }, []);
+
+  const fetchCities = async () => {
+    setIsLoadingCities(true);
+    try {
+      const data = await DependantsAPI.CRMLoadCitys();
+      if (data && data.length > 0) {
+        setDynamicCities(data);
+        console.log("Loaded cities in Home:", data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch cities in Home:", error);
+    } finally {
+      setIsLoadingCities(false);
+    }
+  };
 
   const transformEventsData = (events: upcomingeventdata[]) => {
     return events.map(event => ({

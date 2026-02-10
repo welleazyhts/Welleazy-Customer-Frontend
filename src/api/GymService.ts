@@ -44,6 +44,7 @@ export const gymServiceAPI = {
     }
   },
 
+
   CRMLoadCustomerProfileDetails: async (employeeRefId: number): Promise<CustomerProfile> => {
     try {
       const response = await api.get("/api/accounts/profile/");
@@ -53,6 +54,7 @@ export const gymServiceAPI = {
       throw error;
     }
   },
+
 
   CRMStateList: async (): Promise<State[]> => {
     try {
@@ -200,6 +202,7 @@ export const gymServiceAPI = {
       throw error;
     }
   },
+
 
   CRMRelationShipPersonNames: async (employeeRefId: number, relationshipId: number): Promise<RelationshipPerson[]> => {
     try {

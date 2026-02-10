@@ -1,3 +1,4 @@
+
 import { api } from '../services/api';
 import { EmployeeAddressDetails, SaveCustomerAddressRequest } from '../types/AddressBook';
 
@@ -124,6 +125,7 @@ export const AddressBookAPI = {
     }
   },
 
+
   CRMDeleteCustomerIndividualAddressDetails: async (employeeAddressDetailsId: number): Promise<{ Message: string }> => {
     try {
       await api.delete(`/api/addresses/${employeeAddressDetailsId}/`);
@@ -132,6 +134,19 @@ export const AddressBookAPI = {
       console.error("Error deleting address:", error);
       throw error;
     }
+  },
+
+  getSelfAddresses: async (addressType: number): Promise<EmployeeAddressDetails[]> => {
+    // addressType 1 might refer to specific type, but for now we fetch all self addresses
+    const employeeRefId = Number(localStorage.getItem('EmployeeRefId') || 0);
+    const allAddresses = await AddressBookAPI.CRMGetCustomerAddressDetails(employeeRefId);
+    return allAddresses.filter(addr => !addr.EmployeeDependentDetailsId || addr.EmployeeDependentDetailsId === 0);
+  },
+
+  getDependentAddresses: async (dependentId: number, addressType: number): Promise<EmployeeAddressDetails[]> => {
+    const employeeRefId = Number(localStorage.getItem('EmployeeRefId') || 0);
+    const allAddresses = await AddressBookAPI.CRMGetCustomerAddressDetails(employeeRefId);
+    return allAddresses.filter(addr => addr.EmployeeDependentDetailsId === dependentId);
   },
 
   getAddressTypes: async () => {

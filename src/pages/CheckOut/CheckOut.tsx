@@ -8,7 +8,7 @@ import {
   faIndianRupeeSign,
   faCheckCircle
 } from '@fortawesome/free-solid-svg-icons';
-import { 
+import {
   Container, Card, Button, Row, Col, Spinner, Modal
 } from 'react-bootstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -26,8 +26,8 @@ declare global {
 const CheckOut: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { cartUniqueId, employeeRefId } = location.state || {};
-  
+  const { cartUniqueId, employeeRefId, cartItems } = location.state || {};
+
   const [loading, setLoading] = useState(true);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [cartData, setCartData] = useState<CartItemDetails[]>([]);
@@ -40,8 +40,18 @@ const CheckOut: React.FC = () => {
     ConsultationCaseAppointmentDetailsId: number;
     DistrictName: string;
   } | null>(null);
-  
+
   useEffect(() => {
+    // Use data passed directly from the cart if available
+    if (cartItems && cartItems.length > 0) {
+      console.log(" [CHECKOUT] Using cart items from navigation state:", cartItems);
+      setCartData(cartItems);
+      if (cartItems[0].MobileNo) setCustomerMobile(cartItems[0].MobileNo);
+      if (cartItems[0].PersonName) setPatientName(cartItems[0].PersonName);
+      setLoading(false);
+      return;
+    }
+
     if (!cartUniqueId || !employeeRefId) return;
     const fetchCartDetails = async () => {
       try {
@@ -66,8 +76,8 @@ const CheckOut: React.FC = () => {
     };
 
     fetchCartDetails();
-  }, [cartUniqueId, employeeRefId]);
-  
+  }, [cartUniqueId, employeeRefId, cartItems]);
+
   useEffect(() => {
     const loadRazorpayScript = () => {
       if (window.Razorpay) {
@@ -77,57 +87,64 @@ const CheckOut: React.FC = () => {
       const script = document.createElement("script");
       script.src = "https://checkout.razorpay.com/v1/checkout.js";
       script.async = true;
-      
+
       script.onload = () => {
         setRazorpayLoaded(true);
       };
-      
+
       script.onerror = () => {
         toast.error("Payment gateway failed to load. Please refresh the page.");
       };
-      
+
       document.body.appendChild(script);
     };
 
     loadRazorpayScript();
   }, []);
 
+  const renderSafeValue = (value: any): string => {
+    if (!value) return "";
+    if (value instanceof Date) return value.toLocaleDateString();
+    if (typeof value === 'object') return JSON.stringify(value);
+    return String(value);
+  };
+
   const calculateSubtotal = () => {
     if (cartData.length === 0) return 0;
     return cartData.reduce((total, item) => total + (item.ItemAmount * item.Quantity), 0);
   };
-  
+
   const calculateTotalInPaise = () => {
     return calculateSubtotal() * 100;
   };
-  
+
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'N/A';
     return dateString;
   };
-  
+
   // Generate appointment ID from CaseRefId or timestamp
   const generateAppointmentId = () => {
     const firstItem = cartData[0];
-    
+
     // If API returns a valid ID, use it
     if (apiResponse?.ConsultationCaseAppointmentDetailsId && apiResponse.ConsultationCaseAppointmentDetailsId > 0) {
       return `#${apiResponse.ConsultationCaseAppointmentDetailsId}`;
     }
-    
+
     // Use CaseRefId if available
     if (firstItem?.CaseRefId) {
       return `#${firstItem.CaseRefId}`;
     }
-    
+
     // Generate from timestamp as fallback
     const timestamp = Date.now().toString().slice(-6);
     return `#AP${timestamp}`;
   };
-    
+
   const redirectToAppointmentVoucher = () => {
     const firstItem = cartData[0];
-    
+
     const voucherData = {
       patientName: firstItem?.PersonName || patientName,
       consultationType: firstItem?.ItemName || 'Tele Consultation',
@@ -153,7 +170,7 @@ const CheckOut: React.FC = () => {
     };
 
     console.log("Voucher Data:", voucherData);
-    
+
     navigate("/appointment-voucher", {
       state: { voucherData }
     });
@@ -175,40 +192,40 @@ const CheckOut: React.FC = () => {
           <div className="d-flex flex-column align-items-center">
             {/* Success Icon */}
             <div className="success-icon mb-3">
-              <FontAwesomeIcon 
-                icon={faCheckCircle} 
-                size="3x" 
+              <FontAwesomeIcon
+                icon={faCheckCircle}
+                size="3x"
                 className="text-success"
                 style={{ fontSize: '60px' }}
               />
             </div>
-            
+
             {/* Main Title */}
-            <h4 className="text-center mb-3" style={{ 
-              color: '#2E7D32', 
+            <h4 className="text-center mb-3" style={{
+              color: '#2E7D32',
               fontWeight: 'bold',
               fontSize: '20px'
             }}>
               Appointment Request Submitted
             </h4>
-            
+
             {/* Personalized Message */}
             <div className="text-center mb-3" style={{ width: '100%' }}>
-              <p style={{ 
-                fontSize: '16px', 
+              <p style={{
+                fontSize: '16px',
                 lineHeight: '1.5',
                 marginBottom: '0'
               }}>
                 Hi <span style={{ fontWeight: 'bold' }}>{patientName}</span>,
               </p>
-              <p style={{ 
-                fontSize: '16px', 
+              <p style={{
+                fontSize: '16px',
                 lineHeight: '1.5'
               }}>
                 Your appointment request has been successfully submitted.
               </p>
             </div>
-            
+
             {/* Appointment Details Box */}
             {/* <div className="appointment-details-box p-3 mb-3" 
                  style={{ 
@@ -236,25 +253,25 @@ const CheckOut: React.FC = () => {
                 </div>
               </div>
             </div> */}
-            
+
             {/* Disclaimer Box */}
-            <div className="disclaimer-box p-3 mb-3" 
-                 style={{ 
-                   backgroundColor: '#FFF3E0', 
-                   borderLeft: '4px solid #FF9800',
-                   borderRadius: '8px',
-                   width: '100%'
-                 }}>
-              <p className="mb-0" style={{ 
-                fontSize: '14px', 
+            <div className="disclaimer-box p-3 mb-3"
+              style={{
+                backgroundColor: '#FFF3E0',
+                borderLeft: '4px solid #FF9800',
+                borderRadius: '8px',
+                width: '100%'
+              }}>
+              <p className="mb-0" style={{
+                fontSize: '14px',
                 color: '#5D4037',
                 lineHeight: '1.4'
               }}>
-                <strong style={{ color: '#E65100' }}>Disclaimer:</strong> This is a tentative appointment, the time might differ 
+                <strong style={{ color: '#E65100' }}>Disclaimer:</strong> This is a tentative appointment, the time might differ
                 due to pre-booked appointments. Kindly connect with Welleazy customer care for any queries.
               </p>
             </div>
-            
+
             {/* OKAY Button */}
             <Button
               variant="success"
@@ -280,7 +297,7 @@ const CheckOut: React.FC = () => {
       </Modal>
     );
   };
-  
+
   const handleProceedToPayment = async () => {
     if (cartData.length === 0) {
       toast.error("No items in cart to proceed");
@@ -304,9 +321,9 @@ const CheckOut: React.FC = () => {
 
         // Prepare the API payload
         const payload = {
-          CaseLeadId: firstItem.CaseRefId || 0,  
-          CaseType: 2,                       
-          CartUniqueId: cartUniqueId,        
+          CaseLeadId: firstItem.CaseRefId || 0,
+          CaseType: 2,
+          CartUniqueId: cartUniqueId,
           CartDetailsId: firstItem.CartDetailsId || 0,
           STMId: "",
           CollectionDate: `${firstItem.AppointmentDate || ''} ${firstItem.AppointmentTime || ''}`.trim(),
@@ -317,9 +334,9 @@ const CheckOut: React.FC = () => {
 
         // Call the API
         const result = await CheckOutAPI.CRMCustomerCarStatustUpdation(payload);
-        
+
         console.log("API Result:", result);
-        
+
         // Store the API response (even if values are 0/empty)
         setApiResponse({
           Message: result.Message || "Appointment Details Updated Successfully",
@@ -360,46 +377,70 @@ const CheckOut: React.FC = () => {
         image: "/logo.png",
 
         handler: async function (response: any) {
-          toast.success("Payment successful! Your consultation is confirmed.");
+          toast.success("Payment successful! Your bookings are confirmed.");
 
-          // After payment, also call the appointment update API
+          const updateResults: any[] = [];
+
+          // After payment, update status for ALL items in common cart
           try {
-            const payload = {
-              CaseLeadId: firstItem.CaseRefId || 0,  
-              CaseType: 2,                       
-              CartUniqueId: cartUniqueId,        
-              CartDetailsId: firstItem.CartDetailsId || 0,
-              STMId: "",
-              CollectionDate: `${firstItem.AppointmentDate || ''} ${firstItem.AppointmentTime || ''}`.trim(),
-              DCSelection: ""
-            };
+            for (const item of cartData) {
+              const payload = {
+                CaseLeadId: item.CaseRefId || 0,
+                CaseType: item.type === 'diagnostic' ? 1 : 2, // 1 for Lab/DC, 2 for Consultation
+                CartUniqueId: cartUniqueId,
+                CartDetailsId: item.CartDetailsId || 0,
+                STMId: "",
+                CollectionDate: `${item.AppointmentDate || ''} ${item.AppointmentTime || ''}`.trim(),
+                DCSelection: item.DCSelection || ""
+              };
 
-            const result = await CheckOutAPI.CRMCustomerCarStatustUpdation(payload);
-            setApiResponse({
-              Message: result.Message || "Appointment Details Updated Successfully",
-              ConsultationCaseAppointmentDetailsId: result.ConsultationCaseAppointmentDetailsId || 0,
-              DistrictName: result.DistrictName || ""
-            });
+              const result = await CheckOutAPI.CRMCustomerCarStatustUpdation(payload);
+              updateResults.push({
+                ...result,
+                itemName: item.ItemName || (item.type === 'diagnostic' ? 'Lab Test' : 'Consultation')
+              });
+            }
+
+            if (updateResults.length > 0) {
+              setApiResponse({
+                Message: updateResults[0].Message || "Bookings Updated Successfully",
+                ConsultationCaseAppointmentDetailsId: updateResults[0].ConsultationCaseAppointmentDetailsId || 0,
+                DistrictName: updateResults[0].DistrictName || ""
+              });
+            }
           } catch (error) {
-            console.error("Failed to update appointment:", error);
+            console.error("Failed to update one or more bookings:", error);
           }
 
-          // Navigate to voucher
+          // Selective Clear local cart: only remove items that were paid for
+          const employeeRefId = localStorage.getItem("EmployeeRefId") || "0";
+          const cartKey = `app_cart_${employeeRefId}`;
+          try {
+            const currentCart = JSON.parse(localStorage.getItem(cartKey) || '[]');
+            const paidIds = new Set(cartData.map(item => item.id).filter(id => !!id));
+            const remainingCart = currentCart.filter((item: any) => !paidIds.has(item.id));
+            localStorage.setItem(cartKey, JSON.stringify(remainingCart));
+          } catch (e) {
+            console.error("Error updated local cart after payment:", e);
+            // No need to clear all here, just log error
+          }
+          window.dispatchEvent(new CustomEvent('cartUpdated'));
+
+          // Navigate to voucher with consolidated data
           const voucherData = {
             patientName: firstItem.PersonName,
-            consultationType: firstItem.ItemName,
-            doctorName: firstItem.DoctorName,
-            doctorSpeciality: firstItem.DoctorSpeciality,
-            appointmentDate: firstItem.AppointmentDate,
-            appointmentTime: firstItem.AppointmentTime,
+            items: cartData.map(item => ({
+              name: item.ItemName || (item.type === 'diagnostic' ? 'Lab Test' : 'Consultation'),
+              doctorName: item.DoctorName,
+              appointmentDate: item.AppointmentDate,
+              appointmentTime: item.AppointmentTime,
+              price: item.ItemAmount
+            })),
             amountPaid: totalAmount,
             paymentStatus: 'Paid',
             paymentMethod: 'online',
             paymentId: response.razorpay_payment_id,
-            consultationId: apiResponse?.ConsultationCaseAppointmentDetailsId || 0,
-            districtName: apiResponse?.DistrictName || firstItem.DoctorCity || '',
-            appointmentId: generateAppointmentId(),
-            city: apiResponse?.DistrictName || firstItem.DoctorCity || ''
+            appointmentId: generateAppointmentId()
           };
 
           navigate("/appointment-voucher", {
@@ -445,22 +486,11 @@ const CheckOut: React.FC = () => {
       setPaymentProcessing(false);
     }
   };
-  
-const handleBackClick = () => {
-  navigate("/consultation", {
-    state: {
-      openBookingModal: true,
-      selectedDoctor: cartData.length > 0 ? {
-        DoctorId: cartData[0].DoctorId,
-        DoctorName: cartData[0].DoctorName,
-        Specialization: cartData[0].DoctorSpeciality,
-      } : null,
-      cartData: cartData,
-      fromCheckout: true
-    }
-  });
-};
-  
+
+  const handleBackClick = () => {
+    navigate("/CommonCartDcAndConsultation");
+  };
+
   const handleRemoveConsultation = () => {
     toast.warning("Remove functionality to be implemented");
   };
@@ -475,7 +505,7 @@ const handleBackClick = () => {
       </div>
     );
   }
-  
+
   if (cartData.length === 0) {
     return (
       <div className="diagnostic-cart-page">
@@ -491,7 +521,7 @@ const handleBackClick = () => {
       </div>
     );
   }
-  
+
   const firstItem = cartData[0];
 
   return (
@@ -506,82 +536,88 @@ const handleBackClick = () => {
             CHECKOUT
           </h1>
         </div>
-        
+
         <Row>
           <Col lg={8}>
-            <Card className="mb-3 border-primary consultation-patient-card">
-              <Card.Body className="p-3">
-                <div className="row align-items-center">
-                  <div className="col-md-7">
-                    <div className="appointment-info-item mb-1">
-                      <span className="consultation-type-badge" style={{ fontWeight: 'bold', fontSize: '16px' }}>
-                       {firstItem.ItemName}
-                      </span>
-                    </div>
-                    
-                    <div className="appointment-info-item mb-1">
-                      <span style={{ fontSize: '16px' }}>{firstItem.PersonName}</span>
-                    </div>
-                    
-                    <div className="appointment-info-item mb-1">
-                      <span style={{ fontSize: '16px' }}>{customerMobile}</span>
-                    </div>
-                    
-                    <div className="appointment-info-item mb-1">
-                      <span style={{ fontWeight: 'bold', fontSize: '16px' }}>
-                        {firstItem.AppointmentDate && firstItem.AppointmentTime ? 
-                          `${formatDate(firstItem.AppointmentDate)} ${firstItem.AppointmentTime}`
-                          : 'N/A'
-                        }
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className="col-md-5">
-                    <div className="d-flex align-items-center justify-content-between">
-                      <span
-                        className="consultation-fee"
-                        style={{ fontSize: '16px', fontWeight: 800, marginLeft: '150px' }}
-                      >
-                        <FontAwesomeIcon icon={faIndianRupeeSign} className="me-1" />
-                        {calculateSubtotal().toFixed(2)}
-                      </span>
-                      
-                      <button 
-                        className="close-consultation-btn"
-                        style={{ width: '24px', height: '24px', fontSize: '12px' }}
-                        onClick={handleRemoveConsultation}
-                        title="Remove consultation"
-                      >
-                        <FontAwesomeIcon icon={faTimes} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </Card.Body>
-            </Card>
+            {cartData.map((item, index) => (
+              <React.Fragment key={index}>
+                <Card className="mb-3 border-primary consultation-patient-card">
+                  <Card.Body className="p-3">
+                    <div className="row align-items-center">
+                      <div className="col-md-7">
+                        <div className="appointment-info-item mb-1">
+                          <span className="consultation-type-badge" style={{ fontWeight: 'bold', fontSize: '16px' }}>
+                            {item.ItemName || (item.type === 'diagnostic' ? 'Lab Test' : 'Consultation')}
+                          </span>
+                        </div>
 
-            <Card className="mb-3 border-success consultation-doctor-card">
-              <Card.Body className="p-3">
-                <div className="row">
-                  <div className="col-md-12">
-                    <div className="appointment-info-item mb-1">
-                    ({firstItem.ItemName})
+                        <div className="appointment-info-item mb-1">
+                          <span style={{ fontSize: '16px' }}>{item.PersonName} ({item.Relationship || item.relationship || 'Self'})</span>
+                        </div>
+
+                        <div className="appointment-info-item mb-1">
+                          <span style={{ fontSize: '16px' }}>{item.MobileNo || customerMobile}</span>
+                        </div>
+
+                        {item.AppointmentDate && item.AppointmentTime && (
+                          <div className="appointment-info-item mb-1">
+                            <span style={{ fontWeight: 'bold', fontSize: '16px' }}>
+                              {renderSafeValue(item.AppointmentDate)} {renderSafeValue(item.AppointmentTime)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="col-md-5">
+                        <div className="d-flex align-items-center justify-content-end">
+                          <span
+                            className="consultation-fee"
+                            style={{ fontSize: '16px', fontWeight: 800 }}
+                          >
+                            <FontAwesomeIcon icon={faIndianRupeeSign} className="me-1" />
+                            {(item.ItemAmount * item.Quantity).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    
-                    <div className="appointment-info-item mb-1">
-                      <span style={{ fontWeight: 'bold', fontSize: '16px' }}>{firstItem.DoctorName || 'Doctor Name'}</span>
+                  </Card.Body>
+                </Card>
+
+                <Card className="mb-3 border-success consultation-doctor-card">
+                  <Card.Body className="p-3">
+                    <div className="row">
+                      <div className="col-md-12">
+                        <div className="appointment-info-item mb-1">
+                          ({item.ItemName || (item.type === 'diagnostic' ? 'Lab Test' : 'Consultation')})
+                        </div>
+
+                        {item.type === 'diagnostic' ? (
+                          <>
+                            <div className="appointment-info-item mb-1">
+                              <span style={{ fontWeight: 'bold', fontSize: '16px' }}>{item.center_name || (item as any).dcName || 'Diagnostic Center'}</span>
+                            </div>
+                            <div className="appointment-info-item mb-0">
+                              <span style={{ fontSize: '16px' }}>{item.DCAddress || (item as any).address || 'Laboratory'}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="appointment-info-item mb-1">
+                              <span style={{ fontWeight: 'bold', fontSize: '16px' }}>{item.DoctorName || 'Doctor'}</span>
+                            </div>
+                            <div className="appointment-info-item mb-0">
+                              <span style={{ fontSize: '16px' }}>{item.DoctorSpeciality || 'Specialization Not Specified'}</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    
-                    <div className="appointment-info-item mb-0">
-                      <span style={{ fontSize: '16px' }}>{firstItem.DoctorSpeciality || 'Specialization'}</span>
-                    </div>
-                  </div>
-                </div>
-              </Card.Body>
-            </Card>
+                  </Card.Body>
+                </Card>
+              </React.Fragment>
+            ))}
           </Col>
-          
+
           <Col lg={4}>
             <Card className="sticky-top consultation-order-card" style={{ top: '-0px' }}>
               <Card.Header className="bg-light">
@@ -596,7 +632,7 @@ const handleBackClick = () => {
                       {calculateSubtotal().toFixed(2)}
                     </span>
                   </div>
-                  
+
                   <div className="price-row d-flex justify-content-between mb-2">
                     <span style={{ fontSize: '16px' }}>Discount:</span>
                     <span className="fw-bold" style={{ fontSize: '16px' }}>
@@ -604,9 +640,9 @@ const handleBackClick = () => {
                       0.00
                     </span>
                   </div>
-                  
+
                   <hr />
-                  
+
                   <div className="total-row d-flex justify-content-between mt-3">
                     <h5 style={{ fontSize: '18px' }}>Total Amount:</h5>
                     <h4 className="" style={{ fontSize: '18px' }}>
@@ -615,7 +651,7 @@ const handleBackClick = () => {
                     </h4>
                   </div>
                 </div>
-                
+
                 <div className="Checkout-action-buttons">
                   <button
                     className="w-100 mb-3 consultation-pay-button"
@@ -639,7 +675,7 @@ const handleBackClick = () => {
           </Col>
         </Row>
       </Container>
-      
+
       {/* Success Modal */}
       <SuccessModal />
     </div>
