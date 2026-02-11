@@ -254,21 +254,22 @@ const Dependants: React.FC = () => {
         const relationship = relationships.find(r => r.RelationshipId === dependent.DependentRelationShip);
         const relationshipValue = relationship ? relationship.RelationshipId.toString() : "";
 
-        // Find marital status by ID
-        const maritalStatus = maritalStatusOptions.find(m => m.MaritalStatusId === dependent.MaritalStatus);
-        const maritalStatusValue = maritalStatus ? maritalStatus.MaritalDescription : "";
+        // Find marital status by Description (String)
+        // dependent.MaritalStatus is now a string from API
+        const maritalStatus = maritalStatusOptions.find(m => m.MaritalDescription === dependent.MaritalStatus);
+        const maritalStatusValue = maritalStatus ? maritalStatus.MaritalDescription : (dependent.MaritalStatus || "");
 
         setFormData({
           memberId: dependent.DependentMemberId || "",
           username: dependent.DependentEmailId || "",
           relationship: relationshipValue,
-          gender: getGenderFromId(dependent.DependentGender),
+          gender: dependent.DependentGender || "",
           name: dependent.DependentName || "",
           dateOfBirth: formatDateForInput(dependent.DOB || dependent.DependentDOB),
           email: dependent.DependentEmailId || "",
           mobileNo: dependent.DependentMobileNo || "",
           maritalStatus: maritalStatusValue,
-          occupation: dependent.Occupation ? dependent.Occupation.toString() : "",
+          occupation: dependent.Occupation || "",
           password: ""
         });
 
@@ -405,23 +406,7 @@ const Dependants: React.FC = () => {
     return dateString;
   };
 
-  const getGenderId = (gender: string): number => {
-    switch (gender) {
-      case "Male": return 1;
-      case "Female": return 2;
-      case "Other": return 3;
-      default: return 0;
-    }
-  };
 
-  const getGenderFromId = (genderId: number): string => {
-    switch (genderId) {
-      case 1: return "Male";
-      case 2: return "Female";
-      case 3: return "Other";
-      default: return "";
-    }
-  };
 
   const handleSave = async () => {
     // Validation
@@ -462,8 +447,7 @@ const Dependants: React.FC = () => {
       const selectedRelationship = relationships.find(r => r.RelationshipId.toString() === formData.relationship);
       const relationshipId = selectedRelationship ? selectedRelationship.RelationshipId : 0;
 
-      const selectedMaritalStatus = maritalStatusOptions.find(m => m.MaritalDescription === formData.maritalStatus);
-      const maritalStatusId = selectedMaritalStatus ? selectedMaritalStatus.MaritalStatusId : 0;
+
 
       // Get the dependent to edit
       let dependentToUpdate = null;
@@ -478,10 +462,10 @@ const Dependants: React.FC = () => {
         DependentRelationShip: relationshipId,
         DependentName: formData.name,
         DependentMobileNo: formData.mobileNo,
-        DependentGender: getGenderId(formData.gender),
+        DependentGender: formData.gender,
         DependentDOB: formatDateForAPI(formData.dateOfBirth),
         AccessProfilePermission: consentAccess,
-        MaritalStatus: maritalStatusId,
+        MaritalStatus: formData.maritalStatus,
         Occupation: formData.occupation || "",
         DependentEmailId: formData.email,
         IsActive: true,
@@ -615,7 +599,7 @@ const Dependants: React.FC = () => {
         DependentDOB: dependentToActivate.DependentDOB,
         AccessProfilePermission: dependentToActivate.AccessProfilePermission,
         MaritalStatus: dependentToActivate.MaritalStatus,
-        Occupation: dependentToActivate.Occupation.toString(),
+        Occupation: dependentToActivate.Occupation,
         DependentEmailId: dependentToActivate.DependentEmailId,
         IsActive: true,
         DependentMemberId: dependentToActivate.DependentMemberId,
@@ -1208,7 +1192,7 @@ const Dependants: React.FC = () => {
                           </span>
                         </td>
                         <td>{dependent.DOB || dependent.DependentDOB}</td>
-                        <td>{getGenderFromId(dependent.DependentGender)}</td>
+                        <td>{dependent.DependentGender}</td>
                         <td>
                           {dependent.DependentMobileNo ? (
                             <a href={`tel:${dependent.DependentMobileNo}`} className="text-blue-600 hover:text-blue-800">

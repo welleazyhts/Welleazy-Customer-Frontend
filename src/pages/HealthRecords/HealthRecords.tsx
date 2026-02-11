@@ -787,10 +787,10 @@ const HealthRecords: React.FC = () => {
         },
         {
           name: "BMI",
-          value: hasValue(latestBMI?.value) ? `${latestBMI.value}` : "N/A",
+          value: hasValue(latestBMI?.value) ? parseFloat(latestBMI.value).toFixed(2) : "N/A",
           lastUpdated: latestBMI?.created_at ? formatDisplayDate(latestBMI.created_at) : "N/A",
           history: (bmiHistory || []).slice(0, 2).map((item: any) => ({
-            value: `${item.value}`,
+            value: `${parseFloat(item.value).toFixed(2)}`,
             date: formatDisplayDate(item.created_at)
           }))
         },
@@ -814,10 +814,10 @@ const HealthRecords: React.FC = () => {
         },
         {
           name: "O2 Saturation",
-          value: hasValue(latestO2?.value) ? `${latestO2.value}${latestO2.unit || "%"}` : "N/A",
+          value: hasValue(latestO2?.value) ? `${parseFloat(latestO2.value).toFixed(0)}${latestO2.unit || "%"}` : "N/A",
           lastUpdated: latestO2?.created_at ? formatDisplayDate(latestO2.created_at) : "N/A",
           history: (o2History || []).slice(0, 2).map((item: any) => ({
-            value: `${item.value}${item.unit || "%"}`,
+            value: `${parseFloat(item.value).toFixed(0)}${item.unit || "%"}`,
             date: formatDisplayDate(item.created_at)
           }))
         },
@@ -2615,11 +2615,11 @@ const HealthRecords: React.FC = () => {
   const handleEdit = (index: number) => {
     const vital = vitals[index];
 
-    // Extract just the numeric value (remove unit)
-    const numericValue = vital.value.split(' ')[0];
+    // Extract just the numeric value
+    const numericValue = parseFloat(vital.value).toString();
 
     setEditingIndex(index);
-    setEditedValue(numericValue);
+    setEditedValue(numericValue === "NaN" ? "" : numericValue);
   };
 
   // Handle save vital
@@ -2640,8 +2640,12 @@ const HealthRecords: React.FC = () => {
           valueToSave = `${numericValue} ${unitToggle.height}`;
         } else if (vital.name === "Weight") {
           valueToSave = `${numericValue} ${unitToggle.weight}`;
+        } else if (vital.name === "BMI") {
+          valueToSave = `${numericValue}`; // BMI usually has no unit suffix stored in this context
+        } else if (vital.name === "O2 Saturation") {
+          valueToSave = `${numericValue}%`; // Ensure we only append one %
         } else {
-          // For other vitals (Heart Rate, O2, Glucose), append original unit
+          // For other vitals (Heart Rate, Glucose), append original unit
           const originalUnit = vital.value.split(' ').pop() || "";
           valueToSave = `${numericValue} ${originalUnit}`;
         }
@@ -4437,39 +4441,7 @@ const HealthRecords: React.FC = () => {
         )}
       </div>
 
-      {/* Filters */}
-      <div className="Health-filters-container">
-        <Input
-          type="text"
-          placeholder="Search records (Doctor, Record Name...)"
-          className="filter-input search-filter"
-          value={filters.search}
-          onChange={(e) => handleFilterChange('search', e.target.value)}
-        />
-        <div className="date-input-wrapper">
-          <Input
-            type="date"
-            placeholder="Record Date"
-            className="date-input"
-            value={filters.date}
-            onChange={(e) => handleFilterChange('date', e.target.value)}
-          />
-        </div>
-        <select
-          name="caseForOption"
-          value={filters.caseForOption}
-          onChange={(e) => handleFilterChange('caseForOption', e.target.value)}
-          className="normal-select"
-        >
-          {caseForOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
 
-
-      </div>
 
       {/* Tabs */}
       <div className="Health-tabs-container">

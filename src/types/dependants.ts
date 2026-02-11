@@ -9,10 +9,10 @@ export interface CRMInsertUpdateEmployeeDependantDetailsRequest {
   DependentRelationShip: number;
   DependentName: string;
   DependentMobileNo: string;
-  DependentGender: number;
+  DependentGender: string;
   DependentDOB: string;
   AccessProfilePermission: boolean;
-  MaritalStatus: number;
+  MaritalStatus: string;
   Occupation: string;
   DependentEmailId: string;
   IsActive: boolean;
@@ -53,12 +53,12 @@ export interface CRMFetchDependentDetailsForEmployeeResponse {
   DependentName: string;
   DependentMobileNo: string;
   Description: string;
-  DependentGender: number;
+  DependentGender: string;
   DependentDOB: string;
   DOB: string;
   AccessProfilePermission: boolean;
-  MaritalStatus: number;
-  Occupation: number;
+  MaritalStatus: string;
+  Occupation: string;
   DependentEmailId: string;
   IsActive: boolean;
   DependentMemberId: string;

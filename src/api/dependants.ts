@@ -1,13 +1,8 @@
 import { api } from '../services/api';
 import {
   CRMInsertUpdateEmployeeDependantDetailsRequest, CRMInsertUpdateEmployeeDependantDetailsResponse,
-  CRMFetchDependentDetailsForEmployeeRequest, CRMGenerateDependentMemberIdResponse,
-  CRMFetchDependentDetailsForEmployeeResponse, District
+  CRMFetchDependentDetailsForEmployeeRequest, CRMFetchDependentDetailsForEmployeeResponse, District
 } from '../types/dependants';
-
-
-
-const API_URL = "http://3.110.32.224";
 
 // Helper function to get relationship name from ID
 const getRelationshipName = (relationshipId: number): string => {
@@ -24,31 +19,14 @@ const getRelationshipName = (relationshipId: number): string => {
   return relationships[relationshipId] || "Unknown";
 };
 
-// Helper function to get occupation ID from string
-const getOccupationId = (occupation: string): number => {
-  const occupations: { [key: string]: number } = {
-    "Self Employed": 1,
-    "Government Employee": 2,
-    "Private Employee": 3,
-    "Business": 4,
-    "Student": 5,
-    "Housewife": 6,
-    "Retired": 7,
-    "Unemployed": 8
-  };
-  return occupations[occupation] || 0;
-};
-
-
 export const DependantsAPI = {
-
-  CRMGenerateDependentMemberId: async (): Promise<CRMGenerateDependentMemberIdResponse> => {
+  // New function to fetch relationship types
+  getRelationshipTypes: async (): Promise<any> => {
     try {
-      const response = await api.get('/CRMGenerateDependentMemberId');
-      return response.data as CRMGenerateDependentMemberIdResponse;
-
+      const response = await api.get('/api/dependants/relationship-types/');
+      return response.data;
     } catch (error) {
-      console.error('Error generating dependent member id:', error);
+      console.error('Error fetching relationship types:', error);
       throw error;
     }
   },
@@ -65,25 +43,32 @@ export const DependantsAPI = {
       };
 
       const payload = {
-        employee: requestData.EmployeeId,
-        relationship: requestData.DependentRelationShip,
         name: requestData.DependentName,
-        mobile_no: requestData.DependentMobileNo,
         gender: requestData.DependentGender,
         dob: convertDate(requestData.DependentDOB),
+        relationship: requestData.DependentRelationShip,
+        mobile_number: requestData.DependentMobileNo,
         email: requestData.DependentEmailId || "",
+        occupation: requestData.Occupation,
         marital_status: requestData.MaritalStatus,
-        occupation: requestData.Occupation
+        is_active: requestData.IsActive
       };
 
-      console.log("Sending dependent payload:", payload);
-      const response = await api.post('/api/dependants/', payload);
-      console.log("Dependent creation response:", response.data);
+      let response;
+      if (requestData.EmployeeDependentDetailsId && requestData.EmployeeDependentDetailsId > 0) {
+        // Update existing dependent - PUT /api/dependants/:id/
+        console.log(`Updating dependent ${requestData.EmployeeDependentDetailsId} with payload:`, payload);
+        response = await api.put(`/api/dependants/${requestData.EmployeeDependentDetailsId}/`, payload);
+      } else {
+        // Create new dependent - POST /api/dependants/
+        console.log("Creating new dependent with payload:", payload);
+        response = await api.post('/api/dependants/', payload);
+      }
 
-      // Type the response data properly
+      console.log("Dependent save response:", response.data);
+
       const responseData = response.data as any;
 
-      // Return the full response with both message and data
       return {
         Message: responseData.message || "Success",
         data: responseData.data
@@ -94,7 +79,7 @@ export const DependantsAPI = {
     }
   },
 
-  // New function to fetch dependents list for dropdown
+  // Function to fetch dependents list
   GetDependents: async (): Promise<CRMFetchDependentDetailsForEmployeeResponse[]> => {
     try {
       const response = await api.get('/api/dependants/');
@@ -109,7 +94,29 @@ export const DependantsAPI = {
         rawData = (response.data as any).results;
       }
 
-      return rawData as CRMFetchDependentDetailsForEmployeeResponse[];
+      // Map backend response to frontend format
+      // We need to match the CRMFetchDependentDetailsForEmployeeResponse interface
+      const mappedData: CRMFetchDependentDetailsForEmployeeResponse[] = rawData.map((item: any) => ({
+        EmployeeDependentDetailsId: item.id || 0,
+        EmployeeId: 0, // Not always returned?
+        DependentId: item.member_id || "",
+        Relationship: getRelationshipName(item.relationship),
+        DependentRelationShip: item.relationship || 0,
+        DependentName: item.name || "",
+        DependentMobileNo: item.mobile_number || "",
+        Description: "",
+        DependentGender: item.gender || "",
+        DependentDOB: item.dob || "",
+        DOB: item.dob || "",
+        AccessProfilePermission: false,
+        MaritalStatus: item.marital_status || "",
+        Occupation: item.occupation || "",
+        DependentEmailId: item.email || "",
+        IsActive: item.is_active !== undefined ? item.is_active : true,
+        DependentMemberId: item.member_id || ""
+      }));
+
+      return mappedData;
     } catch (error) {
       console.error('Error fetching dependents:', error);
       throw error;
@@ -117,58 +124,17 @@ export const DependantsAPI = {
   },
 
   CRMFetchDependentDetailsForEmployee: async (requestData: CRMFetchDependentDetailsForEmployeeRequest): Promise<CRMFetchDependentDetailsForEmployeeResponse[]> => {
-    try {
-      // Use the correct endpoint - GET /api/dependants/
-      const response = await api.get('/api/dependants/');
-      console.log("Fetch Dependents Response:", response.data);
-
-      let rawData: any[] = [];
-
-      // Handle different response formats
-      if (Array.isArray(response.data)) {
-        rawData = response.data;
-      } else if (response.data && Array.isArray((response.data as any).data)) {
-        rawData = (response.data as any).data;
-      } else if (response.data && Array.isArray((response.data as any).results)) {
-        rawData = (response.data as any).results;
-      }
-
-      // Map backend response to frontend format
-      const mappedData: CRMFetchDependentDetailsForEmployeeResponse[] = rawData.map((item: any) => ({
-        EmployeeDependentDetailsId: item.id || 0,
-        EmployeeId: requestData.EmployeeRefId,
-        DependentId: item.member_id || "",
-        Relationship: getRelationshipName(item.relationship),
-        DependentRelationShip: item.relationship || 0,
-        DependentName: item.name || "",
-        DependentMobileNo: item.mobile_number || "",
-        Description: "",
-        DependentGender: parseInt(item.gender) || 0,
-        DependentDOB: item.dob || "",
-        DOB: item.dob || "",
-        AccessProfilePermission: false,
-        MaritalStatus: parseInt(item.marital_status) || 0,
-        Occupation: item.occupation ? getOccupationId(item.occupation) : 0,
-        DependentEmailId: item.email || "",
-        IsActive: item.is_active !== undefined ? item.is_active : true,
-        DependentMemberId: item.member_id || ""
-      }));
-
-      console.log("Mapped Dependents Data:", mappedData);
-      return mappedData;
-    } catch (error) {
-      console.error('Error fetching dependent details for employee:', error);
-      throw error;
-    }
+    // Reusing GetDependents logic since the endpoint is generic /api/dependants/
+    // If filtering by employee is needed, checking if backend supports query param or if it returns only for logged in user.
+    // Assuming backend filters by token user context as per common practice.
+    return DependantsAPI.GetDependents();
   },
 
   DeactivateEmployeeDependent: async (employeeDependentDetailsId: number): Promise<{ success: boolean; message: string }> => {
     try {
-      // Use DELETE method on /api/dependants/{id}/
       const response = await api.delete(`/api/dependants/${employeeDependentDetailsId}/`);
       console.log("Delete dependent response:", response.data);
 
-      // Return success message
       return {
         success: true,
         message: (response.data as any)?.message || "Dependent deleted successfully"
@@ -182,13 +148,9 @@ export const DependantsAPI = {
 
   CRMLoadCitys: async (): Promise<District[]> => {
     try {
-      // Updated to use the axios api instance which handles token refresh
       const response = await api.get('/api/location/cities/');
-
       const data = response.data;
 
-      // Map response to District interface
-      // If the data is just a list of strings, we map it:
       if (Array.isArray(data)) {
         if (typeof data[0] === 'string') {
           return data.map((city: string, index: number) => ({

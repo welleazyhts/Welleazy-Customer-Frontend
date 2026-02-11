@@ -141,10 +141,10 @@ export interface DependentRequest {
   DependentRelationShip: number;
   DependentName: string;
   DependentMobileNo: string;
-  DependentGender: number;
+  DependentGender: string;
   DependentDOB: string;
   AccessProfilePermission: boolean;
-  MaritalStatus: number;
+  MaritalStatus: string;
   Occupation: string;
   DependentEmailId: string;
   IsActive: boolean;

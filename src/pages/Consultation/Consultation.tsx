@@ -787,14 +787,7 @@ const Consultation: React.FC = () => {
         return `WZD${Math.floor(10000 + Math.random() * 90000)}`;
       };
 
-      const getGenderNumber = (gender: string): number => {
-        switch (gender.toLowerCase()) {
-          case 'male': return 1;
-          case 'female': return 2;
-          case 'other': return 3;
-          default: return 0;
-        }
-      };
+
 
       const relationshipNumber = parseInt(dependentFormData.relationshipId);
 
@@ -805,12 +798,12 @@ const Consultation: React.FC = () => {
         DependentRelationShip: relationshipNumber,
         DependentName: dependentFormData.dependentName.trim(),
         DependentMobileNo: dependentFormData.contactNumber.trim(),
-        DependentGender: getGenderNumber(dependentFormData.gender),
+        DependentGender: dependentFormData.gender,
         DependentDOB: formatDateOfBirth(dependentFormData.dateOfBirth),
         AccessProfilePermission: false,
-        MaritalStatus: 1,
+        MaritalStatus: "Single", // Defaulting to Single as per original logic, or fetch from form if available
         Occupation: "",
-        DependentEmailId: "",
+        DependentEmailId: dependentFormData.email || "",
         IsActive: true,
         DependentMemberId: generateDependentMemberId(),
         DependentUserName: "",

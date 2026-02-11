@@ -306,7 +306,12 @@ const EyeCareDentalCare: React.FC = () => {
     setLoadingTimeSlots(true);
     setSelectedTimeSlot('');
     try {
-      const formattedDate = date.toISOString().split('T')[0];
+      // Fix date formatting to avoid timezone issues (toISOString converts to UTC, which might be previous day for future dates)
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const formattedDate = `${year}-${month}-${day}`;
+
       console.log(`📡 [Availability] Fetching slots for Doctor/Vendor: ${vendorId} on ${formattedDate}`);
       const response = await EyeDentalCareAPI.getDoctorAvailability({
         doctor: vendorId,
@@ -323,6 +328,8 @@ const EyeCareDentalCare: React.FC = () => {
       } else if (responseData?.slots && Array.isArray(responseData.slots)) {
         slots = responseData.slots;
       }
+
+      console.log(`✅ [Availability] Slots retrieved:`, slots);
 
       // Deduplicate slots by time string to prevent multiple identical slots from showing
       const uniqueSlotsMap = new Map();
@@ -625,7 +632,13 @@ const EyeCareDentalCare: React.FC = () => {
         city: parseInt(formData.districtId),
         address_text: formData.address,
         requirements: formData.comment || `Booking for ${selectedTreatment?.EyeDentalCareTreatmentName || (selectedTreatment as any)?.name || 'General Treatment'}`,
-        appointment_date: selectedDate?.toISOString().split('T')[0],
+        appointment_date: (() => {
+          if (!selectedDate) return '';
+          const y = selectedDate.getFullYear();
+          const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
+          const d = String(selectedDate.getDate()).padStart(2, '0');
+          return `${y}-${m}-${d}`;
+        })(),
         appointment_time: selectedTimeSlot
       };
 
