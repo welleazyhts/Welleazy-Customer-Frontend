@@ -530,6 +530,7 @@ const Consultation: React.FC = () => {
     setSelectedTime('');
     try {
       const selectedDateString = formatDateRequest(selectedDate);
+      let response: any[] = [];
 
       // Strict params as requested: Only sending Date and doctorId
       // Casting to any to avoid TS errors about missing deprecated fields
@@ -538,7 +539,7 @@ const Consultation: React.FC = () => {
         doctorId: DoctorId
       };
 
-      const response = await ConsultationAPI.CRMLoadTimeSlots(requestData);
+      response = await ConsultationAPI.CRMLoadTimeSlots(requestData);
 
       if (Array.isArray(response)) {
         if (response.length === 0) {

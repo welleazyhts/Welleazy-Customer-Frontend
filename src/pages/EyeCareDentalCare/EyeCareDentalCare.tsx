@@ -312,11 +312,20 @@ const EyeCareDentalCare: React.FC = () => {
       const day = String(date.getDate()).padStart(2, '0');
       const formattedDate = `${year}-${month}-${day}`;
 
-      console.log(`📡 [Availability] Fetching slots for Doctor/Vendor: ${vendorId} on ${formattedDate}`);
-      const response = await EyeDentalCareAPI.getDoctorAvailability({
-        doctor: vendorId,
-        date: formattedDate
-      });
+      console.log(`📡 [Availability] Fetching slots for Center: ${vendorId} on ${formattedDate} (${activeService})`);
+
+      let response;
+      if (activeService === 'eye') {
+        response = await EyeDentalCareAPI.getEyeCenterAvailability({
+          vendor_center: vendorId,
+          date: formattedDate
+        });
+      } else {
+        response = await EyeDentalCareAPI.getDentalCenterAvailability({
+          vendor_center: vendorId,
+          date: formattedDate
+        });
+      }
 
       // Handle different response structures
       let slots = [];
@@ -354,7 +363,7 @@ const EyeCareDentalCare: React.FC = () => {
     if (showExpertModal && selectedDate && selectedVendor?.vendor_id) {
       loadTimeSlots(selectedDate, selectedVendor.vendor_id);
     }
-  }, [selectedDate, selectedVendor, showExpertModal]);
+  }, [selectedDate, selectedVendor, showExpertModal, activeService]);
 
   const loadCustomerProfile = async () => {
     setLoadingProfile(true);

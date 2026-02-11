@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Container, Button, Spinner, Row, Col, Badge } from 'react-bootstrap';
 import './ProductDetails.css'; // Assuming this exists or I'll use inline/bootstrap
 import { PharmacyAPI } from '../../api/Pharmacy';
-import { PharmacyMedicine } from '../../types/Pharmacy';
+import { PharmacyMedicine, CartSummary } from '../../types/Pharmacy';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 
@@ -57,6 +57,15 @@ const ProductDetails: React.FC = () => {
       return;
     }
     if (!product) return;
+
+    const savedCart = localStorage.getItem('pharmacy_cart');
+    if (savedCart) {
+      const cart: CartSummary = JSON.parse(savedCart);
+      if (cart.items?.some((item) => item.medicine.id === product.id)) {
+        toast.info("Medicine already Exists in the cart");
+        return;
+      }
+    }
 
     setAddingToCart(true);
     try {

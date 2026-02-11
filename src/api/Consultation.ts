@@ -217,6 +217,84 @@ export const ConsultationAPI = {
     }
   },
 
+  CRMLoadDiagnosticTimeSlots: async (requestData: { diagnostic_center: number; date: string; visit_type: number }): Promise<TimeSlotResponse[]> => {
+    try {
+      const params = {
+        diagnostic_center: requestData.diagnostic_center,
+        date: requestData.date,
+        visit_type: requestData.visit_type
+      };
+
+      console.log("🚀 [API] Fetching Diagnostic Availability:", params);
+
+      const response = await api.get('/api/diagnostic-center/availability/', {
+        params: params
+      });
+
+      console.log("Diagnostic Availability Raw Response:", response.data);
+
+      let rawData: any[] = [];
+      const resVal: any = response.data;
+
+      // Handle response structure similar to CRMLoadTimeSlots
+      if (Array.isArray(resVal)) {
+        rawData = resVal;
+      } else if (resVal && typeof resVal === 'object') {
+        if (Array.isArray(resVal.data)) rawData = resVal.data;
+        else if (Array.isArray(resVal.results)) rawData = resVal.results;
+        else if (Array.isArray(resVal.slots)) rawData = resVal.slots;
+        else if (Array.isArray(resVal.availability)) rawData = resVal.availability;
+      }
+
+      // Format time helper (same as above)
+      const formatTime = (time24: string): string => {
+        if (!time24) return '';
+        const [hoursStr, minutesStr] = time24.split(':');
+        let hours = parseInt(hoursStr, 10);
+        const minutes = minutesStr || '00';
+        const modifier = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12 || 12;
+        return `${hours}:${minutes} ${modifier}`;
+      };
+
+      const mappedSlots = rawData.map((item: any) => {
+        const startTime = item.start_time || item.time || item.startTime;
+        const endTime = item.end_time || item.endTime;
+
+        let displayTime = '';
+        if (startTime) {
+          if (startTime.includes('AM') || startTime.includes('PM')) {
+            displayTime = startTime;
+          } else {
+            displayTime = formatTime(startTime);
+          }
+
+          if (endTime && !displayTime.includes('-')) {
+            if (endTime.includes('AM') || endTime.includes('PM')) {
+              displayTime += ` - ${endTime}`;
+            } else {
+              displayTime += ` - ${formatTime(endTime)}`;
+            }
+          }
+        }
+
+        return {
+          TimeId: item.id || Math.random(),
+          Time: displayTime || startTime || "00:00",
+          TimeZone: true,
+          Date: item.date || requestData.date
+        };
+      }) as TimeSlotResponse[];
+
+      console.log("Mapped Diagnostic Slots:", mappedSlots);
+      return mappedSlots;
+
+    } catch (error: any) {
+      console.error("Error loading diagnostic time slots:", error.response || error);
+      return [];
+    }
+  },
+
   CRMSaveBookAppointmentDetails: async (appointmentData: BookAppointmentRequest): Promise<CRMSaveBookAppointmentResponse> => {
     try {
       // Determine speciality_id

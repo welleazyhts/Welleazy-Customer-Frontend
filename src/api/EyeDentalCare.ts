@@ -448,6 +448,26 @@ export const EyeDentalCareAPI = {
         }
     },
 
+    getDentalCenterAvailability: async (data: { vendor_center: number | string; date: string }): Promise<any> => {
+        try {
+            const response = await api.get('/api/eyedentalcare/dental-center-availability/', { params: data });
+            return response.data;
+        } catch (error) {
+            console.error("Error fetching dental center availability:", error);
+            throw error;
+        }
+    },
+
+    getEyeCenterAvailability: async (data: { vendor_center: number | string; date: string }): Promise<any> => {
+        try {
+            const response = await api.get('/api/eyedentalcare/eye-center-availability/', { params: data });
+            return response.data;
+        } catch (error) {
+            console.error("Error fetching eye center availability:", error);
+            throw error;
+        }
+    },
+
     getDoctorAvailability: async (data: { doctor: number | string; date: string }): Promise<any> => {
         try {
             // Ensure doctor ID is a valid number/string to avoid [object Object]

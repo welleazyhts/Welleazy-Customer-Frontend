@@ -258,13 +258,25 @@ const CommonCartDcAndConsultation: React.FC = () => {
       }
 
 
-      const requestData: TimeSlotRequest = {
-        DCUniqueName: selectedItemForReschedule.DCSelection || "",
-        doctorId: selectedItemForReschedule.DoctorId || 0,
-        TimeZone: timeZoneValue,
-        Date: formattedDate,
-      };
-      const response = await ConsultationAPI.CRMLoadTimeSlots(requestData);
+      let response;
+
+      if (selectedItemForReschedule.type === 'diagnostic') {
+        const requestData = {
+          diagnostic_center: selectedItemForReschedule.DoctorId || 1, // Defaulting to 1 as per user example if missing
+          date: formattedDate,
+          visit_type: 2
+        };
+        console.log('Fetching diagnostic slots:', requestData);
+        response = await ConsultationAPI.CRMLoadDiagnosticTimeSlots(requestData);
+      } else {
+        const requestData: TimeSlotRequest = {
+          DCUniqueName: selectedItemForReschedule.DCSelection || "",
+          doctorId: selectedItemForReschedule.DoctorId || 0,
+          TimeZone: timeZoneValue,
+          Date: formattedDate,
+        };
+        response = await ConsultationAPI.CRMLoadTimeSlots(requestData);
+      }
       console.log('Time slots response:', response);
 
       if (Array.isArray(response)) {

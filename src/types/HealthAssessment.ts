@@ -5,13 +5,13 @@ export interface HealthAssessmentRecordDetails {
   MemberId: number;
   RelationType: number;
   EmployeeName: string;
-  DateOfBirth: string; 
+  DateOfBirth: string;
   Relationship: string;
-  CreatedOn: string;   
+  CreatedOn: string;
   CreatedBy: string;
   IsActive: number;
   IsActiveValue: string;
-   Status: string;
+  Status: string;
   AnsweredCount: number;
   LastAnsweredQuestion: number;
   Action: "Resume" | "View";
@@ -52,7 +52,7 @@ export interface HRACustomerBasicProfileDetailsSave {
 export interface HRACustomerPresentingIllnessDetailsSave {
   HRACustomerPrestingIllnessDetailsId: number;
   HRAGeneralDetailsId: number;
-  Illness: string;
+  Illness: string | string[];
   OtherIllness: string;
   IsActive: number;
   CreatedBy: number;
@@ -176,7 +176,7 @@ export interface HRACustomerWellnessSave {
 
 export interface HRAOutputDetailsRequest {
   HRAOutpuDetailsId: number;
-  EmployeeRefId: number; 
+  EmployeeRefId: number;
   HRAGeneralDetailsId: string;
   CreatedBy: string;
   AssessmentData: {

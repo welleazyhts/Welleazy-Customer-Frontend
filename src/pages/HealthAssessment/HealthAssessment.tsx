@@ -564,16 +564,30 @@ const HealthAssessment: React.FC = () => {
 
     try {
       const createdBy = localStorage.getItem("LoginRefId") || "0";
-      const illnessString = selectedIllnesses.join(', ');
+      setLoading(true);
+
+      // Backend workaround: "presenting_illness" only accepts single choice.
+      // If multiple selected, we send "other" and put the list in "OtherIllness".
+      let illnessPayload = "";
+      let otherIllnessPayload = "";
+
+      if (selectedIllnesses.length > 1) {
+        illnessPayload = "other";
+        otherIllnessPayload = selectedIllnesses.join(',');
+      } else {
+        illnessPayload = selectedIllnesses[0];
+        otherIllnessPayload = "";
+      }
+
       const payload = {
         HRACustomerPrestingIllnessDetailsId: 0,
         HRAGeneralDetailsId: currentAssessmentId || hrageneralDetailsId, // Use currentAssessmentId if resuming
-        Illness: illnessString,
-        OtherIllness: "",
+        Illness: illnessPayload,
+        OtherIllness: otherIllnessPayload,
         IsActive: 0,
         CreatedBy: parseInt(createdBy)
       };
-      setLoading(true);
+
       const response = await HealthAssessmentAPI.CRMInsertUpdateHRACustomerPresentingIllnessDetails(payload);
       if (response) {
         //toast.success("Presenting illness details saved successfully!");
@@ -1353,8 +1367,18 @@ const HealthAssessment: React.FC = () => {
       // Set Presenting Illness
       if (presentingIllness && Array.isArray(presentingIllness) && presentingIllness.length > 0) {
         const pi = presentingIllness[0];
-        if (pi.Illness) {
-          const illnesses = pi.Illness.split(',').map((i: string) => i.trim().toLowerCase());
+
+        // Determine the source of illness list (checking standard and workaround paths)
+        let illnessSource = pi.Illness;
+        // Check if "other" workaround was used (backend might return as presenting_illness_other)
+        const otherIllness = pi.OtherIllness || pi.presenting_illness_other;
+
+        if (pi.Illness === 'other' && otherIllness) {
+          illnessSource = otherIllness;
+        }
+
+        if (illnessSource) {
+          const illnesses = illnessSource.split(',').map((i: string) => i.trim().toLowerCase());
           // Map API illness names to your UI illness names
           const illnessMap: { [key: string]: string } = {
             'cough': 'cough',

@@ -144,6 +144,11 @@ const Pharmacy: React.FC = () => {
       return;
     }
 
+    if (cart?.items?.some((item) => item.medicine.id === medicine.id)) {
+      toast.info("Medicine already Exists in the cart");
+      return;
+    }
+
     setLoadingCart(true);
     try {
       await PharmacyAPI.addToCart(medicine.id, 1);
