@@ -428,25 +428,46 @@ const HealthRecordsAPI = {
 
   // FILTER Methods - In REST these are usually handled via query params on the list endpoint
   GetFilteredTestReports: async (filterData: any): Promise<any[]> => {
-    const data = (await api.get("/api/health-records/", { params: filterData })).data as any;
+    // Mapping internal filter names to API GET parameters
+    const params: any = {
+      record_date: filterData.FromDate || filterData.record_date,
+      for_whom: filterData.for_whom || (filterData.CaseForOption === "1" ? "self" : filterData.CaseForOption === "2" ? "dependant" : ""),
+      search: filterData.SearchKeyword || filterData.search
+    };
+    const data = (await api.get("/api/prescriptions/", { params })).data as any;
     if (Array.isArray(data)) return data;
     return data.results || data.records || [];
   },
 
   GetFilteredHospitalizations: async (filterData: any): Promise<any[]> => {
-    const data = (await api.get("/api/hospitalizations/", { params: filterData })).data as any;
+    const params: any = {
+      record_date: filterData.FromDate || filterData.record_date,
+      for_whom: filterData.for_whom || (filterData.CaseForOption === "1" ? "self" : filterData.CaseForOption === "2" ? "dependant" : ""),
+      search: filterData.SearchKeyword || filterData.search
+    };
+    const data = (await api.get("/api/hospitalizations/", { params })).data as any;
     if (Array.isArray(data)) return data;
     return data.results || data.records || [];
   },
 
   GetFilteredMedicalBills: async (filterData: any): Promise<any[]> => {
-    const data = (await api.get("/api/medical-bills/", { params: filterData })).data as any;
+    const params: any = {
+      record_date: filterData.FromDate || filterData.record_date,
+      for_whom: filterData.for_whom || (filterData.CaseForOption === "1" ? "self" : filterData.CaseForOption === "2" ? "dependant" : ""),
+      search: filterData.SearchKeyword || filterData.search
+    };
+    const data = (await api.get("/api/medical-bills/", { params })).data as any;
     if (Array.isArray(data)) return data;
     return data.results || data.records || [];
   },
 
   GetFilteredVaccinations: async (filterData: any): Promise<any[]> => {
-    const data = (await api.get("/api/vaccination-certificates/", { params: filterData })).data as any;
+    const params: any = {
+      record_date: filterData.FromDate || filterData.record_date,
+      for_whom: filterData.for_whom || (filterData.CaseForOption === "1" ? "self" : filterData.CaseForOption === "2" ? "dependant" : ""),
+      search: filterData.SearchKeyword || filterData.search
+    };
+    const data = (await api.get("/api/vaccination-certificates/", { params })).data as any;
     if (Array.isArray(data)) return data;
     return data.results || data.records || [];
   },

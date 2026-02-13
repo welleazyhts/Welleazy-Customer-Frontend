@@ -253,7 +253,7 @@ const HealthRecords: React.FC = () => {
   const caseForOptions = [
     { value: "", label: "All" },
     { value: "1", label: "Self" },
-    { value: "2", label: "Dependant" },
+    { value: "2", label: "Dependent" },
   ];
 
   const personOptions = [
@@ -409,16 +409,45 @@ const HealthRecords: React.FC = () => {
   // Add this function near your other functions
   const toggleUnit = (vitalName: string) => {
     if (vitalName === "Height") {
+      const isCurrentlyCm = unitToggle.height === "Cm";
       setUnitToggle(prev => ({
         ...prev,
-        height: prev.height === "Cm" ? "Feet" : "Cm"
+        height: isCurrentlyCm ? "Feet" : "Cm"
       }));
 
+      // If currently editing this metric, convert the input value
+      if (editingIndex !== null && vitals[editingIndex].name === "Height") {
+        const val = parseFloat(editedValue);
+        if (!isNaN(val)) {
+          if (isCurrentlyCm) {
+            // Cm to Feet
+            setEditedValue((val / 30.48).toFixed(2));
+          } else {
+            // Feet to Cm
+            setEditedValue((val * 30.48).toFixed(1));
+          }
+        }
+      }
     } else if (vitalName === "Weight") {
+      const isCurrentlyKg = unitToggle.weight === "Kg";
       setUnitToggle(prev => ({
         ...prev,
-        weight: prev.weight === "Kg" ? "Pound" : "Kg"
+        weight: isCurrentlyKg ? "Lbs" : "Kg"
       }));
+
+      // If currently editing this metric, convert the input value
+      if (editingIndex !== null && vitals[editingIndex].name === "Weight") {
+        const val = parseFloat(editedValue);
+        if (!isNaN(val)) {
+          if (isCurrentlyKg) {
+            // Kg to Lbs
+            setEditedValue((val * 2.20462).toFixed(1));
+          } else {
+            // Lbs to Kg
+            setEditedValue((val / 2.20462).toFixed(1));
+          }
+        }
+      }
     }
   };
   // Get display name from user context
@@ -1351,6 +1380,16 @@ const HealthRecords: React.FC = () => {
     }, 300);
   };
 
+  const resetFilters = () => {
+    const defaultFilters = {
+      date: '',
+      caseForOption: '',
+      search: ''
+    };
+    setFilters(defaultFilters);
+    applyFiltersWithValues(defaultFilters);
+  };
+
   // Apply filters with specific filter values
   const applyFiltersWithValues = async (filterValues: typeof filters) => {
     try {
@@ -1359,11 +1398,9 @@ const HealthRecords: React.FC = () => {
       const employeeRefId = user?.employeeRefId || user?.id?.toString() || "0";
 
       const filterData = {
-        FromDate: filterValues.date,
-        ToDate: filterValues.date,
-        CaseForOption: filterValues.caseForOption,
-        SearchKeyword: filterValues.search,
-        EmployeeRefid: employeeRefId
+        record_date: filterValues.date,
+        for_whom: filterValues.caseForOption === "1" ? "self" : filterValues.caseForOption === "2" ? "dependant" : "",
+        search: filterValues.search
       };
 
       // If all filters are empty, just reset to show all records
@@ -1392,106 +1429,61 @@ const HealthRecords: React.FC = () => {
         case "Prescription & Lab Tests":
           response = await HealthRecordsAPI.GetFilteredTestReports(filterData);
 
-          let filteredData: any[] = [];
+          let filteredData: any[] = Array.isArray(response) ? response : (response.results || response.records || []);
 
-          if (Array.isArray(response)) {
-            filteredData = response;
-          } else if (response && response.data && Array.isArray(response.data)) {
-            filteredData = response.data;
-          } else if (response && response.records && Array.isArray(response.records)) {
-            filteredData = response.records;
-          } else if (response && typeof response === 'object') {
-            const arrayKeys = Object.keys(response).filter(key => Array.isArray(response[key]));
-            if (arrayKeys.length > 0) {
-              filteredData = response[arrayKeys[0]];
-            } else {
-              filteredData = [];
-            }
-          } else {
-            filteredData = [];
-          }
+          const mappedRecords: HealthRecord[] = filteredData.map((item: any) => {
+            const labParameters: LabParameter[] = (item.parameters || []).map((param: any) => ({
+              parameterName: param.parameter_name,
+              result: param.result,
+              unit: param.unit,
+              startRange: '',
+              endRange: ''
+            }));
 
-          if (filteredData.length > 0) {
-            const parameters = await HealthRecordsAPI.CRMGetCustomerTestReportParameterDetails(employeeRefId);
+            return {
+              id: item.id,
+              name: item.for_whom === 'self' ? 'Self' : (item.dependant_name || 'Dependent'),
+              relation: item.for_whom === 'self' ? "Self" : "Dependent",
+              type: item.record_type,
+              recordName: item.record_name,
+              doctor: item.doctor_name,
+              recordDate: item.record_date,
+              notes: item.reason,
+              employeeRefId: 0,
+              specialization: item.doctor_specialization?.toString(),
+              uploadedDocName: item.documents?.[0]?.file.split('/').pop() || '',
+              uploadedDocPath: item.documents?.[0]?.file || '',
+              createdOn: item.created_at,
+              updatedOn: item.updated_at,
+              typeOfRecord: item.record_type === 'lab_test' ? 'Medical Report' : 'Doctor Prescription',
+              labParameters: labParameters,
+            };
+          });
 
-            const mappedRecords: HealthRecord[] = filteredData.map((item: any) => {
-              const recordParameters = parameters.filter(param => param.TR_id === item.TR_id);
-
-              const labParameters: LabParameter[] = recordParameters.map((param: any) => ({
-                parameterName: param.ParameterName || '',
-                result: param.Result || '',
-                unit: param.ResultType || param.StartRangeType || '',
-                startRange: param.StartRange || '',
-                endRange: param.EndRange || ''
-              }));
-
-              const relation = item.RelationType === 1 ? "Self" :
-                item.RelationType === 2 ? "Dependent" :
-                  item.Relation || "Self";
-
-              return {
-                id: item.TR_id,
-                name: item.Record_for,
-                relation: relation,
-                type: item.Type_of_Record,
-                recordName: item.RecordName,
-                doctor: item.Record_Doctor_Name,
-                recordDate: item.Record_date,
-                notes: item.Additional_Notes,
-                employeeRefId: item.EmployeeRefId,
-                specialization: item.OtherRecordName || item.DoctorSpecialization || undefined,
-                uploadedDocName: item.UplordDocName,
-                uploadedDocPath: item.UplordDocPath,
-                createdOn: item.CreatedOn,
-                updatedOn: item.UpdatedOn,
-                typeOfRecord: item.Type_of_Record,
-                labParameters: labParameters,
-              };
-            });
-
-            setRecords(mappedRecords);
-          } else {
-            setRecords([]);
-          }
+          setRecords(mappedRecords);
           break;
 
         case "Hospitalizations":
           response = await HealthRecordsAPI.GetFilteredHospitalizations(filterData);
 
-          let hospitalizationData: any[] = [];
-
-          if (Array.isArray(response)) {
-            hospitalizationData = response;
-          } else if (response && response.data && Array.isArray(response.data)) {
-            hospitalizationData = response.data;
-          } else if (response && response.records && Array.isArray(response.records)) {
-            hospitalizationData = response.records;
-          } else if (response && typeof response === 'object') {
-            const arrayKeys = Object.keys(response).filter(key => Array.isArray(response[key]));
-            if (arrayKeys.length > 0) {
-              hospitalizationData = response[arrayKeys[0]];
-            } else {
-              hospitalizationData = [];
-            }
-          }
+          let hospitalizationData: any[] = Array.isArray(response) ? response : (response.results || response.records || []);
 
           const mappedHospitalizations = hospitalizationData.map((item: any) => ({
-            id: item.H_id,
-            recordFor: item.Record_for,
-            recordDate: item.Record_date,
-            recordName: item.RecordName,
-            doctor: item.Record_Doctor_Name,
-            hospital: item.Record_Hospital_Name,
-            type: item.Type_of_Record,
-            notes: item.Additional_Notes,
-            docName: item.UplordDocName,
-            docPath: item.UplordDocPath,
+            id: item.id || item.H_id,
+            recordFor: item.patient_name || (item.for_whom === 'self' ? "Self" : "Dependent"),
+            recordDate: item.admitted_date || item.Record_date,
+            recordName: item.record_name || item.RecordName,
+            doctor: item.doctor_name || item.Record_Doctor_Name,
+            hospital: item.hospital_name || item.Record_Hospital_Name,
+            type: item.hospitalization_type || item.Type_of_Record,
+            notes: item.notes || item.Additional_Notes,
+            docName: item.documents?.[0]?.file.split('/').pop() || item.UplordDocName,
+            docPath: item.documents?.[0]?.file || item.UplordDocPath,
             employeeRefId: item.EmployeeRefId,
-            relation: item.RelationType === 1 ? "Self" :
-              item.RelationType === 2 ? "Dependant" :
-                item.Relation || "Self",
-            createdOn: item.CreatedOn,
-            updatedOn: item.UpdatedOn,
+            relation: item.for_whom === 'self' ? "Self" : "Dependent",
+            createdOn: item.created_at || item.CreatedOn,
+            updatedOn: item.updated_at || item.UpdatedOn,
+            documents: item.documents || []
           }));
 
           setHospitalizationRecords(mappedHospitalizations);
@@ -1500,39 +1492,23 @@ const HealthRecords: React.FC = () => {
         case "Medical Bills":
           response = await HealthRecordsAPI.GetFilteredMedicalBills(filterData);
 
-          let medicalBillData: any[] = [];
-
-          if (Array.isArray(response)) {
-            medicalBillData = response;
-          } else if (response && response.data && Array.isArray(response.data)) {
-            medicalBillData = response.data;
-          } else if (response && response.records && Array.isArray(response.records)) {
-            medicalBillData = response.records;
-          } else if (response && typeof response === 'object') {
-            const arrayKeys = Object.keys(response).filter(key => Array.isArray(response[key]));
-            if (arrayKeys.length > 0) {
-              medicalBillData = response[arrayKeys[0]];
-            } else {
-              medicalBillData = [];
-            }
-          }
+          let medicalBillData: any[] = Array.isArray(response) ? response : (response.results || response.records || []);
 
           const mappedMedicalBills = medicalBillData.map((item: any) => ({
-            id: item.MB_id,
-            recordFor: item.Record_for,
-            recordDate: item.Record_date,
-            recordName: item.RecordName,
-            billNumber: item.Record_Bill_Number,
-            hospital: item.Record_Hospital_Name,
-            type: item.Type_of_Record,
-            docName: item.UplordDocName,
-            docPath: item.UplordDocPath,
+            id: item.id || item.MB_id,
+            recordFor: item.dependant_name || (item.for_whom === 'self' ? "Self" : "Dependent"),
+            recordDate: item.record_date || item.Record_date,
+            recordName: item.record_name || item.RecordName,
+            billNumber: item.record_bill_number || item.Record_Bill_Number,
+            hospital: item.record_hospital_name || item.Record_Hospital_Name,
+            type: item.bill_type || item.Type_of_Record,
+            docName: item.documents?.[0]?.file.split('/').pop() || item.UplordDocName,
+            docPath: item.documents?.[0]?.file || item.UplordDocPath,
             employeeRefId: item.EmployeeRefId,
-            relation: item.RelationType === 1 ? "Self" :
-              item.RelationType === 2 ? "Dependant" :
-                item.Relation || "Self",
-            createdOn: item.CreatedOn,
-            updatedOn: item.UpdatedOn,
+            relation: item.for_whom === 'self' ? "Self" : "Dependent",
+            createdOn: item.created_at || item.CreatedOn,
+            updatedOn: item.updated_at || item.UpdatedOn,
+            documents: item.documents || []
           }));
 
           setMedicalBillRecords(mappedMedicalBills);
@@ -1541,39 +1517,23 @@ const HealthRecords: React.FC = () => {
         case "Vaccinations Certificates":
           response = await HealthRecordsAPI.GetFilteredVaccinations(filterData);
 
-          let vaccinationData: any[] = [];
-
-          if (Array.isArray(response)) {
-            vaccinationData = response;
-          } else if (response && response.data && Array.isArray(response.data)) {
-            vaccinationData = response.data;
-          } else if (response && response.records && Array.isArray(response.records)) {
-            vaccinationData = response.records;
-          } else if (response && typeof response === 'object') {
-            const arrayKeys = Object.keys(response).filter(key => Array.isArray(response[key]));
-            if (arrayKeys.length > 0) {
-              vaccinationData = response[arrayKeys[0]];
-            } else {
-              vaccinationData = [];
-            }
-          }
+          let vaccinationData: any[] = Array.isArray(response) ? response : (response.results || response.records || []);
 
           const mappedVaccinations = vaccinationData.map((item: any) => ({
-            id: item.V_id,
-            recordFor: item.Record_for,
-            recordDate: item.Record_date,
-            recordName: item.RecordName,
-            vaccinationDose: item.Vaccination_dose,
-            vaccinationCenter: item.Vaccination_center,
-            registrationId: item.Registration_id,
-            docName: item.UplordDocName,
-            docPath: item.UplordDocPath,
+            id: item.id || item.V_id,
+            recordFor: item.patient_name || (item.for_whom === 'self' ? "Self" : "Dependent"),
+            recordDate: item.vaccination_date || item.Record_date,
+            recordName: item.vaccination_name || item.RecordName,
+            vaccinationDose: item.vaccination_dose || item.Vaccination_dose,
+            vaccinationCenter: item.vaccination_center || item.Vaccination_center,
+            registrationId: item.registration_id || item.Registration_id,
+            docName: item.documents?.[0]?.file.split('/').pop() || item.UplordDocName,
+            docPath: item.documents?.[0]?.file || item.UplordDocPath,
             employeeRefId: item.EmployeeRefId,
-            relation: item.RelationType === 1 ? "Self" :
-              item.RelationType === 2 ? "Dependant" :
-                item.Relation || "Self",
-            createdOn: item.CreatedOn,
-            updatedOn: item.UpdatedOn,
+            relation: item.for_whom === 'self' ? "Self" : "Dependent",
+            createdOn: item.created_at || item.CreatedOn,
+            updatedOn: item.updated_at || item.UpdatedOn,
+            documents: item.documents || []
           }));
 
           setVaccinationRecords(mappedVaccinations);
@@ -2138,14 +2098,7 @@ const HealthRecords: React.FC = () => {
     setEditingRecordType('');
   };
 
-  // Reset filters
-  const resetFilters = () => {
-    setFilters({
-      date: '',
-      caseForOption: '',
-      search: ''
-    });
-  };
+
 
   // Apply filters
   const applyFilters = async () => {
@@ -2554,9 +2507,14 @@ const HealthRecords: React.FC = () => {
           break;
 
         case "Weight":
+          let weightUnit = unitLabel || "kg";
+          // Helper to map UI label "Lbs" to backend value "pound"
+          if (weightUnit.toLowerCase() === "lbs" || weightUnit.toLowerCase() === "pound") {
+            weightUnit = "pound";
+          }
           response = await HealthRecordsAPI.createWeight({
             value: numericValue,
-            unit: getChoiceValue(['unit', 'weight'], unitLabel || "kg", "kg")
+            unit: getChoiceValue(['unit', 'weight'], weightUnit, "kg")
           });
           break;
 
@@ -2611,9 +2569,26 @@ const HealthRecords: React.FC = () => {
   };
 
   // Handle edit vital
-  // Update handleEdit function
   const handleEdit = (index: number) => {
     const vital = vitals[index];
+
+    // Extract unit from the value to sync the toggle
+    const parts = vital.value.split(' ');
+    const unit = (parts[1] || "").toLowerCase();
+
+    if (vital.name === "Weight") {
+      if (unit === "lbs" || unit === "pound") {
+        setUnitToggle(prev => ({ ...prev, weight: "Lbs" }));
+      } else {
+        setUnitToggle(prev => ({ ...prev, weight: "Kg" }));
+      }
+    } else if (vital.name === "Height") {
+      if (unit === "feet" || unit === "ft") {
+        setUnitToggle(prev => ({ ...prev, height: "Feet" }));
+      } else {
+        setUnitToggle(prev => ({ ...prev, height: "Cm" }));
+      }
+    }
 
     // Extract just the numeric value
     const numericValue = parseFloat(vital.value).toString();
@@ -4381,11 +4356,11 @@ const HealthRecords: React.FC = () => {
                           }}
                           title={`Switch to ${vital.name === "Height" ?
                             (unitToggle.height === "Cm" ? "Feet" : "Cm") :
-                            (unitToggle.weight === "Kg" ? "Pound" : "Kg")}`}
+                            (unitToggle.weight === "Kg" ? "Lbs" : "Kg")}`}
                         >
                           {vital.name === "Height" ?
                             (unitToggle.height === "Cm" ? "Cm ↔ Feet" : "Feet ↔ Cm") :
-                            (unitToggle.weight === "Kg" ? "Kg ↔ Pound" : "Pound ↔ Kg")}
+                            (unitToggle.weight === "Kg" ? "Kg ↔ Lbs" : "Lbs ↔ Kg")}
                         </button>
                       )}
                     </div>
@@ -4413,8 +4388,26 @@ const HealthRecords: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    <p className="vital-value">
-                      {vital.value.split(' ')[0]} {vital.name === "Height" ? unitToggle.height : vital.name === "Weight" ? unitToggle.weight : vital.value.split(' ')[1]}
+                    <p className="vital-value" style={{ fontSize: vital.name === "Weight" || vital.name === "Height" ? '1.1rem' : '1.5rem', fontWeight: 'bold' }}>
+                      {vital.name === "Weight" && vital.value !== "N/A" ? (
+                        <>
+                          {vital.value.toLowerCase().includes('kg') ? (
+                            `${vital.value.split(' ')[0]} Kg / ${(parseFloat(vital.value) * 2.20462).toFixed(1)} Lbs`
+                          ) : (
+                            `${(parseFloat(vital.value) / 2.20462).toFixed(1)} Kg / ${vital.value.split(' ')[0]} Lbs`
+                          )}
+                        </>
+                      ) : vital.name === "Height" && vital.value !== "N/A" ? (
+                        <>
+                          {vital.value.toLowerCase().includes('cm') ? (
+                            `${vital.value.split(' ')[0]} Cm / ${(parseFloat(vital.value) / 30.48).toFixed(2)} Feet`
+                          ) : (
+                            `${(parseFloat(vital.value) * 30.48).toFixed(1)} Cm / ${vital.value.split(' ')[0]} Feet`
+                          )}
+                        </>
+                      ) : (
+                        vital.value
+                      )}
                     </p>
                     <p className="last-updated">
                       Last updated: {vital.lastUpdated}
@@ -4442,6 +4435,45 @@ const HealthRecords: React.FC = () => {
       </div>
 
 
+
+      {/* Filter Bar */}
+      <div className="Health-records-filters-section">
+        <div className="Health-records-filter-container">
+          <div className="Health-records-filter-item search-filter">
+            <Input
+              type="text"
+              placeholder="Search records (Doctor, Record Name...)"
+              value={filters.search}
+              onChange={(e) => handleFilterChange("search", e.target.value)}
+              className="filter-search-input"
+            />
+          </div>
+          <div className="Health-records-filter-item date-filter">
+            <Input
+              type="date"
+              value={filters.date}
+              onChange={(e) => handleFilterChange("date", e.target.value)}
+              className="filter-date-input"
+              placeholder="dd-mm-yyyy"
+            />
+          </div>
+          <div className="Health-records-filter-item dropdown-filter">
+            <Select
+              options={caseForOptions}
+              value={caseForOptions.find(opt => opt.value === filters.caseForOption)}
+              onChange={(selected) => handleFilterChange("caseForOption", selected?.value || "")}
+              placeholder="All"
+              className="filter-select"
+              classNamePrefix="react-select"
+            />
+          </div>
+          <div className="Health-records-filter-item reset-filter">
+            <button className="reset-filter-btn" onClick={resetFilters}>
+              Reset Filters
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Tabs */}
       <div className="Health-tabs-container">

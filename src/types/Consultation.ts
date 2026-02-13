@@ -80,8 +80,8 @@ export interface Appointment {
 }
 
 export interface TimeSlotRequest {
-  DCUniqueName: string;
-  TimeZone: number;
+  DCUniqueName?: string;
+  TimeZone?: number;
   doctorId?: number | undefined;
   Date: string;
 }

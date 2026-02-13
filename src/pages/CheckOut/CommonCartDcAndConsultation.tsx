@@ -270,10 +270,8 @@ const CommonCartDcAndConsultation: React.FC = () => {
         response = await ConsultationAPI.CRMLoadDiagnosticTimeSlots(requestData);
       } else {
         const requestData: TimeSlotRequest = {
-          DCUniqueName: selectedItemForReschedule.DCSelection || "",
           doctorId: selectedItemForReschedule.DoctorId || 0,
-          TimeZone: timeZoneValue,
-          Date: formattedDate,
+          Date: formattedDate
         };
         response = await ConsultationAPI.CRMLoadTimeSlots(requestData);
       }
